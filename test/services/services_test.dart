@@ -38,16 +38,6 @@ class Dev {
     final secrets = MemorySecretStore();
     final identity = (await existing.keys.ensureDevice(existing.uid)).identity;
     final dk = await DeviceKeys.generate();
-    final bundle = await dk.certify(identity, existing.uid);
-    await db
-        .collection('users')
-        .doc(existing.uid)
-        .collection('devices')
-        .doc(dk.deviceId)
-        .set({
-          ...bundle.toFirestore(),
-          'createdAt': FieldValue.serverTimestamp(),
-        });
     final d = Dev(
       db,
       existing.uid,
@@ -55,7 +45,7 @@ class Dev {
       KeyService(db, secrets),
       MemoryMessageStore(),
     );
-    await d._init(LocalDevice(identity, dk, bundle));
+    await d._init(await d.keys.installDevice(existing.uid, identity, dk));
     return d;
   }
 
