@@ -1,0 +1,4 @@
+# Tests that assert on real elapsed time fail when the machine is busy.
+# Tag them `timing`; CI and scripts/check.sh run them alone, one at a time.
+tags:
+  timing:

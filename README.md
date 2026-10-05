@@ -27,8 +27,7 @@ Install [Flutter](https://docs.flutter.dev/get-started/install) (the version pin
 
 ```sh
 flutter pub get
-flutter analyze
-TZ=UTC flutter test --concurrency=1
+scripts/check.sh   # format, analyze, layer check and all tests
 ```
 
 To run the app against a local backend, and for Android and iOS builds, see [docs/development/setup.md](docs/development/setup.md).

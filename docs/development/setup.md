@@ -7,7 +7,7 @@ on macOS for iOS). Android requires API 26 or newer. Then run:
 flutter pub get
 flutter analyze
 dart format --output=none --set-exit-if-changed lib test scripts
-TZ=UTC flutter test --concurrency=1
+scripts/check.sh   # format, analyze, layer check and all tests (`quick` skips the tests)
 flutter build apk --debug
 ```
 

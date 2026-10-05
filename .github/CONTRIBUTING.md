@@ -16,7 +16,7 @@ Bug fixes and tests are the most welcome contributions: widget and service tests
 - Keep it small and focused, with the reason in the description.
 - Do not commit passwords, keys, signing material, recovery codes, service-account files or real user data.
 - Do not change cryptographic wire formats, key handling or authentication without a design discussion, a note in `docs/decisions/` and tests.
-- Run `python3 scripts/check_layout.py .`, `flutter analyze`, `dart format` and `TZ=UTC flutter test --concurrency=1`. If something cannot run locally, say why.
+- Run `scripts/check.sh` (format, analyze, layer check and all tests; `scripts/check.sh quick` skips the tests). If something cannot run locally, say why.
 - UI changes need a screenshot or a short recording.
 - If an AI tool helped, say so and follow the [AI usage policy](AI_POLICY.md).
 

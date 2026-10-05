@@ -19,7 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../scripts/render/render_screens_test.dart' show loadFonts;
 import '../support/ui_fixture.dart';
 
-const sizes = [
+const accessibilitySizes = [
   Size(320, 640),
   Size(375, 812),
   Size(430, 932),
@@ -55,7 +55,8 @@ Future<void> pump(
   await settleUi(t);
 }
 
-void main() {
+/// The screen matrix for the given sizes, one test per size, brightness and scale.
+void defineAccessibilityMatrix(List<Size> sizes) {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUpAll(loadFonts);
   for (final size in sizes) {
@@ -155,6 +156,12 @@ void main() {
       }
     }
   }
+}
+
+/// Dialog reachability at 3x text and tap-target / contrast guidelines.
+void defineAccessibilityGuidelines() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(loadFonts);
   for (final brightness in Brightness.values) {
     testWidgets(
       '3x signup and safety dialog actions remain reachable $brightness',
