@@ -1,6 +1,6 @@
 import 'package:cryptography/cryptography.dart';
 
-import 'codec.dart';
+import 'package:fireplace/src/crypto/codec.dart';
 
 /// Consistency checks for key material loaded from storage. A length check only proves
 /// a value has the right size; these prove the public and private halves belong together,

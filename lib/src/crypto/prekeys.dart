@@ -3,10 +3,10 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:pqcrypto/pqcrypto.dart';
 
-import 'codec.dart';
-import 'device.dart';
-import 'identity.dart';
-import 'key_checks.dart';
+import 'package:fireplace/src/crypto/codec.dart';
+import 'package:fireplace/src/crypto/device.dart';
+import 'package:fireplace/src/crypto/identity.dart';
+import 'package:fireplace/src/crypto/key_checks.dart';
 
 /// Private + public half of one prekey (X25519 + ML-KEM-768). Kept only on the device.
 class PreKeyRecord {

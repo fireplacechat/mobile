@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 
-import 'presentation.dart';
-import 'chat_appearance.dart';
-import 'legal_links.dart';
+import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/view/settings/chat_appearance.dart';
+import 'package:fireplace/src/view/settings/legal_links.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../app/providers.dart';
-import '../crypto/fingerprint.dart';
-import 'account_deletion_screens.dart';
-import 'devices_screen.dart';
-import '../services/push_notification_service.dart';
-import 'recovery_screens.dart';
-import 'safety_ui.dart';
-import 'design_tokens.dart';
-import 'chat_activity.dart';
+import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/crypto/fingerprint.dart';
+import 'package:fireplace/src/view/account/account_deletion_screens.dart';
+import 'package:fireplace/src/view/devices/devices_screen.dart';
+import 'package:fireplace/src/model/push/push_notification_service.dart';
+import 'package:fireplace/src/ui/recovery_screens.dart';
+import 'package:fireplace/src/ui/safety_ui.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/ui/chat_activity.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});

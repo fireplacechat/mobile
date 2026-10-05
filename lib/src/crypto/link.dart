@@ -4,9 +4,9 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:pqcrypto/pqcrypto.dart';
 
-import 'codec.dart';
-import 'device.dart';
-import 'identity.dart';
+import 'package:fireplace/src/crypto/codec.dart';
+import 'package:fireplace/src/crypto/device.dart';
+import 'package:fireplace/src/crypto/identity.dart';
 
 class LinkException implements Exception {
   LinkException(this.message);

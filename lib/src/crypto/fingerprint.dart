@@ -1,6 +1,6 @@
 import 'package:cryptography/cryptography.dart';
 
-import 'codec.dart';
+import 'package:fireplace/src/crypto/codec.dart';
 
 /// Short fingerprint of one account identity (hex, grouped).
 Future<String> identityFingerprint(List<int> identityPub) async {

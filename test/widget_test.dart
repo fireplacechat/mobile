@@ -1,7 +1,7 @@
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/ui/app.dart';
-import 'package:fireplace/src/ui/logo.dart';
-import 'package:fireplace/src/ui/lockup.dart';
+import 'package:fireplace/src/app.dart';
+import 'package:fireplace/src/styles/brand/logo.dart';
+import 'package:fireplace/src/styles/brand/lockup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';

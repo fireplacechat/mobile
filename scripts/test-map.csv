@@ -1,0 +1,96 @@
+current_path,action,new_path,note
+integration_test/e2e_test.dart,keep,integration_test/e2e_test.dart,
+test/chat_ui/activity_test.dart,move,test/view/notifications/activity_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui/adversarial_widget_test.dart,move,test/view/chat/chat_edge_cases_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui/features_widget_test.dart,move,test/view/chat/chat_features_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui/local_preferences_test.dart,move,test/db/local_preferences_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui/long_press_menu_test.dart,move,test/view/chat/long_press_menu_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui/message_actions_adversarial_test.dart,move,test/view/chat/message_actions_edge_cases_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui/message_format_test.dart,move,test/model/chat/message_markup_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui/pending_sends_test.dart,move,test/view/chat/pending_sends_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui/search_test.dart,move,test/view/search/search_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui_review/message_limits_service_test.dart,move,test/model/chat/message_limits_service_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui_review/message_limits_test.dart,move,test/model/chat/message_limits_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui_review/owner_decisions_widget_test.dart,move,test/view/chat/owner_decisions_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui_review/preferences_migration_test.dart,move,test/db/preferences_migration_test.dart,"named by what it tests, not by which review found it"
+test/chat_ui_review/safety_streams_test.dart,move,test/model/safety/safety_streams_test.dart,"named by what it tests, not by which review found it"
+test/crypto/codec_u64_test.dart,keep,test/crypto/codec_u64_test.dart,protocol tests mirror lib/src/crypto
+test/crypto/crypto_test.dart,keep,test/crypto/crypto_test.dart,protocol tests mirror lib/src/crypto
+test/crypto/hardening_test.dart,keep,test/crypto/hardening_test.dart,protocol tests mirror lib/src/crypto
+test/crypto/key_consistency_test.dart,keep,test/crypto/key_consistency_test.dart,protocol tests mirror lib/src/crypto
+test/crypto/nist_vectors_test.dart,keep,test/crypto/nist_vectors_test.dart,protocol tests mirror lib/src/crypto
+test/crypto/protocol_property_test.dart,keep,test/crypto/protocol_property_test.dart,protocol tests mirror lib/src/crypto
+test/crypto/ratchet_test.dart,keep,test/crypto/ratchet_test.dart,protocol tests mirror lib/src/crypto
+test/crypto/recovery_link_test.dart,keep,test/crypto/recovery_link_test.dart,protocol tests mirror lib/src/crypto
+test/crypto/session_delivery_property_test.dart,keep,test/crypto/session_delivery_property_test.dart,protocol tests mirror lib/src/crypto
+test/crypto/wycheproof_test.dart,keep,test/crypto/wycheproof_test.dart,protocol tests mirror lib/src/crypto
+test/flutter_test_config.dart,keep,test/flutter_test_config.dart,
+test/review/legal_clipboard_lifecycle_test.dart,move,test/view/settings/legal_links_clipboard_test.dart,"named by what it tests, not by which review found it"
+test/review/phase6_review_followup_test.dart,move,test/view/recovery/recovery_key_copy_test.dart,"named by what it tests, not by which review found it"
+test/review/r01_requests_only_list_test.dart,move,test/view/chat_list/requests_only_list_test.dart,"named by what it tests, not by which review found it"
+test/review/r02_startup_matches_native_test.dart,move,test/app/startup_matches_native_test.dart,"named by what it tests, not by which review found it"
+test/review/r02b_ios_launch_dark_test.dart,move,test/app/ios_launch_dark_test.dart,"named by what it tests, not by which review found it"
+test/review/r03_send_scrolls_to_latest_test.dart,move,test/view/chat/send_scrolls_to_latest_test.dart,"named by what it tests, not by which review found it"
+test/review/r04_bubble_semantics_test.dart,move,test/view/chat/bubble_semantics_test.dart,"named by what it tests, not by which review found it"
+test/review/r05_auth_focus_test.dart,move,test/view/auth/auth_focus_test.dart,"named by what it tests, not by which review found it"
+test/review/r06_color_swatches_test.dart,move,test/view/settings/color_swatches_test.dart,"named by what it tests, not by which review found it"
+test/review/r07_colors_reset_on_account_change_test.dart,move,test/view/settings/colors_reset_on_account_change_test.dart,"named by what it tests, not by which review found it"
+test/review/r08_legal_links_in_app_test.dart,move,test/view/settings/legal_links_test.dart,"named by what it tests, not by which review found it"
+test/review/r09_send_error_privacy_test.dart,move,test/view/chat/send_error_privacy_test.dart,"named by what it tests, not by which review found it"
+test/review/r10_polish_test.dart,move,test/view/chat/request_banner_and_preview_test.dart,"named by what it tests, not by which review found it"
+test/review_chat_ui/c01_format_is_linear_test.dart,move,test/model/chat/message_markup_performance_test.dart,"named by what it tests, not by which review found it"
+test/review_chat_ui/c02_forward_not_trapped_test.dart,move,test/view/chat/forward/forward_can_be_left_test.dart,"named by what it tests, not by which review found it"
+test/review_chat_ui/c03_preferences_and_search_test.dart,move,test/db/preferences_key_and_search_folding_test.dart,"named by what it tests, not by which review found it"
+test/review_message_actions/e01_definite_publish_failure_test.dart,move,test/model/chat/definite_publish_failure_test.dart,"named by what it tests, not by which review found it"
+test/review_message_actions/e02_focus_ring_test.dart,move,test/view/chat/focus_ring_test.dart,"named by what it tests, not by which review found it"
+test/review_message_actions/e03_forward_refusal_wording_test.dart,move,test/view/chat/forward/forward_refusal_wording_test.dart,"named by what it tests, not by which review found it"
+test/rules_fixture_test.dart,keep,test/rules_fixture_test.dart,
+test/services/account_deletion_test.dart,move,test/model/account/account_deletion_test.dart,mirrors model/ and db/
+test/services/activity_service_test.dart,move,test/model/account/activity_service_test.dart,mirrors model/ and db/
+test/services/chat_simulation_test.dart,move,test/model/chat/chat_simulation_test.dart,mirrors model/ and db/
+test/services/durability_test.dart,move,test/model/chat/durability_test.dart,mirrors model/ and db/
+test/services/encrypted_store_edge_test.dart,move,test/db/encrypted_store_edge_test.dart,mirrors model/ and db/
+test/services/encrypted_store_test.dart,move,test/db/encrypted_store_test.dart,mirrors model/ and db/
+test/services/pacing_test.dart,move,test/model/chat/pacing_test.dart,mirrors model/ and db/
+test/services/prekey_test.dart,move,test/model/keys/prekey_test.dart,mirrors model/ and db/
+test/services/push_notification_service_test.dart,move,test/model/push/push_notification_service_test.dart,mirrors model/ and db/
+test/services/recovery_test.dart,move,test/model/keys/recovery_test.dart,mirrors model/ and db/
+test/services/reliability_test.dart,move,test/model/chat/reliability_test.dart,mirrors model/ and db/
+test/services/safety_test.dart,move,test/model/safety/safety_test.dart,mirrors model/ and db/
+test/services/send_outcome_test.dart,move,test/model/chat/send_outcome_test.dart,mirrors model/ and db/
+test/services/services_test.dart,move,test/model/chat/chat_service_test.dart,mirrors model/ and db/
+test/services/storage_durability_regression_test.dart,move,test/db/storage_durability_regression_test.dart,mirrors model/ and db/
+test/services/stored_state_test.dart,move,test/db/stored_state_test.dart,mirrors model/ and db/
+test/services/sync_paging_test.dart,move,test/model/chat/sync_paging_test.dart,mirrors model/ and db/
+test/services/verify_payload_edge_test.dart,move,test/model/keys/verify_payload_edge_test.dart,mirrors model/ and db/
+test/spike/pq_library_spike_test.dart,review,test/spike/pq_library_spike_test.dart,a one-off spike: delete if unused
+test/support/account_fixture.dart,keep,test/support/account_fixture.dart,shared fixtures (ui_fixture.dart may be split by feature later)
+test/support/prekey_helpers.dart,keep,test/support/prekey_helpers.dart,shared fixtures (ui_fixture.dart may be split by feature later)
+test/support/ui_fixture.dart,keep,test/support/ui_fixture.dart,shared fixtures (ui_fixture.dart may be split by feature later)
+test/ui/account_action_feedback_test.dart,move,test/view/account/account_action_feedback_test.dart,"named by what it tests, not by which review found it"
+test/ui/account_deletion_ui_test.dart,move,test/view/account/account_deletion_test.dart,"named by what it tests, not by which review found it"
+test/ui/auth_error_test.dart,move,test/app/auth_error_test.dart,"named by what it tests, not by which review found it"
+test/ui/auth_screen_age_test.dart,move,test/view/auth/auth_screen_age_test.dart,"named by what it tests, not by which review found it"
+test/ui/chat_appearance_test.dart,move,test/view/settings/chat_appearance_test.dart,"named by what it tests, not by which review found it"
+test/ui/chat_list_discovery_test.dart,move,test/view/chat_list/chat_list_discovery_test.dart,"named by what it tests, not by which review found it"
+test/ui/chat_screen_existing_behavior_test.dart,move,test/view/chat/chat_screen_test.dart,"named by what it tests, not by which review found it"
+test/ui/identity_alert_ui_test.dart,move,test/view/chat/identity_alert_test.dart,"named by what it tests, not by which review found it"
+test/ui/logo_test.dart,move,test/styles/logo_test.dart,"named by what it tests, not by which review found it"
+test/ui/message_not_confirmed_test.dart,move,test/view/chat/message_not_confirmed_test.dart,"named by what it tests, not by which review found it"
+test/ui/recovery_ui_test.dart,move,test/view/recovery/recovery_ui_test.dart,"named by what it tests, not by which review found it"
+test/ui/safety_action_feedback_test.dart,move,test/view/safety/safety_action_feedback_test.dart,"named by what it tests, not by which review found it"
+test/ui/safety_ui_test.dart,move,test/view/safety/safety_ui_test.dart,"named by what it tests, not by which review found it"
+test/ui/send_action_feedback_test.dart,move,test/view/chat/send_action_feedback_test.dart,"named by what it tests, not by which review found it"
+test/ui/settings_licences_test.dart,move,test/view/settings/licences_test.dart,"named by what it tests, not by which review found it"
+test/ui/splash_test.dart,move,test/app/splash_test.dart,"named by what it tests, not by which review found it"
+test/ui/startup_layout_test.dart,move,test/app/startup_layout_test.dart,"named by what it tests, not by which review found it"
+test/ui/startup_state_test.dart,move,test/app/startup_state_test.dart,"named by what it tests, not by which review found it"
+test/ui/timeline_composer_test.dart,move,test/view/chat/timeline_composer_test.dart,"named by what it tests, not by which review found it"
+test/ui/trust_ui_test.dart,move,test/view/safety/trust_ui_test.dart,"named by what it tests, not by which review found it"
+test/widget_test.dart,keep,test/widget_test.dart,
+test/services/account_contact_trust_test.dart,move,test/model/keys/account_contact_trust_test.dart,from PR #1
+test/services/device_readiness_test.dart,move,test/model/keys/device_readiness_test.dart,from PR #4
+test/services/history_stream_errors_test.dart,move,test/db/history_stream_errors_test.dart,from PR #2
+test/services/chat_shutdown_test.dart,move,test/model/chat/chat_shutdown_test.dart,from PR #3
+test/services/session_lifecycle_test.dart,move,test/model/common/session_lifecycle_test.dart,from PR #3
+test/ui/accessibility_layout_matrix_test.dart,move,test/app/accessibility_layout_matrix_test.dart,Existing matrix remains whole; imports and location only

@@ -14,15 +14,18 @@ Flutter is pinned in `pubspec.yaml` (`environment: flutter:`); use that version.
 flutter pub get
 flutter analyze                       # must be clean
 dart format --output=none --set-exit-if-changed lib test scripts
-TZ=UTC flutter test --concurrency=1   # serial: services/pacing_test.dart measures real time and flakes in parallel
+TZ=UTC flutter test --concurrency=1   # serial: model/chat/pacing_test.dart measures real time and flakes in parallel
 TZ=UTC flutter test scripts/render/render_screens_test.dart   # screen previews; output must be byte-identical across runs
 scripts/check_apk.sh <apk>               # permissions, backup, signer; scripts/test_check_apk.sh tests the checker
 ```
 Run `flutter analyze` and `dart format` on every file you touch, tests included, before you finish. Both checks must pass.
 
 ## Layout
-`lib/src/crypto/` protocol, keys, ratchet (change only with design notes and tests) · `lib/src/services/` Firebase, devices, messages, local storage ·
-`lib/src/app/` providers and session · `lib/src/ui/` screens and widgets · `docs/` contributor documentation and design decisions. Backend rules/operator tooling and website/legal sources are maintained separately in private repositories.
+`lib/src/crypto/` protocol, keys and ratchet · `lib/src/model/<feature>/` logic and Firebase access ·
+`lib/src/db/` local storage · `lib/src/view/<feature>/` screens · `lib/src/styles/` design · `lib/src/widgets/` shared widgets.
+`lib/src/app.dart` selects the first screen. Composite files temporarily remain in `services/`, `ui/` and `app/` until extracted.
+See [architecture](docs/architecture.md); run `python3 scripts/check_layout.py .` to check migrated layers.
+Backend rules/operator tooling and website/legal sources are maintained separately in private repositories.
 
 ## Rules that are not negotiable
 - **Privacy first.** No analytics, no crash reporting, no tracking, no third-party SDKs that phone home. Features that need message text (search,
@@ -35,7 +38,7 @@ Run `flutter analyze` and `dart format` on every file you touch, tests included,
 - **The owner deploys production.** Firebase deploys, store submissions, signing and publishing the website are done by the owner, never by an assistant.
 - **Public wording** (website, README, store text) is shown to the owner before it is published. Plain, short, neutral. No founder name, no
   commentary about weaknesses, no competitor mentions on the main site, no claim that an audit has finished.
-- **Message limit:** 16,384 characters, counted as Unicode characters (`lib/src/services/message_limits.dart`).
+- **Message limit:** 16,384 characters, counted as Unicode characters (`lib/src/model/chat/message_limits.dart`).
 
 ## Code conventions
 Short version; the details and reasons are in [docs/development/coding-style.md](docs/development/coding-style.md).
@@ -58,7 +61,7 @@ Short version; the details and reasons are in [docs/development/coding-style.md]
   store), not the service as a whole. `UiFixture` (`test/support/ui_fixture.dart`) is for layout and interaction tests.
 - Widget tests wait for isolates with `tester.runAsync`; dialogs need `ensureVisible` before taps; use `pumpAndSettle` after navigation.
 - UI changes need a screenshot or the render output from `scripts/render/` in the pull request.
-- The randomized chat simulation (`test/services/chat_simulation_test.dart`) and the rules tests protect the protocol; keep them green.
+- The randomized chat simulation (`test/model/chat/chat_simulation_test.dart`) and the rules tests protect the protocol; keep them green.
 
 ## Working together
 - Humans and AI tools both work here. **Disclose AI assistance** in the pull request ([AI_POLICY.md](AI_POLICY.md)); a human must understand and be able to

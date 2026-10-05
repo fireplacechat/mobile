@@ -7,8 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
-import '../../fireplace_services.dart';
-import '../services/local_chat_preferences.dart';
+import 'package:fireplace/fireplace_services.dart';
+import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 
 final authProvider = Provider<FirebaseAuth>((_) => FirebaseAuth.instance);
 final firestoreProvider = Provider<FirebaseFirestore>(

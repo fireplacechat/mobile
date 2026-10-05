@@ -2,6 +2,7 @@
 
 | Folder | Contents |
 |---|---|
+| [architecture.md](architecture.md) | feature layout, dependencies and remaining extraction steps |
 | [development/](development/) | set up, coding style, CI, Android release notes, optional stricter lint config |
 | [protocol/](protocol/) | threat model, crypto evaluation notes, account deletion |
 | [decisions/](decisions/) | numbered design decisions (0001 onward): why each choice was made |

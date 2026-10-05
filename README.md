@@ -37,7 +37,7 @@ To run the app against a local backend, and for Android and iOS builds, see [doc
 
 | Path | What it holds |
 |---|---|
-| `lib/` | the app: `src/crypto` (protocol), `src/services` (storage, networking), `src/app` (providers, session), `src/ui` (screens and widgets) |
+| `lib/` | the app: `src/crypto` (protocol), `src/model` (feature logic), `src/db` (storage), `src/view` (screens), `src/styles` and `src/widgets` (design); legacy composites remain until extracted |
 | `test/`, `integration_test/` | unit, widget, simulation and integration tests; protocol test vectors in `test/vectors` |
 | `android/`, `ios/` | platform projects |
 | `assets/` | icons and artwork bundled in the app |

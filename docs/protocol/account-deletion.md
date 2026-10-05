@@ -1,6 +1,6 @@
 # Account deletion
 
-Apple's App Review Guideline 5.1.1(v) requires apps that let people create an account to let them delete it **inside the app**. In Fireplace: **Settings → Delete account**. It asks the user to type their username and re-enter their password, then runs `AccountService.deleteAccount` (`lib/src/services/account_service.dart`).
+Apple's App Review Guideline 5.1.1(v) requires apps that let people create an account to let them delete it **inside the app**. In Fireplace: **Settings → Delete account**. It asks the user to type their username and re-enter their password, then runs `AccountService.deleteAccount` (`lib/src/model/account/account_service.dart`).
 
 ## What is deleted
 | Data | Where | How |

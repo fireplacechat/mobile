@@ -4,16 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../services/local_messages.dart';
-import 'design_tokens.dart';
-import 'chat_colors.dart';
-import 'lockup.dart';
-import 'message_format.dart';
-import 'message_actions.dart';
+import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/styles/chat_colors.dart';
+import 'package:fireplace/src/styles/brand/lockup.dart';
+import 'package:fireplace/src/ui/message_format.dart';
+import 'package:fireplace/src/view/chat/message_actions.dart';
 
 import 'package:flutter/semantics.dart';
 
-import '../services/message_limits.dart';
+import 'package:fireplace/src/model/chat/message_limits.dart';
 
 /// Enlarged titles fit normally; a nearly full-screen keyboard compacts chrome.
 class UiAppBar extends AppBar {
