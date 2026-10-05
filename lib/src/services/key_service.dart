@@ -50,12 +50,44 @@ class KeyService {
   KeyService(this._db, this._store);
   final FirebaseFirestore _db;
   final SecretStore _store;
+  String? _accountUid;
+  AccountIdentity? _localIdentity;
+
+  void _bindAccount(String uid) {
+    if (_accountUid != null && _accountUid != uid) {
+      throw StateError('Use a separate key service for each account.');
+    }
+    _accountUid = uid;
+  }
+
+  /// Bind a session's already-loaded local device to its account context.
+  /// Recovery/linking and session restarts may hand a certified device directly
+  /// to ChatService rather than reloading it from storage.
+  void bindLocalDevice(String uid, LocalDevice device) {
+    _bindAccount(uid);
+    if (_localIdentity != null &&
+        !bytesEqual(_localIdentity!.publicBytes, device.identity.publicBytes)) {
+      throw StateError(
+        'Use a new key service when replacing the local identity.',
+      );
+    }
+    _localIdentity = device.identity;
+  }
+
+  String _trustKey(String kind, String peerUid) {
+    final uid = _accountUid;
+    if (uid == null || _localIdentity == null) {
+      throw StateError('Load the local identity before using contact trust.');
+    }
+    return '$kind:account:${jsonEncode([uid, peerUid])}';
+  }
 
   CollectionReference<Map<String, dynamic>> _devices(String uid) =>
       _db.collection('users').doc(uid).collection('devices');
 
   /// Loads this device's keys, or generates and publishes them on first run.
   Future<LocalDevice> ensureDevice(String uid) async {
+    _bindAccount(uid);
     final idJson = await _store.read('identity:$uid');
     final devJson = await _store.read('device:$uid');
     final bundleJson = await _store.read('bundle:$uid');
@@ -89,6 +121,7 @@ class KeyService {
       if (mine.exists && mine.data()?['revokedAt'] != null) {
         throw DeviceRevokedException();
       }
+      _localIdentity = identity;
       return LocalDevice(identity, keys, bundle);
     }
     if (idJson != null || devJson != null) {
@@ -111,6 +144,7 @@ class KeyService {
     AccountIdentity identity,
     DeviceKeys keys,
   ) async {
+    _bindAccount(uid);
     final bundle = await keys.certify(identity, uid);
     // Persist locally BEFORE publishing so a crash can't orphan a published device.
     await _store.write('identity:$uid', jsonEncode(identity.toJson()));
@@ -120,6 +154,7 @@ class KeyService {
       ...bundle.toFirestore(),
       'createdAt': FieldValue.serverTimestamp(),
     });
+    _localIdentity = identity;
     return LocalDevice(identity, keys, bundle);
   }
 
@@ -160,10 +195,10 @@ class KeyService {
   // ------------------------------------------------------------- identity pins
 
   Future<void> _checkPin(String peerUid, List<int> identityPub) async {
-    final pinned = await _store.read('pin:$peerUid');
+    final pinned = await _store.read(_trustKey('pin', peerUid));
     if (pinned == null) {
       await _store.write(
-        'pin:$peerUid',
+        _trustKey('pin', peerUid),
         b64(identityPub),
       ); // trust on first use
     } else if (!bytesEqual(unb64(pinned), identityPub)) {
@@ -172,29 +207,45 @@ class KeyService {
   }
 
   Future<List<int>?> pinnedIdentity(String peerUid) async {
-    final p = await _store.read('pin:$peerUid');
+    final p = await _store.read(_trustKey('pin', peerUid));
     return p == null ? null : unb64(p);
   }
 
   /// The user explicitly accepted a changed identity (e.g. after re-verifying).
   Future<void> acceptIdentityChange(String peerUid, List<int> identityPub) =>
-      _store.write('pin:$peerUid', b64(identityPub));
+      _store.write(_trustKey('pin', peerUid), b64(identityPub));
 
   // ------------------------------------------------------------ verification
 
   /// True only if the user verified exactly the identity we currently trust.
   Future<bool> isVerified(String peerUid) async {
-    final v = await _store.read('verified:$peerUid');
+    final v = await _store.read(_trustKey('verified', peerUid));
     final pin = await pinnedIdentity(peerUid);
-    return v != null && pin != null && bytesEqual(unb64(v), pin);
+    if (v == null || pin == null) return false;
+    try {
+      final record = jsonDecode(v) as Map<String, dynamic>;
+      return bytesEqual(unb64(record['peer'] as String), pin) &&
+          bytesEqual(
+            unb64(record['local'] as String),
+            _localIdentity!.publicBytes,
+          );
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Records that the user compared the safety number for [identityPub].
   Future<void> markVerified(String peerUid, List<int> identityPub) =>
-      _store.write('verified:$peerUid', b64(identityPub));
+      _store.write(
+        _trustKey('verified', peerUid),
+        jsonEncode({
+          'peer': b64(identityPub),
+          'local': b64(_localIdentity!.publicBytes),
+        }),
+      );
 
   Future<void> clearVerified(String peerUid) =>
-      _store.delete('verified:$peerUid');
+      _store.delete(_trustKey('verified', peerUid));
 
   // ------------------------------------------------------------- new devices
 
@@ -202,12 +253,12 @@ class KeyService {
   /// current devices (trust on first use) and returns nothing.
   Future<List<String>> detectNewDevices(String peerUid) async {
     final ids = (await fetchDevices(peerUid)).map((d) => d.deviceId).toSet();
-    final raw = await _store.read('known:$peerUid');
+    final raw = await _store.read(_trustKey('known', peerUid));
     final known = raw == null
         ? null
         : (jsonDecode(raw) as List).cast<String>().toSet();
     await _store.write(
-      'known:$peerUid',
+      _trustKey('known', peerUid),
       jsonEncode((known ?? {}).union(ids).toList()),
     );
     if (known == null) return [];

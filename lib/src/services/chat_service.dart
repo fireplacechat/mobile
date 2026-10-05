@@ -138,7 +138,9 @@ class ChatService {
        _secrets = secrets,
        _messages = messages,
        _safety = safety,
-       _commitBatch = commitBatch;
+       _commitBatch = commitBatch {
+    keys.bindLocalDevice(uid, device);
+  }
 
   final FirebaseFirestore _db;
   final String uid;
