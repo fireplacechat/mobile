@@ -49,12 +49,12 @@ This public repository contains the mobile client. Backend rules and operator to
 
 ## Contributing
 
-We welcome bug fixes and tests most of all. Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [coding style](docs/development/coding-style.md) first. Humans and AI tools both work here;
-see [AGENTS.md](AGENTS.md) and the [AI usage policy](AI_POLICY.md).
+We welcome bug fixes and tests most of all. Read [CONTRIBUTING.md](.github/CONTRIBUTING.md) and the [coding style](docs/development/coding-style.md) first. Humans and AI tools both work here;
+see [AGENTS.md](AGENTS.md) and the [AI usage policy](.github/AI_POLICY.md).
 
-Report security problems privately, as described in [SECURITY.md](SECURITY.md).
+Report security problems privately, as described in [SECURITY.md](.github/SECURITY.md).
 
 ## License
 
-Code: [AGPL-3.0](LICENSE). The Fireplace name, logo and artwork are not covered by that licence; see [TRADEMARKS.md](TRADEMARKS.md).
-Third-party notices: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Code: [AGPL-3.0](LICENSE). The Fireplace name, logo and artwork are not covered by that licence; see [TRADEMARKS.md](docs/legal/TRADEMARKS.md).
+Third-party notices: [THIRD_PARTY_NOTICES.md](docs/legal/THIRD_PARTY_NOTICES.md).

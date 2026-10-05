@@ -43,7 +43,7 @@ The device holds decrypted history. Someone with an unlocked phone, screen captu
 Group chats, calls, attachments, real-email recovery, push notifications (planned; the free Firebase plan has no sender), multi-device history sync (a new device starts with an empty history), message deletion for everyone, disappearing messages.
 
 ## Operational assumptions
-Production TLS endpoints and the deployed rules from this repository; Firebase admin credentials kept out of the client and repo; Firebase client configuration treated as public identifiers; rule and dependency changes reviewed and tested before release; a published security contact (`SECURITY.md`) and operator process for reports; store privacy disclosures that include Firebase/SDK practices.
+Production TLS endpoints and the deployed rules from this repository; Firebase admin credentials kept out of the client and repo; Firebase client configuration treated as public identifiers; rule and dependency changes reviewed and tested before release; a published security contact ([`SECURITY.md`](../../.github/SECURITY.md)) and operator process for reports; store privacy disclosures that include Firebase/SDK practices.
 
 Historical internal review reports are maintained privately; this document does not claim an external audit.
 
