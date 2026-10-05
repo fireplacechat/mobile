@@ -1,27 +1,97 @@
 # Public client checks; backend emulator jobs live separately.
+#
+# Shape: static checks and three test shards run side by side, the tests that
+# measure real time run alone, and a final job named `test` collects the results.
+# `test` is the check branch protection requires, so keep that job id and name.
 name: CI
 on:
   push:
     branches: [main]
-    paths-ignore: ['docs/**', 'site/**', '**/*.md', 'ui_studio/**', 'scripts/render/**']
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'integration_test/**'
+      - 'scripts/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'analysis_options.yaml'
+      - 'dart_test.yaml'
+      - '.github/workflows/ci.yml'
   pull_request:
-    paths-ignore: ['docs/**', 'site/**', '**/*.md', 'ui_studio/**', 'scripts/render/**']
+    paths:
+      - 'lib/**'
+      - 'test/**'
+      - 'integration_test/**'
+      - 'scripts/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - 'analysis_options.yaml'
+      - 'dart_test.yaml'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push replaces an unfinished pull-request run; runs on main finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+env:
+  TZ: UTC
 jobs:
-  test:
+  static:
+    name: static
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version-file: pubspec.yaml, cache: true }
       - run: flutter pub get
+      - run: dart format --output=none --set-exit-if-changed lib test scripts
       - run: flutter analyze
       - run: python3 scripts/check_layout.py .
-      - run: dart format --output=none --set-exit-if-changed lib test scripts
-      - run: TZ=UTC flutter test --concurrency=1
+      - run: python3 scripts/test_check_layout.py
+
+  unit:
+    name: unit (shard ${{ matrix.shard }} of 3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: pubspec.yaml, cache: true }
+      - run: flutter pub get
+      - run: flutter test --exclude-tags timing --total-shards 3 --shard-index ${{ matrix.shard }}
+
+  timing:
+    name: timing tests (one at a time)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: pubspec.yaml, cache: true }
+      - run: flutter pub get
+      - run: scripts/run_timing_tests.sh
+
+  test:
+    name: test
+    if: ${{ always() }}
+    needs: [static, unit, timing]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All checks passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "results: $RESULTS"
+          for r in $RESULTS; do
+            [ "$r" = success ] || { echo "a required job did not succeed"; exit 1; }
+          done

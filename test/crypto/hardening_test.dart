@@ -359,7 +359,7 @@ void main() {
       // messages on the existing chain are unaffected
       final ok = await sa.encrypt(t('still fine'), chatId: 'c');
       expect(utf8.decode(await sb.decrypt(ok, chatId: 'c')), 'still fine');
-    });
+    }, tags: 'timing');
 
     test('forged envelopes never change session state', () async {
       final (sa, hs) = await start(alice, bob);

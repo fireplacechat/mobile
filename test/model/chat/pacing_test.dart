@@ -53,22 +53,24 @@ void main() {
     },
   );
 
-  test(
-    'sends are spaced out so the server\'s 500 ms rule is never hit',
-    () async {
-      ChatService.sendGap = const Duration(milliseconds: 300);
-      final sw = Stopwatch()..start();
-      await alice.sendText(chatId, 'one');
-      final afterFirst = sw.elapsedMilliseconds;
-      await alice.sendText(chatId, 'two');
-      await alice.sendText(chatId, 'three');
-      expect(afterFirst, lessThan(250)); // the first send never waits
-      expect(
-        sw.elapsedMilliseconds,
-        greaterThanOrEqualTo(560),
-      ); // two gaps of ~300 ms
-    },
-  );
+  test('sends are spaced out so the server\'s 500 ms rule is never hit', () async {
+    // A long gap keeps wide margins: the first send's own work (key agreement,
+    // encryption) can take a few hundred ms on a cold or slow machine.
+    ChatService.sendGap = const Duration(milliseconds: 1500);
+    final sw = Stopwatch()..start();
+    await alice.sendText(chatId, 'one');
+    final afterFirst = sw.elapsedMilliseconds;
+    await alice.sendText(chatId, 'two');
+    await alice.sendText(chatId, 'three');
+    expect(
+      afterFirst,
+      lessThan(1200),
+    ); // the first send never waits for the gap
+    expect(
+      sw.elapsedMilliseconds,
+      greaterThanOrEqualTo(2900),
+    ); // two gaps of ~1500 ms
+  }, tags: 'timing');
 
   test('the chat list timestamp is not rewritten for every message', () async {
     final before = (await db.doc('chats/$chatId').get())

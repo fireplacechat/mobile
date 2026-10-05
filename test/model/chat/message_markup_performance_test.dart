@@ -1,6 +1,9 @@
 // Review finding C01: formatMessage() is quadratic on deeply nested markers, so one crafted message
 // (no size limit exists for message text) freezes every screen that formats it: bubbles, the chat-list
 // preview, global search and the notice. The grammar must stay linear, or long text must skip it.
+@Tags(['timing'])
+library;
+
 import 'package:fireplace/src/ui/message_format.dart';
 import 'package:flutter_test/flutter_test.dart';
 
