@@ -4,8 +4,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'firebase_options.dart';
-import 'src/ui/app.dart';
+import 'package:fireplace/firebase_options.dart';
+import 'package:fireplace/src/app.dart';
 
 /// Run against local emulators with:
 ///   flutter run --dart-define=USE_EMULATOR=true   (Android emulator uses 10.0.2.2)

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-import 'presentation.dart';
+import 'package:fireplace/src/ui/presentation.dart';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../app/providers.dart';
-import '../services/auth_service.dart';
-import '../services/recovery_service.dart';
-import 'qr_scan_page.dart';
-import 'logo.dart';
-import 'design_tokens.dart';
+import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/model/account/auth_service.dart';
+import 'package:fireplace/src/model/keys/recovery_service.dart';
+import 'package:fireplace/src/widgets/qr_scan_page.dart';
+import 'package:fireplace/src/styles/brand/logo.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
 
 /// Create or replace the recovery key. The key is shown once and never stored.
 class RecoveryKeyScreen extends ConsumerStatefulWidget {

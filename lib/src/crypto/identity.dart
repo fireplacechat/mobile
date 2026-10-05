@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:pqcrypto/pqcrypto.dart';
 
-import 'codec.dart';
-import 'key_checks.dart';
+import 'package:fireplace/src/crypto/codec.dart';
+import 'package:fireplace/src/crypto/key_checks.dart';
 
 /// Account-level hybrid signing identity: Ed25519 + ML-DSA-65.
 /// A signature is valid only if BOTH component signatures verify, so forging

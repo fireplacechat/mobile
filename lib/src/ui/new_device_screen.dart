@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-import 'presentation.dart';
-import 'lockup.dart';
+import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/styles/brand/lockup.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-import '../app/providers.dart';
-import '../crypto/link.dart';
-import '../services/recovery_service.dart';
-import 'logo.dart';
-import 'design_tokens.dart';
+import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/crypto/link.dart';
+import 'package:fireplace/src/model/keys/recovery_service.dart';
+import 'package:fireplace/src/styles/brand/logo.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
 
 /// Shown when the account already has devices but this install has no keys.
 class NewDeviceScreen extends ConsumerStatefulWidget {

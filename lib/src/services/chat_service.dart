@@ -6,14 +6,14 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import '../crypto/device.dart';
-import '../crypto/session.dart';
-import 'key_service.dart';
-import 'prekey_service.dart';
-import 'safety_service.dart';
-import 'local_messages.dart';
-import 'secret_store.dart';
-import 'message_limits.dart';
+import 'package:fireplace/src/crypto/device.dart';
+import 'package:fireplace/src/crypto/session.dart';
+import 'package:fireplace/src/model/keys/key_service.dart';
+import 'package:fireplace/src/model/keys/prekey_service.dart';
+import 'package:fireplace/src/model/safety/safety_service.dart';
+import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/db/secret_store.dart';
+import 'package:fireplace/src/model/chat/message_limits.dart';
 
 /// The server refused a send, so nothing was published. The message is plain words that are safe to show
 /// as they are (unlike an arbitrary [ChatException]).

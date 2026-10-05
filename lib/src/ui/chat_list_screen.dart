@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../app/providers.dart';
-import '../services/chat_service.dart';
-import '../services/auth_service.dart';
-import '../services/local_messages.dart';
-import 'chat_screen.dart';
-import 'logo.dart';
-import 'lockup.dart';
-import 'safety_ui.dart';
-import 'settings_screen.dart';
-import 'design_tokens.dart';
-import 'presentation.dart';
-import 'chat_activity.dart';
-import 'message_search.dart';
-import 'message_format.dart';
+import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/model/account/auth_service.dart';
+import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/styles/brand/logo.dart';
+import 'package:fireplace/src/styles/brand/lockup.dart';
+import 'package:fireplace/src/ui/safety_ui.dart';
+import 'package:fireplace/src/ui/settings_screen.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/view/search/message_search_results.dart';
+import 'package:fireplace/src/ui/message_format.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});

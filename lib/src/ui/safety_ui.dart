@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 
-import 'presentation.dart';
-import 'lockup.dart';
+import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/styles/brand/lockup.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../app/providers.dart';
-import '../services/chat_service.dart';
-import '../services/local_messages.dart';
-import '../services/safety_service.dart';
-import 'chat_screen.dart';
-import 'design_tokens.dart';
+import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/model/safety/safety_service.dart';
+import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
 
 Future<bool> confirmBlock(BuildContext context, String name) async {
   final ok = await showDialog<bool>(

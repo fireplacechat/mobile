@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/services/local_chat_preferences.dart';
+import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/crypto/device.dart';
 import 'package:fireplace/src/crypto/identity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

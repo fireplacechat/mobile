@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../app/providers.dart';
-import '../services/chat_service.dart';
-import '../services/local_messages.dart';
-import 'message_format.dart';
+import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/ui/message_format.dart';
 
 final chatRouteObserver = RouteObserver<ModalRoute<void>>();
 

@@ -37,8 +37,9 @@ can run the unit, widget and protocol tests independently.
 
 ## Architecture and security
 
-`lib/src/crypto/` contains protocol primitives and the hybrid ratchet; `services/` contains
-storage/networking; `app/` and `ui/` contain providers and screens. Chat bodies are encrypted
+`lib/src/crypto/` contains protocol primitives and the hybrid ratchet; `model/` contains feature
+logic and Firebase access, `db/` stores local data, and `view/` contains screens. See the
+[architecture map](../architecture.md) for the staged layout and remaining composites. Chat bodies are encrypted
 before upload. The service still sees account/device identifiers, participants, timestamps and
 ciphertext sizes. Optional reports can contain plaintext selected by the reporter.
 

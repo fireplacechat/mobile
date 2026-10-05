@@ -3,8 +3,8 @@ import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
 
-import 'codec.dart';
-import 'identity.dart';
+import 'package:fireplace/src/crypto/codec.dart';
+import 'package:fireplace/src/crypto/identity.dart';
 
 /// A 160-bit random recovery key shown to the user as 9 groups of 4 characters
 /// (RFC 4648 base32, 32 chars) plus a 4-char checksum to catch typos.

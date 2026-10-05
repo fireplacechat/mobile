@@ -3,9 +3,9 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:pqcrypto/pqcrypto.dart';
 
-import 'codec.dart';
-import 'identity.dart';
-import 'key_checks.dart';
+import 'package:fireplace/src/crypto/codec.dart';
+import 'package:fireplace/src/crypto/identity.dart';
+import 'package:fireplace/src/crypto/key_checks.dart';
 
 /// Public, server-visible description of one device. Matches the Firestore
 /// `users/{uid}/devices/{deviceId}` document (`sigPub` holds the account identity).

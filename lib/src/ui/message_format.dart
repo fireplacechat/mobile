@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../services/message_limits.dart';
+import 'package:fireplace/src/model/chat/message_limits.dart';
 
 /// Untrusted oversized messages stay literal everywhere they are displayed.
 FormattedMessage displayMessage(String source) => messageTooLong(source)

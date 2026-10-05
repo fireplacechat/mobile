@@ -22,5 +22,6 @@ jobs:
         with: { flutter-version-file: pubspec.yaml, cache: true }
       - run: flutter pub get
       - run: flutter analyze
+      - run: python3 scripts/check_layout.py .
       - run: dart format --output=none --set-exit-if-changed lib test scripts
       - run: TZ=UTC flutter test --concurrency=1
