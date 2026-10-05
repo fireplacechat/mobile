@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/widgets/page.dart';
 
 import 'package:mobile_scanner/mobile_scanner.dart';
 
