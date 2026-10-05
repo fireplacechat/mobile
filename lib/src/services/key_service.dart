@@ -118,13 +118,23 @@ class KeyService {
         throw NeedsRecoveryException(); // recover or link instead of guessing
       }
       final mine = await _devices(uid).doc(keys.deviceId).get();
-      if (mine.exists && mine.data()?['revokedAt'] != null) {
+      // Existing local keys are not proof that this device is still registered.
+      // A missing record can be an interrupted install or a removed device; do
+      // not republish it implicitly or advertise readiness.
+      if (!mine.exists) throw NeedsRecoveryException();
+      if (mine.data()?['revokedAt'] != null) {
         throw DeviceRevokedException();
+      }
+      final published = mine.data()!;
+      if (bundle.toFirestore().entries.any(
+        (entry) => published[entry.key] != entry.value,
+      )) {
+        throw NeedsRecoveryException();
       }
       _localIdentity = identity;
       return LocalDevice(identity, keys, bundle);
     }
-    if (idJson != null || devJson != null) {
+    if (idJson != null || devJson != null || bundleJson != null) {
       throw StateError('Corrupt local key storage; refusing to overwrite.');
     }
     final existing = await _devices(uid).limit(1).get();
