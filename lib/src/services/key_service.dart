@@ -60,12 +60,26 @@ class KeyService {
     _accountUid = uid;
   }
 
+  /// Bind a session's already-loaded local device to its account context.
+  /// Recovery/linking and session restarts may hand a certified device directly
+  /// to ChatService rather than reloading it from storage.
+  void bindLocalDevice(String uid, LocalDevice device) {
+    _bindAccount(uid);
+    if (_localIdentity != null &&
+        !bytesEqual(_localIdentity!.publicBytes, device.identity.publicBytes)) {
+      throw StateError(
+        'Use a new key service when replacing the local identity.',
+      );
+    }
+    _localIdentity = device.identity;
+  }
+
   String _trustKey(String kind, String peerUid) {
     final uid = _accountUid;
     if (uid == null || _localIdentity == null) {
       throw StateError('Load the local identity before using contact trust.');
     }
-    return '$kind:$uid:$peerUid';
+    return '$kind:account:${jsonEncode([uid, peerUid])}';
   }
 
   CollectionReference<Map<String, dynamic>> _devices(String uid) =>
