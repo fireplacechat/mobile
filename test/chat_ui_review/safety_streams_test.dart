@@ -9,6 +9,9 @@ import '../services/durability_test.dart' show Phone;
 
 class _ChangedKeys extends Fake implements KeyService {
   @override
+  void bindLocalDevice(String uid, LocalDevice device) {}
+
+  @override
   Future<List<DeviceBundle>> fetchDevices(String uid) =>
       Future.error(IdentityChangedException(uid, List.filled(64, 1)));
 }

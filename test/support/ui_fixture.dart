@@ -25,6 +25,9 @@ class _Device extends Fake implements DeviceKeys {
 
 class FixtureKeys extends Fake implements KeyService {
   @override
+  void bindLocalDevice(String uid, LocalDevice device) {}
+
+  @override
   Future<List<int>?> pinnedIdentity(String peerUid) async =>
       List.generate(64, (i) => 63 - i);
   @override
