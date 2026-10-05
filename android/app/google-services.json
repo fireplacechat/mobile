@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "402338176643",
+    "project_id": "fireplace-chat-app",
+    "storage_bucket": "fireplace-chat-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:402338176643:android:a985e081949a6cc26bc5b6",
+        "android_client_info": {
+          "package_name": "com.fireplacechat.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGPz-bfjMm0zDStCyWbrA9Dj7bFWSKwa8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

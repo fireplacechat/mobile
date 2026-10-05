@@ -1,0 +1,29 @@
+# DRAFT, not active. A stricter analyzer configuration using an optional stricter lint configuration (which uses package:lint/strict.yaml).
+# To try it: copy over analysis_options.yaml, run `flutter analyze`, fix what it reports in one pass, and commit together.
+# Measured on main (2026-10-05): 249 findings: 137 relative imports (always_use_package_imports), 72 implicit casts, 17+6 missing generic types,
+# 5 uncancelled subscriptions, 4 unclosed sinks, 4 dynamic calls, a few style items. Most are mechanical.
+# Do this right after open branches have merged: it touches many files and will conflict with work in progress.
+include: package:flutter_lints/flutter.yaml
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+formatter:
+  page_width: 100   # reflows every file; do it as its own commit
+linter:
+  rules:
+    prefer_single_quotes: true
+    always_use_package_imports: true
+    sort_pub_dependencies: true
+    unawaited_futures: true
+    avoid_dynamic_calls: true
+    cancel_subscriptions: true
+    close_sinks: true
+    use_build_context_synchronously: true
+    prefer_final_locals: true
+    avoid_print: true

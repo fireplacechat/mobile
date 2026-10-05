@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#BF5700</color>
+    <!-- Brand cream (#FAF7F0): launch screen background, same as the in-app loading screen. -->
+    <color name="splash_background">#FAF7F0</color>
+</resources>

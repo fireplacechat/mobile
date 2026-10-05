@@ -1,0 +1,26 @@
+# Public client checks; backend emulator jobs live separately.
+name: CI
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', 'site/**', '**/*.md', 'ui_studio/**', 'scripts/render/**']
+  pull_request:
+    paths-ignore: ['docs/**', 'site/**', '**/*.md', 'ui_studio/**', 'scripts/render/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: pubspec.yaml, cache: true }
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: dart format --output=none --set-exit-if-changed lib test scripts
+      - run: TZ=UTC flutter test --concurrency=1

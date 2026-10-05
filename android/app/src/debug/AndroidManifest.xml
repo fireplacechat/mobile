@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- INTERNET is needed by the Flutter tool (hot reload, debugging). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Debug builds only: talk to the local Firebase emulators over http. -->
+    <application android:usesCleartextTraffic="true"/>
+</manifest>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launch screen (Android 11 and older): brand cream with the lockup centred. The lockup is
+     200dp wide, exactly like FireplaceSplash in the app, so nothing moves when Flutter starts.
+     Regenerate the bitmaps with scripts/brand/gen_lockup.py. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/splash_background" />
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_lockup" />
+    </item>
+</layer-list>

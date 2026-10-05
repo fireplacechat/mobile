@@ -1,0 +1,16 @@
+# Weekly dependency updates, grouped so that CI updates arrive as one pull request. (The private repository pauses this because
+# private repositories have a monthly Actions budget; public repositories do not.)
+version: 2
+updates:
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      ci-dependencies:
+        patterns: ['*']

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark mode launch background: charcoal (#333F48), the same as the in-app startup screen
+         (fireplaceCharcoal) and the approved orange-on-charcoal wallpaper. Without this the native launch
+         screen stays cream and dark-mode phones flash cream before the charcoal startup screen. -->
+    <color name="splash_background">#333F48</color>
+</resources>
