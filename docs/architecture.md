@@ -53,7 +53,9 @@ Firestore stores public keys, ciphertext and account/chat metadata. Secure stora
 
 ## Remaining extractions
 
-Separate PRs will extract shared presentation widgets and composite screens; split unread, visibility and search helpers; then extract chat directory, sender, receive journal, receiver and session storage behind the existing chat-service facade. Chat-screen controllers and providers follow after those boundaries are reviewed. Each extraction preserves behavior and public APIs. Crypto session code stays whole; only its imports change in the first move.
+Shared presentation widgets now live in `widgets/`; the message bubble and day separator live in `view/chat/widgets/`. `ui/presentation.dart` retains their compatibility exports.
+
+Separate PRs will extract composite screens; split unread, visibility and search helpers; then extract chat directory, sender, receive journal, receiver and session storage behind the existing chat-service facade. Chat-screen controllers and providers follow after those boundaries are reviewed. Each extraction preserves behavior and public APIs. Crypto session code stays whole; only its imports change in the first move.
 
 `test/` mirrors the target layers. Some tests already use their target location while their implementation still lives in a legacy composite. Fixture helpers stay in `test/support/`; protocol vectors in `test/vectors/` stay unchanged. Earlier decision records retain paths from when they were written; `scripts/lib-map.csv` and `scripts/test-map.csv` record the one-to-one path changes.
 
