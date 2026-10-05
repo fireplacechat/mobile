@@ -25,6 +25,7 @@ void main() {
       ),
     );
     expect(await katyKeys.isVerified('bob'), isFalse);
+    expect(await fredKeys.isVerified('bob'), isTrue);
   });
 
   test('legacy verification is not adopted into an account', () async {
@@ -64,4 +65,22 @@ void main() {
       expect(await reopened.isVerified('bob'), isFalse);
     },
   );
+  test('pins and known devices belong to their local account', () async {
+    final db = FakeFirebaseFirestore();
+    final secrets = MemorySecretStore();
+    final fred = KeyService(db, secrets);
+    await fred.ensureDevice('fred');
+    final bob = await KeyService(db, MemorySecretStore()).ensureDevice('bob');
+    expect(await fred.detectNewDevices('bob'), isEmpty);
+    await KeyService(
+      db,
+      MemorySecretStore(),
+    ).installDevice('bob', bob.identity, await DeviceKeys.generate());
+    final katy = KeyService(db, secrets);
+    await katy.ensureDevice('katy');
+    expect(await katy.pinnedIdentity('bob'), isNull);
+    expect(await katy.detectNewDevices('bob'), isEmpty);
+    expect(await fred.detectNewDevices('bob'), hasLength(1));
+    await expectLater(fred.ensureDevice('katy'), throwsStateError);
+  });
 }
