@@ -167,6 +167,15 @@ class EncryptedFileMessageStore implements LocalMessageStore {
     });
   }
 
+  /// Drains pending writes and releases listeners when the session ends.
+  Future<void> close() async {
+    await _writes;
+    for (final controller in _ctrls.values) {
+      unawaited(controller.close());
+    }
+    _ctrls.clear();
+  }
+
   /// Wipes history and key (sign-out / "delete local data").
   Future<void> destroy(SecretStore secrets, String uid) async {
     await secrets.delete('msgkey:$uid');

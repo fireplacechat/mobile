@@ -73,162 +73,216 @@ class AppSession {
 
   /// Erases the encrypted message history and its key (account deletion).
   final Future<void> Function()? destroyLocalData;
-  Future<void> close() async {
+  Future<void>? _closing;
+  Future<void> close() => _closing ??= () async {
     await _chatsSub.cancel();
     await dispose();
-  }
+  }();
 }
 
 final appSessionProvider = FutureProvider<AppSession?>((ref) async {
-  final user = await ref.watch(authUserProvider.future);
-  if (user == null) return null;
-  final db = ref.watch(firestoreProvider);
-  final secrets = ref.watch(secretStoreProvider);
-  // An account being deleted (or left half-deleted) must not be used normally.
-  // A brand-new sign-up writes its profile right after the account exists, so
-  // give that a few seconds before treating a missing profile as "half deleted".
-  Map<String, dynamic>? profile;
-  for (var i = 0; i < 20; i++) {
-    final snap = await db.collection('users').doc(user.uid).get();
-    if (snap.exists) {
-      profile = snap.data();
-      break;
-    }
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-  }
-  if (profile == null || profile['deleting'] == true) {
-    throw AccountDeletionPending(user.uid);
-  }
-  // Record that the account is in use (the 13-month inactivity sweep keys off this).
-  unawaited(ActivityService(db).markActiveIfDue(user.uid, profile));
-  final keys = KeyService(db, secrets);
-  final device = await keys.ensureDevice(user.uid);
-  final pushNotifications = pushEnabled
-      ? PushNotificationService(
-          db: db,
-          uid: user.uid,
-          deviceId: device.keys.deviceId,
-          messaging: FirebasePushMessagingClient(),
-        )
-      : null;
-  // Only re-register silently if the user already allowed notifications.
-  unawaited(
-    pushNotifications?.startIfPermitted().catchError((Object _) {}) ??
-        Future<void>.value(),
-  );
-  final prekeys = PreKeyService(db, secrets);
-  await prekeys.maintain(user.uid, device); // rotate/replenish prekeys
-  final docs = await getApplicationDocumentsDirectory();
-  final store = await EncryptedFileMessageStore.open(
-    dir: Directory('${docs.path}/messages_${user.uid}'),
-    secrets: secrets,
-    uid: user.uid,
-  );
-  final chatPreferences = await LocalChatPreferences.open(
-    dir: Directory('${docs.path}/messages_${user.uid}'),
-    secrets: secrets,
-    uid: user.uid,
-  );
-  final safety = SafetyService(db, secrets, user.uid);
-  await safety.start();
-  final chat = ChatService(
-    db: db,
-    uid: user.uid,
-    device: device,
-    keys: keys,
-    prekeys: prekeys,
-    secrets: secrets,
-    messages: store,
-    safety: safety,
-  );
-  final username =
-      (await db.collection('users').doc(user.uid).get()).data()?['username']
-          as String? ??
-      user.email?.split('@').first ??
-      '';
-
-  // Decrypt in the background while the app is open, but only for chats that
-  // should be live: not an unaccepted request from a stranger (so strangers
-  // cannot burn through our one-time prekeys), not blocked, not hidden.
-  final syncs = <String, StreamSubscription<void>>{};
-  var latest = <ChatSummary>[];
   var stopped = false;
-  Future<void> reconcile() async {
-    final hidden = await safety.hiddenChats();
-    if (stopped) return;
-    final wanted = <String>{
-      for (final c in latest)
-        if (!c.isIncomingRequest(user.uid) &&
-            !safety.isBlocked(c.peerUid) &&
-            !hidden.contains(c.chatId))
-          c.chatId,
-    };
-    for (final id in syncs.keys.toList()) {
-      if (!wanted.contains(id)) await syncs.remove(id)?.cancel();
+  var initialized = false;
+  var successful = false;
+  Future<void>? closing;
+  final cleaners = <Future<void> Function()>[];
+  Future<void> cleanup() => closing ??= () async {
+    stopped = true;
+    Object? firstError;
+    StackTrace? firstStack;
+    for (final close in cleaners.reversed) {
+      try {
+        await close();
+      } catch (error, stack) {
+        firstError ??= error;
+        firstStack ??= stack;
+      }
     }
-    for (final id in wanted) {
-      if (chatPreferences.available && chatPreferences.needsBaseline(id)) {
-        try {
-          // Capture disk history before starting receive sync. Later network
-          // arrivals must not be swallowed by first-run read bookkeeping.
-          final existing = await store.watch(id).first;
-          await chatPreferences.seedExisting(
-            id,
-            existing.where((m) => !m.outgoing).map((m) => m.id),
-          );
-        } catch (_) {
-          // A broken UI sidecar does not stop messaging; Settings offers reset.
-        }
-      }
-      // Baseline I/O may have yielded to a block, hide, request change or disposal.
-      final nowHidden = await safety.hiddenChats();
-      if (stopped) return;
-      if (!latest.any(
-            (c) =>
-                c.chatId == id &&
-                !c.isIncomingRequest(user.uid) &&
-                !safety.isBlocked(c.peerUid),
-          ) ||
-          nowHidden.contains(id)) {
-        continue;
-      }
-      syncs.putIfAbsent(id, () => chat.startSync(id));
+    if (firstError != null) Error.throwWithStackTrace(firstError, firstStack!);
+  }();
+  void checkActive() {
+    if (stopped || !ref.mounted) {
+      throw StateError('Session initialization cancelled.');
     }
   }
 
-  final chatsSub = chat.watchChats().listen((chats) {
-    latest = chats;
-    reconcile();
-  }, onError: (_) {});
-  final blockedSub = safety.watchBlocked().listen((_) => reconcile());
-  final session = AppSession(
-    uid: user.uid,
-    username: username,
-    device: device,
-    chat: chat,
-    keys: keys,
-    safety: safety,
-    pushNotifications: pushNotifications,
-    chatPreferences: chatPreferences,
-    chatsSub: chatsSub,
-    destroyLocalData: () async {
-      await chatPreferences.close();
-      await secrets.delete('chatprefskey:${user.uid}');
-      await store.destroy(secrets, user.uid);
-    },
-    dispose: () async {
-      stopped = true;
-      await blockedSub.cancel();
-      await chatPreferences.close();
-      await pushNotifications?.unregister();
-      for (final s in syncs.values) {
-        await s.cancel();
+  ref.onDispose(() {
+    stopped = true;
+    // An awaited constructor/start may still own resources; its finally block
+    // closes them when it returns rather than racing that initialization.
+    if (initialized) unawaited(cleanup().catchError((Object _) {}));
+  });
+  try {
+    final user = await ref.watch(authUserProvider.future);
+    checkActive();
+    if (user == null) return null;
+    final db = ref.watch(firestoreProvider);
+    final secrets = ref.watch(secretStoreProvider);
+    // An account being deleted (or left half-deleted) must not be used normally.
+    // A brand-new sign-up writes its profile right after the account exists, so
+    // give that a few seconds before treating a missing profile as "half deleted".
+    Map<String, dynamic>? profile;
+    for (var i = 0; i < 20; i++) {
+      final snap = await db.collection('users').doc(user.uid).get();
+      checkActive();
+      if (snap.exists) {
+        profile = snap.data();
+        break;
       }
-      await safety.dispose();
-    },
-  );
-  ref.onDispose(session.close);
-  return session;
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      checkActive();
+    }
+    if (profile == null || profile['deleting'] == true) {
+      throw AccountDeletionPending(user.uid);
+    }
+    // Record that the account is in use (the 13-month inactivity sweep keys off this).
+    unawaited(ActivityService(db).markActiveIfDue(user.uid, profile));
+    final keys = KeyService(db, secrets);
+    final device = await keys.ensureDevice(user.uid);
+    checkActive();
+    final pushNotifications = pushEnabled
+        ? PushNotificationService(
+            db: db,
+            uid: user.uid,
+            deviceId: device.keys.deviceId,
+            messaging: FirebasePushMessagingClient(),
+          )
+        : null;
+    if (pushNotifications != null) cleaners.add(pushNotifications.unregister);
+    // Only re-register silently if the user already allowed notifications.
+    unawaited(
+      pushNotifications?.startIfPermitted().catchError((Object _) {}) ??
+          Future<void>.value(),
+    );
+    final prekeys = PreKeyService(db, secrets);
+    await prekeys.maintain(user.uid, device); // rotate/replenish prekeys
+    checkActive();
+    final docs = await getApplicationDocumentsDirectory();
+    checkActive();
+    final store = await EncryptedFileMessageStore.open(
+      dir: Directory('${docs.path}/messages_${user.uid}'),
+      secrets: secrets,
+      uid: user.uid,
+    );
+    cleaners.add(store.close);
+    checkActive();
+    final chatPreferences = await LocalChatPreferences.open(
+      dir: Directory('${docs.path}/messages_${user.uid}'),
+      secrets: secrets,
+      uid: user.uid,
+    );
+    cleaners.add(chatPreferences.close);
+    checkActive();
+    final safety = SafetyService(db, secrets, user.uid);
+    cleaners.add(safety.dispose);
+    await safety.start();
+    checkActive();
+    final chat = ChatService(
+      db: db,
+      uid: user.uid,
+      device: device,
+      keys: keys,
+      prekeys: prekeys,
+      secrets: secrets,
+      messages: store,
+      safety: safety,
+    );
+    cleaners.add(chat.close);
+    final username =
+        (await db.collection('users').doc(user.uid).get()).data()?['username']
+            as String? ??
+        user.email?.split('@').first ??
+        '';
+    checkActive();
+
+    // Decrypt in the background while the app is open, but only for chats that
+    // should be live: not an unaccepted request from a stranger (so strangers
+    // cannot burn through our one-time prekeys), not blocked, not hidden.
+    final syncs = <String, StreamSubscription<void>>{};
+    var latest = <ChatSummary>[];
+    cleaners.add(() async {
+      for (final sub in syncs.values.toList()) {
+        await sub.cancel();
+      }
+      syncs.clear();
+    });
+    Future<void> reconcile() async {
+      if (stopped) return;
+      final hidden = await safety.hiddenChats();
+      if (stopped) return;
+      final wanted = <String>{
+        for (final c in latest)
+          if (!c.isIncomingRequest(user.uid) &&
+              !safety.isBlocked(c.peerUid) &&
+              !hidden.contains(c.chatId))
+            c.chatId,
+      };
+      for (final id in syncs.keys.toList()) {
+        if (!wanted.contains(id)) await syncs.remove(id)?.cancel();
+      }
+      for (final id in wanted) {
+        if (stopped) return;
+        if (chatPreferences.available && chatPreferences.needsBaseline(id)) {
+          try {
+            // Capture disk history before starting receive sync. Later network
+            // arrivals must not be swallowed by first-run read bookkeeping.
+            final existing = await store.watch(id).first;
+            await chatPreferences.seedExisting(
+              id,
+              existing.where((m) => !m.outgoing).map((m) => m.id),
+            );
+          } catch (_) {
+            // A broken UI sidecar does not stop messaging; Settings offers reset.
+          }
+        }
+        // Baseline I/O may have yielded to a block, hide, request change or disposal.
+        final nowHidden = await safety.hiddenChats();
+        if (stopped) return;
+        if (!latest.any(
+              (c) =>
+                  c.chatId == id &&
+                  !c.isIncomingRequest(user.uid) &&
+                  !safety.isBlocked(c.peerUid),
+            ) ||
+            nowHidden.contains(id)) {
+          continue;
+        }
+        syncs.putIfAbsent(id, () => chat.startSync(id));
+      }
+    }
+
+    final chatsSub = chat.watchChats().listen((chats) {
+      latest = chats;
+      unawaited(reconcile().catchError((Object _) {}));
+    }, onError: (_) {});
+    cleaners.add(chatsSub.cancel);
+    final blockedSub = safety.watchBlocked().listen((_) {
+      unawaited(reconcile().catchError((Object _) {}));
+    });
+    cleaners.add(blockedSub.cancel);
+    final session = AppSession(
+      uid: user.uid,
+      username: username,
+      device: device,
+      chat: chat,
+      keys: keys,
+      safety: safety,
+      pushNotifications: pushNotifications,
+      chatPreferences: chatPreferences,
+      chatsSub: chatsSub,
+      destroyLocalData: () async {
+        await chatPreferences.close();
+        await secrets.delete('chatprefskey:${user.uid}');
+        await store.destroy(secrets, user.uid);
+      },
+      dispose: cleanup,
+    );
+    successful = true;
+    return session;
+  } finally {
+    initialized = true;
+    if (!successful || stopped) await cleanup();
+  }
 });
 
 final chatsProvider = StreamProvider.autoDispose<List<ChatSummary>>((ref) {
