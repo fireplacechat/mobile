@@ -65,4 +65,17 @@ void main() {
     expect(await secrets.read('bundle:fred'), 'incomplete');
     expect((await db.collection('users/fred/devices').get()).docs, isEmpty);
   });
+  test('published registration matches the persisted bundle', () async {
+    final db = FakeFirebaseFirestore();
+    final secrets = MemorySecretStore();
+    final keys = KeyService(db, secrets);
+    final device = await keys.ensureDevice('fred');
+    final stored = await secrets.read('device:fred');
+    await db.doc('users/fred/devices/${device.keys.deviceId}').set({});
+    await expectLater(
+      KeyService(db, secrets).ensureDevice('fred'),
+      throwsA(isA<NeedsRecoveryException>()),
+    );
+    expect(await secrets.read('device:fred'), stored);
+  });
 }

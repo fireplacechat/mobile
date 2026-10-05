@@ -125,6 +125,12 @@ class KeyService {
       if (mine.data()?['revokedAt'] != null) {
         throw DeviceRevokedException();
       }
+      final published = mine.data()!;
+      if (bundle.toFirestore().entries.any(
+        (entry) => published[entry.key] != entry.value,
+      )) {
+        throw NeedsRecoveryException();
+      }
       _localIdentity = identity;
       return LocalDevice(identity, keys, bundle);
     }
