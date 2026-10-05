@@ -149,11 +149,31 @@ class EncryptedFileMessageStore implements LocalMessageStore {
   @override
   Stream<List<LocalMessage>> watch(String chatId) {
     final c = _ctrls[chatId] ??= StreamController.broadcast();
-    return Stream.multi((s) async {
-      final sub = c.stream.listen(s.add);
-      s.onCancel = sub.cancel;
-      s.add(_sorted(await _load(chatId)));
+    return Stream.multi((s) {
+      var cancelled = false;
+      final sub = c.stream.listen(s.add, onError: s.addError, onDone: s.close);
+      s.onCancel = () async {
+        cancelled = true;
+        await sub.cancel();
+      };
+      unawaited(() async {
+        try {
+          final initial = _sorted(await _load(chatId));
+          if (!cancelled) s.add(initial);
+        } catch (error, stack) {
+          if (!cancelled) s.addError(error, stack);
+        }
+      }());
     });
+  }
+
+  /// Drains pending writes and releases listeners when the session ends.
+  Future<void> close() async {
+    await _writes;
+    for (final controller in _ctrls.values) {
+      unawaited(controller.close());
+    }
+    _ctrls.clear();
   }
 
   /// Wipes history and key (sign-out / "delete local data").
