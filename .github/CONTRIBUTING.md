@@ -5,9 +5,9 @@ Fireplace is an open-source (AGPL-3.0) end-to-end encrypted messenger built with
 Before a large change, open an issue or discussion to agree the scope. New features that do not fit the project's goals may be declined, so ask first.
 
 ## Set up
-Install Flutter (the version pinned in `pubspec.yaml`) and the Android SDK or Xcode, then `flutter pub get`. See [docs/development/setup.md](docs/development/setup.md). Never use real accounts or real conversations for testing.
-Read the [architecture map](docs/architecture.md) before changing feature boundaries.
-Conventions for people and AI tools: [AGENTS.md](AGENTS.md) and the [coding style](docs/development/coding-style.md).
+Install Flutter (the version pinned in `pubspec.yaml`) and the Android SDK or Xcode, then `flutter pub get`. See [docs/development/setup.md](../docs/development/setup.md). Never use real accounts or real conversations for testing.
+Read the [architecture map](../docs/architecture.md) before changing feature boundaries.
+Conventions for people and AI tools: [AGENTS.md](../AGENTS.md) and the [coding style](../docs/development/coding-style.md).
 
 ## What to work on
 Bug fixes and tests are the most welcome contributions: widget and service tests are fast and reliable. Check existing issues and pull requests to avoid duplicate work, and open a draft pull request early.

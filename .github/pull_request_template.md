@@ -14,7 +14,7 @@ Short and concrete. Mention anything that touches cryptography, keys, authentica
 - [ ] Not tested on a real device (say so), or tested on: ______
 
 ## AI assistance
-Which tool, and how much of the change did it write? I have read and understand every line and can explain it. See [AI_POLICY.md](../AI_POLICY.md).
+Which tool, and how much of the change did it write? I have read and understand every line and can explain it. See [AI_POLICY.md](AI_POLICY.md).
 
 ## Privacy and safety
 - [ ] No new data leaves the device or is stored on the server

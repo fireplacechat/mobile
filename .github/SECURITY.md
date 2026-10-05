@@ -8,4 +8,4 @@ Please report suspected vulnerabilities **privately**, never in a public issue o
 
 We will acknowledge a report as soon as we can and agree a fix and disclosure timeline with you. Please give users time to receive an update before you disclose publicly.
 
-Fireplace is early software and has not completed an independent security review. See the [threat model](docs/protocol/threat-model.md) for what it does and does not protect.
+Fireplace is early software and has not completed an independent security review. See the [threat model](../docs/protocol/threat-model.md) for what it does and does not protect.

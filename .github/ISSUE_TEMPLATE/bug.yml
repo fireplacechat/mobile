@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thank you. Please search existing issues first. **Never include message text, passwords, recovery keys, QR codes or other people's details.**
-        Security problems: do not post them here; follow SECURITY.md.
+        Security problems: do not post them here; follow [SECURITY.md](https://github.com/fireplacechat/mobile/blob/main/.github/SECURITY.md).
   - type: textarea
     id: problem
     attributes:

@@ -45,4 +45,4 @@ ciphertext sizes. Optional reports can contain plaintext selected by the reporte
 
 No completed independent audit is claimed. Read the [threat model](../protocol/threat-model.md),
 [account deletion notes](../protocol/account-deletion.md) and [decisions](../decisions/).
-See [contribution guidance](../../CONTRIBUTING.md) and [security reporting](../../SECURITY.md).
+See [contribution guidance](../../.github/CONTRIBUTING.md) and [security reporting](../../.github/SECURITY.md).

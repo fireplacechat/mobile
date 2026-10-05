@@ -71,4 +71,4 @@ For a move or extraction, preview PNG hashes must match the parent revision. Tes
 
 For new work, put screens in `view/<feature>/`, logic in `model/<feature>/`, and local storage in `db/`. Reuse shared widgets. Cryptographic, wire-format or authentication changes require a decision record and tests.
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) and the [coding style](development/coding-style.md).
+See [CONTRIBUTING.md](../.github/CONTRIBUTING.md) and the [coding style](development/coding-style.md).

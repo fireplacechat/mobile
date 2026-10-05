@@ -1,7 +1,7 @@
 # Fireplace: guide for contributors and AI coding tools
 
 Read this first. It is the single source of truth for how we work in this repository; `CLAUDE.md` imports it, and Codex reads it as `AGENTS.md`.
-Humans: start with [CONTRIBUTING.md](CONTRIBUTING.md). Documentation index: [docs/README.md](docs/README.md).
+Humans: start with [CONTRIBUTING.md](.github/CONTRIBUTING.md). Documentation index: [docs/README.md](docs/README.md).
 
 ## What this is
 Fireplace is an open-source (AGPL-3.0), end-to-end encrypted 1:1 messenger: Flutter + Firebase (Spark free plan only), iOS first, then Android,
@@ -64,7 +64,7 @@ Short version; the details and reasons are in [docs/development/coding-style.md]
 - The randomized chat simulation (`test/model/chat/chat_simulation_test.dart`) and the rules tests protect the protocol; keep them green.
 
 ## Working together
-- Humans and AI tools both work here. **Disclose AI assistance** in the pull request ([AI_POLICY.md](AI_POLICY.md)); a human must understand and be able to
+- Humans and AI tools both work here. **Disclose AI assistance** in the pull request ([AI_POLICY.md](.github/AI_POLICY.md)); a human must understand and be able to
   explain every change.
 - Small, focused pull requests. Work in a branch or a git worktree, never directly on `main` for code. Do not merge or push `main` yourself unless asked.
 - Reviews are patches the other side can apply: tests and fixes in separate files, each verified in a fresh clone.

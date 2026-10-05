@@ -9,4 +9,4 @@ The following external test data is included:
 
 Use `dart pub deps --style=list` to inspect resolved dependencies and check their licence notices when changing packages. This file does not replace those notices.
 
-The repository's `LICENSE` covers Fireplace code. The name, logo and artwork are addressed separately in `TRADEMARKS.md`.
+The repository's `LICENSE` covers Fireplace code. The name, logo and artwork are addressed separately in [`TRADEMARKS.md`](TRADEMARKS.md).
