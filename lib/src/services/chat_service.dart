@@ -1,3 +1,4 @@
+import 'package:fireplace/src/model/chat/receive_journal.dart';
 import 'package:fireplace/src/model/chat/send_recovery.dart';
 import 'package:fireplace/src/model/chat/chat_directory.dart';
 import 'package:fireplace/src/model/chat/session_store.dart';
@@ -73,6 +74,14 @@ class ChatService {
     sendText: sendText,
     peerOf: peerOf,
   );
+  late final _journal = ReceiveJournal(
+    _secrets,
+    _messages,
+    _prekeys,
+    _sess,
+    uid,
+    device,
+  );
   final AsyncMutex _lock = AsyncMutex(); // serializes all session-state changes
 
   bool _closed = false;
@@ -138,7 +147,7 @@ class ChatService {
     // snapshot of the session; replaying it AFTER this send would roll the ratchet back and
     // reuse a counter. So finish it first (if storage is still failing, the send fails
     // safely instead).
-    await _recoverJournals();
+    await _journal.recoverJournals();
     final peerUid = peerOf(chatId);
     if (_safety?.isBlocked(peerUid) ?? false) {
       throw ChatException('You blocked this person. Unblock them to message.');
@@ -715,79 +724,6 @@ class ChatService {
   DateTime _ts(DocumentSnapshot<Map<String, dynamic>> d) =>
       (d.data()?['ts'] as Timestamp?)?.toDate() ?? DateTime.now();
 
-  // ---- receive journal ------------------------------------------------------
-  // After a message authenticates, its effects (history entry, advanced session,
-  // spent one-time prekey) must all happen even if the app dies half way. The result
-  // is first written as ONE journal record; applying it is idempotent and is
-  // replayed before any other message is processed.
-
-  String get _journalIndexKey => 'journals:${device.keys.deviceId}';
-  String _journalKey(String chatId, String msgId) =>
-      'journal:${device.keys.deviceId}:$chatId:$msgId';
-
-  Future<List<String>> _journalIndex() async {
-    final raw = await _secrets.read(_journalIndexKey);
-    return raw == null ? [] : (jsonDecode(raw) as List).cast<String>();
-  }
-
-  Future<void> _writeJournal(Map<String, dynamic> j) async {
-    final key = _journalKey(j['chatId'] as String, j['msgId'] as String);
-    await _secrets.write(key, jsonEncode(j));
-    final idx = await _journalIndex();
-    if (!idx.contains(key)) {
-      await _secrets.write(_journalIndexKey, jsonEncode([...idx, key]));
-    }
-  }
-
-  Future<void> _applyJournal(Map<String, dynamic> j) async {
-    final chatId = j['chatId'] as String, msgId = j['msgId'] as String;
-    if (!await _messages.has(chatId, msgId)) {
-      await _messages.add(
-        LocalMessage(
-          id: msgId,
-          chatId: chatId,
-          senderUid: j['senderUid'] as String,
-          senderDevice: j['senderDevice'] as String,
-          outgoing: false,
-          sentAt: DateTime.fromMillisecondsSinceEpoch(j['sentAt'] as int),
-          body: j['body'] as String,
-          status: MessageStatus.values.byName(j['status'] as String),
-        ),
-      );
-    }
-    await _secrets.write(
-      _sess.sessKey(j['senderUid'] as String, j['senderDevice'] as String),
-      j['sessions'] as String,
-    );
-    final opk = j['opk'];
-    if (opk is String) {
-      await _prekeys.consumeOneTime(uid, device.keys.deviceId, opk);
-    }
-    final key = _journalKey(chatId, msgId);
-    await _secrets.delete(key);
-    final idx = await _journalIndex();
-    await _secrets.write(
-      _journalIndexKey,
-      jsonEncode(idx.where((k) => k != key).toList()),
-    );
-  }
-
-  /// Completes any message whose effects were only partly applied (call under the lock).
-  Future<void> _recoverJournals() async {
-    for (final key in await _journalIndex()) {
-      final raw = await _secrets.read(key);
-      if (raw == null) {
-        final idx = await _journalIndex();
-        await _secrets.write(
-          _journalIndexKey,
-          jsonEncode(idx.where((k) => k != key).toList()),
-        );
-        continue;
-      }
-      await _applyJournal(jsonDecode(raw) as Map<String, dynamic>);
-    }
-  }
-
   /// Decrypts one message and persists the result. Order matters: the
   /// plaintext is written to history BEFORE the advanced session is saved, so a
   /// crash in between costs nothing (the retry decrypts again, and the history
@@ -797,7 +733,7 @@ class ChatService {
     String msgId,
     Map<String, dynamic> data,
   ) async {
-    await _recoverJournals(); // finish anything a crash left half applied, in order
+    await _journal.recoverJournals(); // finish anything a crash left half applied, in order
     if (data['senderUid'] == uid &&
         data['senderDevice'] == device.keys.deviceId) {
       // Our own send, seen on the server: it WAS published, so a pending "not confirmed" warning
@@ -952,7 +888,7 @@ class ChatService {
       'sessions': jsonEncode([for (final x in sessions) x.toJson()]),
       'opk': acceptedWith,
     };
-    await _writeJournal(journal);
-    await _applyJournal(journal);
+    await _journal.writeJournal(journal);
+    await _journal.applyJournal(journal);
   }
 }
