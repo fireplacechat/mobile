@@ -1,3 +1,4 @@
+import 'package:fireplace/src/model/chat/session_store.dart';
 // ignore_for_file: prefer_initializing_formals
 import 'package:fireplace/src/model/chat/async_mutex.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
@@ -45,6 +46,7 @@ class ChatService {
        _secrets = secrets,
        _messages = messages,
        _safety = safety,
+       _sess = SessionStore(secrets, device),
        _commitBatch = commitBatch {
     keys.bindLocalDevice(uid, device);
   }
@@ -58,6 +60,7 @@ class ChatService {
   final Future<void> Function(WriteBatch batch)? _commitBatch;
   final SecretStore _secrets;
   final LocalMessageStore _messages;
+  final SessionStore _sess;
   final AsyncMutex _lock = AsyncMutex(); // serializes all session-state changes
 
   bool _closed = false;
@@ -197,29 +200,6 @@ class ChatService {
 
   // ----------------------------------------------------------------- sessions
 
-  String _sessKey(String peerUid, String peerDev) =>
-      'sess:${device.keys.deviceId}:$peerUid:$peerDev';
-
-  Future<List<Session>> _loadSessions(String peerUid, String peerDev) async {
-    final raw = await _secrets.read(_sessKey(peerUid, peerDev));
-    if (raw == null) return [];
-    final out = <Session>[];
-    for (final j in jsonDecode(raw) as List) {
-      // Sessions from an older protocol version are dropped; a fresh handshake
-      // replaces them.
-      final sess = Session.tryFromJson(Map<String, dynamic>.from(j));
-      // also drop sessions whose stored key pairs no longer match each other
-      if (sess != null && await sess.selfCheck()) out.add(sess);
-    }
-    return out;
-  }
-
-  Future<void> _saveSessions(String peerUid, String peerDev, List<Session> s) =>
-      _secrets.write(
-        _sessKey(peerUid, peerDev),
-        jsonEncode([for (final x in s) x.toJson()]),
-      );
-
   // -------------------------------------------------------------------- send
 
   Future<void> sendText(String chatId, String text) {
@@ -284,7 +264,7 @@ class ChatService {
     final skipped = <String>[];
     final advanced = <(String, String, List<Session>)>[];
     for (final target in [...peerDevices, ...own]) {
-      final sessions = await _loadSessions(target.uid, target.deviceId);
+      final sessions = await _sess.loadSessions(target.uid, target.deviceId);
       var preferred = pickSession(sessions);
       final stale =
           preferred != null &&
@@ -378,11 +358,11 @@ class ChatService {
     final undo = <(String, String, String?)>[];
     try {
       for (final (u, d, sessions) in advanced) {
-        undo.add((u, d, await _secrets.read(_sessKey(u, d))));
-        await _saveSessions(u, d, sessions);
+        undo.add((u, d, await _secrets.read(_sess.sessKey(u, d))));
+        await _sess.saveSessions(u, d, sessions);
       }
     } catch (_) {
-      await _restoreSessions(undo); // nothing was published
+      await _sess.restoreSessions(undo); // nothing was published
       rethrow;
     }
 
@@ -414,7 +394,7 @@ class ChatService {
         'resource-exhausted',
         'unauthenticated',
       }.contains(e.code)) {
-        await _restoreSessions(undo);
+        await _sess.restoreSessions(undo);
       }
       if (e.code == 'permission-denied') {
         throw ChatException(
@@ -623,20 +603,8 @@ class ChatService {
   static Duration staleSessionAfter = const Duration(hours: 24);
   static const _pruneAfter = Duration(days: 30);
 
-  /// The session to send on: one the peer has proven it holds (smallest id, so both
-  /// sides converge), otherwise the newest one we started.
-  static Session? pickSession(List<Session> sessions) {
-    final usable = sessions.where((s) => s.canSend).toList();
-    if (usable.isEmpty) return null;
-    final acked = usable.where((s) => s.acknowledged).toList();
-    if (acked.isNotEmpty) {
-      return acked.reduce(
-        (a, b) => a.sessionId.compareTo(b.sessionId) <= 0 ? a : b,
-      );
-    }
-    usable.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return usable.first;
-  }
+  static Session? pickSession(List<Session> sessions) =>
+      SessionStore.pickSession(sessions);
 
   /// Minimum time between two sends from this device. The server enforces 500 ms
   /// per account across all chats; this stays safely above it so honest use never
@@ -886,18 +854,6 @@ class ChatService {
   DateTime _ts(DocumentSnapshot<Map<String, dynamic>> d) =>
       (d.data()?['ts'] as Timestamp?)?.toDate() ?? DateTime.now();
 
-  Future<void> _restoreSessions(List<(String, String, String?)> undo) async {
-    for (final (u, d, raw) in undo) {
-      try {
-        raw == null
-            ? await _secrets.delete(_sessKey(u, d))
-            : await _secrets.write(_sessKey(u, d), raw);
-      } catch (_) {
-        // Best effort: a failed restore only leaves a counter gap, never a reuse.
-      }
-    }
-  }
-
   // ---- receive journal ------------------------------------------------------
   // After a message authenticates, its effects (history entry, advanced session,
   // spent one-time prekey) must all happen even if the app dies half way. The result
@@ -939,7 +895,7 @@ class ChatService {
       );
     }
     await _secrets.write(
-      _sessKey(j['senderUid'] as String, j['senderDevice'] as String),
+      _sess.sessKey(j['senderUid'] as String, j['senderDevice'] as String),
       j['sessions'] as String,
     );
     final opk = j['opk'];
@@ -1041,7 +997,7 @@ class ChatService {
       return;
     }
 
-    final sessions = await _loadSessions(su, sd);
+    final sessions = await _sess.loadSessions(su, sd);
     Session? session;
     String? acceptedWith; // one-time prekey consumed by a new session
     for (final s in sessions) {
