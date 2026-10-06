@@ -1,17 +1,4 @@
-import 'package:fireplace/src/model/chat/message_receiver.dart';
-import 'package:fireplace/src/model/chat/message_sender.dart';
-import 'package:fireplace/src/model/chat/chat_tuning.dart';
-import 'package:fireplace/src/model/chat/deferred_queue.dart';
-import 'package:fireplace/src/model/chat/work_tracker.dart';
-import 'package:fireplace/src/model/chat/identity_alerts.dart';
-import 'package:fireplace/src/model/chat/receive_journal.dart';
-import 'package:fireplace/src/model/chat/send_recovery.dart';
-import 'package:fireplace/src/model/chat/chat_directory.dart';
-import 'package:fireplace/src/model/chat/session_store.dart';
 // ignore_for_file: prefer_initializing_formals
-import 'package:fireplace/src/model/chat/async_mutex.dart';
-import 'package:fireplace/src/model/chat/chat_exceptions.dart';
-import 'package:fireplace/src/model/chat/chat_summary.dart';
 
 import 'dart:async';
 
@@ -19,11 +6,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'package:fireplace/src/crypto/session.dart';
+import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/db/secret_store.dart';
+import 'package:fireplace/src/model/chat/async_mutex.dart';
+import 'package:fireplace/src/model/chat/chat_directory.dart';
+import 'package:fireplace/src/model/chat/chat_exceptions.dart';
+import 'package:fireplace/src/model/chat/chat_summary.dart';
+import 'package:fireplace/src/model/chat/chat_tuning.dart';
+import 'package:fireplace/src/model/chat/deferred_queue.dart';
+import 'package:fireplace/src/model/chat/identity_alerts.dart';
+import 'package:fireplace/src/model/chat/message_receiver.dart';
+import 'package:fireplace/src/model/chat/message_sender.dart';
+import 'package:fireplace/src/model/chat/receive_journal.dart';
+import 'package:fireplace/src/model/chat/send_recovery.dart';
+import 'package:fireplace/src/model/chat/session_store.dart';
+import 'package:fireplace/src/model/chat/work_tracker.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/keys/prekey_service.dart';
 import 'package:fireplace/src/model/safety/safety_service.dart';
-import 'package:fireplace/src/db/local_messages.dart';
-import 'package:fireplace/src/db/secret_store.dart';
 
 export 'package:fireplace/src/model/chat/chat_exceptions.dart';
 export 'package:fireplace/src/model/chat/chat_summary.dart';
@@ -124,6 +124,11 @@ class ChatService {
 
   final _work = WorkTracker();
 
+  /// Messages that could not be processed yet (identity change awaiting the
+  /// user, or a transient storage/network error). See [retryDeferred].
+  final _queue = DeferredQueue();
+  final _alerts = IdentityAlerts();
+
   /// Stop scheduling receives and drain work before local session storage closes.
   Future<void> close() => _work.close(() async {
     _work.markClosed();
@@ -201,11 +206,6 @@ class ChatService {
   static set sendGap(Duration value) {
     ChatTuning.sendGap = value;
   }
-
-  /// Messages that could not be processed yet (identity change awaiting the
-  /// user, or a transient storage/network error). See [retryDeferred].
-  final _queue = DeferredQueue();
-  final _alerts = IdentityAlerts();
 
   /// Contacts whose changed identity is blocking messages, with the NEW identity key.
   Map<String, List<int>> get identityAlerts => _alerts.snapshot;

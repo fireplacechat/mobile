@@ -6,8 +6,8 @@ Fireplace is a Flutter app for iOS and Android using Firebase. Its feature layou
 
 1. `lib/main.dart` starts Firebase and runs the app.
 2. `lib/src/app.dart` selects the first screen.
-3. `lib/src/ui/chat_list_screen.dart` and `lib/src/ui/chat_screen.dart` contain the current chat screens.
-4. `lib/src/services/chat_service.dart` handles sending, receive journaling, history and sync.
+3. `lib/src/view/chat_list/chat_list_screen.dart` lists conversations; `lib/src/ui/chat_screen.dart` contains the chat screen awaiting extraction.
+4. `lib/src/services/chat_service.dart` is the public facade; it wires the sender, receiver and shared state holders in `lib/src/model/chat/`.
 5. `lib/src/crypto/session.dart` implements the cryptographic session and stays whole.
 
 ## Folders
@@ -23,8 +23,8 @@ lib/src/
 ├── crypto/            protocol primitives and cryptographic sessions
 ├── app.dart           first-screen routing
 ├── app/               providers awaiting extraction
-├── services/          chat service awaiting extraction
-└── ui/                composite screens and helpers awaiting extraction
+├── services/          chat service facade and lifecycle wiring
+└── ui/                chat-screen state and compatibility exports awaiting extraction
 ```
 
 `chat_list` is a separate feature from `chat`. Other feature boundaries include account, auth, devices, recovery, safety, search, settings, notifications, push and keys. Not every target folder exists yet.
@@ -44,9 +44,9 @@ All app imports use `package:fireplace/...`. Top-level startup wiring can assemb
 ## The path of one message
 
 1. `ui/chat_screen.dart` checks message length using `model/chat/message_limits.dart` and calls the chat service.
-2. `services/chat_service.dart` asks `crypto/session.dart` to encrypt per device and publishes ciphertext.
+2. `services/chat_service.dart` forwards to `model/chat/message_sender.dart`, which asks `crypto/session.dart` to encrypt per device and publishes ciphertext.
 3. An uncertain send is kept for the user's explicit confirmation or retry; it never silently resends.
-4. The receiving chat service decrypts, journals and saves the message in `db/encrypted_message_store.dart`.
+4. `model/chat/message_receiver.dart` decrypts, journals through `model/chat/receive_journal.dart`, and saves the message in `db/encrypted_message_store.dart`.
 5. Screens read local history. The server receives ciphertext for messaging; optional reports can contain plaintext selected by the reporter.
 
 Firestore stores public keys, ciphertext and account/chat metadata. Secure storage holds device keys and ratchet state. Encrypted local files hold history and preferences. Providers assemble these resources and manage their lifecycle.
@@ -57,7 +57,11 @@ Shared presentation widgets now live in `widgets/`; the message bubble and day s
 
 Recovery-key, device-linking and password-change flows now live in `view/recovery/`, `view/devices/` and `view/account/`; `ui/recovery_screens.dart` retains their compatibility exports.
 
-Separate PRs will extract composite screens; split unread, visibility and search helpers; then extract chat directory, sender, receive journal, receiver and session storage behind the existing chat-service facade. Chat-screen controllers and providers follow after those boundaries are reviewed. Each extraction preserves behavior and public APIs. Crypto session code stays whole; only its imports change in the first move.
+Composite account, device, safety, settings and chat-list screens now live in their feature folders. Chat activity helpers and message formatting live in `model/chat/`. Chat directory, session storage, send recovery, receive journaling, sender and receiver are behind the existing chat-service facade.
+
+`ChatService` creates one mutex and passes the same instance to the sender and receiver. It also owns the shared `IdentityAlerts`, `WorkTracker` and `DeferredQueue` holders. Its `close()` marks work closed, stops the retry timer, cancels syncs and drains receive work, waits for the mutex, clears deferred and unfinished entries, then closes alerts. The public constructor, methods and test hooks remain compatible. `ChatTuning` holds the tuning values; the facade forwards the existing static API.
+
+Chat-screen controllers and providers await separately reviewed designs. Each extraction preserves behavior and public APIs. Crypto session code stays whole; only its imports change in the first move.
 
 `test/` mirrors the target layers. Some tests already use their target location while their implementation still lives in a legacy composite. Fixture helpers stay in `test/support/`; protocol vectors in `test/vectors/` stay unchanged. Earlier decision records retain paths from when they were written; `scripts/lib-map.csv` and `scripts/test-map.csv` record the one-to-one path changes.
 
