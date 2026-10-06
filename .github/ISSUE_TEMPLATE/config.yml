@@ -1,5 +1,8 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
+  - name: Ask a question or share an early idea
+    url: https://github.com/fireplacechat/mobile/discussions
+    about: Questions, ideas and general conversation belong in Discussions. Issues are for bugs and agreed features.
   - name: Report a security vulnerability
     url: https://fireplacechat.com/security/
     about: Please do not open a public issue. Email security@fireplacechat.com instead.
