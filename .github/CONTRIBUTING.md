@@ -20,5 +20,11 @@ Bug fixes and tests are the most welcome contributions: widget and service tests
 - UI changes need a screenshot or a short recording.
 - If an AI tool helped, say so and follow the [AI usage policy](AI_POLICY.md).
 
+## Contributor License Agreement
+Before a pull request that changes code or other project files can be merged, everyone who contributed to it needs to agree once to the [Fireplace Contributor License Agreement](CLA.md). You keep ownership of your work; the agreement lets the project keep distributing it, now and in the future. Agreeing takes one comment: the pull request check links to the signatures issue and shows the exact sentence to post. Typo fixes to documentation and similar tiny changes still go through the same check. If you are contributing for an employer or an organisation, read section 1 of the agreement first.
+
+## How pull requests are merged
+A pull request needs one approving review from a maintainer, green checks and all conversations resolved. Ordinary pull requests are merged by squashing them into one commit, so history stays easy to read; the pull request title becomes the commit title. Multi-commit refactors where every commit stands on its own are merged with a merge commit, so the individual commits are kept.
+
 ## Reporting problems
 Use the issue templates, include the app version, device and OS, and redact personal data. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).

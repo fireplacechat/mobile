@@ -7,8 +7,8 @@ What problem does this solve, and for whom? Link the issue or discussion.
 Short and concrete. Mention anything that touches cryptography, keys, authentication, Firestore rules, storage on the device, or permissions.
 
 ## How it was checked
-- [ ] `flutter analyze` clean, `dart format` clean
-- [ ] `TZ=UTC flutter test --concurrency=1` passes
+- [ ] `scripts/check.sh` passes (format, analyze, layers and all tests)
+- [ ] I have agreed to the [Contributor License Agreement](CLA.md) (the `cla` check will tell you if not).
 - [ ] New or changed behaviour has a test that fails without the change
 - [ ] UI change: screenshot or short recording attached
 - [ ] Not tested on a real device (say so), or tested on: ______

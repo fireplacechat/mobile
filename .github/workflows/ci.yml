@@ -18,6 +18,7 @@ on:
       - 'analysis_options.yaml'
       - 'dart_test.yaml'
       - '.github/workflows/ci.yml'
+      - '.github/scripts/**'
   pull_request:
     paths:
       - 'lib/**'
@@ -30,6 +31,7 @@ on:
       - 'analysis_options.yaml'
       - 'dart_test.yaml'
       - '.github/workflows/ci.yml'
+      - '.github/scripts/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -53,6 +55,7 @@ jobs:
       - run: flutter analyze
       - run: python3 scripts/check_layout.py .
       - run: python3 scripts/test_check_layout.py
+      - run: node --test .github/scripts/cla-check.test.js
 
   unit:
     name: unit (shard ${{ matrix.shard }} of 3)
