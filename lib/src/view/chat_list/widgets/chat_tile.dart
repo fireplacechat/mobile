@@ -4,7 +4,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/services/chat_service.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/ui/chat_activity.dart';
-import 'package:fireplace/src/ui/message_format.dart';
+import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 
 class ChatTile extends ConsumerWidget {

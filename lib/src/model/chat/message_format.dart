@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 
 import 'package:fireplace/src/model/chat/message_limits.dart';
 

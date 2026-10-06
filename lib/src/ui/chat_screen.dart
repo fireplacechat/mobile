@@ -16,7 +16,7 @@ import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
 import 'package:fireplace/src/ui/chat_activity.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
-import 'package:fireplace/src/ui/message_format.dart';
+import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';

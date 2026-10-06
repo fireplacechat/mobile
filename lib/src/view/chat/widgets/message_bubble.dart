@@ -7,7 +7,7 @@ import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
-import 'package:fireplace/src/ui/message_format.dart';
+import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 
 class MessageBubble extends ConsumerStatefulWidget {

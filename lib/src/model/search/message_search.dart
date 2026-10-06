@@ -1,5 +1,5 @@
 import 'package:fireplace/src/db/local_messages.dart';
-import 'package:fireplace/src/ui/message_format.dart';
+import 'package:fireplace/src/model/chat/message_format.dart';
 
 class MessageSearchHit {
   MessageSearchHit(this.message, this.text, this.start, this.end);

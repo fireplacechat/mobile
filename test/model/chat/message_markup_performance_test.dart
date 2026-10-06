@@ -4,7 +4,7 @@
 @Tags(['timing'])
 library;
 
-import 'package:fireplace/src/ui/message_format.dart';
+import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 int ms(void Function() f) {
