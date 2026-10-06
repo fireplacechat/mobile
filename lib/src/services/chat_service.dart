@@ -1,3 +1,4 @@
+import 'package:fireplace/src/model/chat/chat_directory.dart';
 import 'package:fireplace/src/model/chat/session_store.dart';
 // ignore_for_file: prefer_initializing_formals
 import 'package:fireplace/src/model/chat/async_mutex.dart';
@@ -47,6 +48,7 @@ class ChatService {
        _messages = messages,
        _safety = safety,
        _sess = SessionStore(secrets, device),
+       _directory = ChatDirectory(db, messages, uid, safety),
        _commitBatch = commitBatch {
     keys.bindLocalDevice(uid, device);
   }
@@ -61,6 +63,7 @@ class ChatService {
   final SecretStore _secrets;
   final LocalMessageStore _messages;
   final SessionStore _sess;
+  final ChatDirectory _directory;
   final AsyncMutex _lock = AsyncMutex(); // serializes all session-state changes
 
   bool _closed = false;
@@ -91,109 +94,20 @@ class ChatService {
     unawaited(_alertCtrl.close());
   }();
 
-  static String chatIdFor(String a, String b) {
-    final s = [a, b]..sort();
-    return '${s[0]}_${s[1]}';
-  }
+  static String chatIdFor(String a, String b) => ChatDirectory.chatIdFor(a, b);
 
-  String peerOf(String chatId) {
-    final parts = chatId.split('_');
-    if (parts.length != 2 || !parts.contains(uid)) {
-      throw ChatException('Not a chat of this user.');
-    }
-    return parts[0] == uid ? parts[1] : parts[0];
-  }
+  String peerOf(String chatId) => _directory.peerOf(chatId);
 
-  // ------------------------------------------------------------------- chats
+  Future<String> startChat(String username) => _directory.startChat(username);
 
-  /// Finds a user by username and makes sure the chat document exists.
-  Future<String> startChat(String username) async {
-    final name = username.trim().toLowerCase();
-    final u = await _db.collection('usernames').doc(name).get();
-    if (!u.exists) throw ChatException('No user named "$name".');
-    final peerUid = u.data()!['uid'] as String;
-    if (peerUid == uid) throw ChatException('You cannot chat with yourself.');
-    if (_safety?.isBlocked(peerUid) ?? false) {
-      throw ChatException(
-        'You blocked @$name. Unblock them in Settings to chat again.',
-      );
-    }
-    final chatId = chatIdFor(uid, peerUid);
-    final ref = _db.collection('chats').doc(chatId);
-    if (!(await ref.get()).exists) {
-      try {
-        await ref.set({
-          'participants': [uid, peerUid]..sort(),
-          'initiator': uid,
-          'accepted': false,
-          'requestCount': 0,
-          'createdAt': FieldValue.serverTimestamp(),
-          'lastMessageAt': FieldValue.serverTimestamp(),
-        });
-      } on FirebaseException catch (e) {
-        if (e.code == 'permission-denied') {
-          throw ChatException('You cannot start a chat with @$name.');
-        }
-        rethrow;
-      }
-    }
-    return chatId;
-  }
+  Future<void> acceptRequest(String chatId) => _directory.acceptRequest(chatId);
 
-  /// Accept a message request (the recipient only).
-  Future<void> acceptRequest(String chatId) async {
-    peerOf(chatId);
-    await _db.collection('chats').doc(chatId).update({
-      'accepted': true,
-      'lastMessageAt': FieldValue.serverTimestamp(),
-    });
-  }
+  Stream<List<ChatSummary>> watchChats() => _directory.watchChats();
 
-  Stream<List<ChatSummary>> watchChats() => _db
-      .collection('chats')
-      .where('participants', arrayContains: uid)
-      .snapshots()
-      .map(
-        (s) => [
-          for (final d in s.docs)
-            ChatSummary(
-              d.id,
-              peerOf(d.id),
-              (d.data()['lastMessageAt'] as Timestamp?)?.toDate(),
-              initiator: d.data()['initiator'] as String?,
-              accepted: (d.data()['accepted'] as bool?) ?? true,
-              requestCount: (d.data()['requestCount'] as int?) ?? 0,
-            ),
-        ],
-      );
+  Future<bool> removeChatIfPeerDeleted(String chatId) =>
+      _directory.removeChatIfPeerDeleted(chatId);
 
-  /// When the other person deleted their account, drop the conversation: delete
-  /// what I sent, the chat document (allowed by the rules once their profile is
-  /// gone) and the local copy. Returns true if the chat was removed.
-  Future<bool> removeChatIfPeerDeleted(String chatId) async {
-    final peer = peerOf(chatId);
-    if ((await _db.collection('users').doc(peer).get()).exists) return false;
-    final msgs = _db.collection('chats').doc(chatId).collection('messages');
-    while (true) {
-      final batchDocs = await msgs
-          .where('senderUid', isEqualTo: uid)
-          .limit(400)
-          .get();
-      if (batchDocs.docs.isEmpty) break;
-      final batch = _db.batch();
-      for (final d in batchDocs.docs) {
-        batch.delete(d.reference);
-      }
-      await batch.commit();
-    }
-    await _db.collection('chats').doc(chatId).delete();
-    await _messages.deleteChat(chatId);
-    return true;
-  }
-
-  Future<String?> usernameOf(String peerUid) async =>
-      (await _db.collection('users').doc(peerUid).get()).data()?['username']
-          as String?;
+  Future<String?> usernameOf(String peerUid) => _directory.usernameOf(peerUid);
 
   Stream<List<LocalMessage>> watchMessages(String chatId) =>
       _messages.watch(chatId);
