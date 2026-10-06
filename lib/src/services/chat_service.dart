@@ -1,3 +1,4 @@
+import 'package:fireplace/src/model/chat/work_tracker.dart';
 import 'package:fireplace/src/model/chat/identity_alerts.dart';
 import 'package:fireplace/src/model/chat/receive_journal.dart';
 import 'package:fireplace/src/model/chat/send_recovery.dart';
@@ -85,33 +86,19 @@ class ChatService {
   );
   final AsyncMutex _lock = AsyncMutex(); // serializes all session-state changes
 
-  bool _closed = false;
-  Future<void>? _closing;
-  final _syncCancels = <Future<void> Function()>{};
-  final _receiveWork = <Future<void>>{};
-
-  void _trackReceive(Future<void> work) {
-    final guarded = work.catchError((Object _) {});
-    _receiveWork.add(guarded);
-    unawaited(guarded.then((_) => _receiveWork.remove(guarded)));
-  }
+  final _work = WorkTracker();
 
   /// Stop scheduling receives and drain work before local session storage closes.
-  Future<void> close() => _closing ??= () async {
-    _closed = true;
+  Future<void> close() => _work.close(() async {
+    _work.markClosed();
     _retryTimer?.cancel();
     _retryTimer = null;
-    for (final cancel in _syncCancels.toList()) {
-      await cancel();
-    }
-    while (_receiveWork.isNotEmpty) {
-      await Future.wait(_receiveWork.toList());
-    }
+    await _work.cancelAndDrain();
     await _lock.run(() async {});
     _deferred.clear();
     _unfinished.clear();
     unawaited(_alerts.close());
-  }();
+  });
 
   static String chatIdFor(String a, String b) => ChatDirectory.chatIdFor(a, b);
 
@@ -502,14 +489,14 @@ class ChatService {
   /// A peer used a prekey we cannot answer: drop orphaned published prekeys and
   /// refill the pool (at most once a minute, in the background).
   void _repairPrekeys() {
-    if (_closed) return;
+    if (_work.closed) return;
     final now = DateTime.now();
     if (_lastRepair != null &&
         now.difference(_lastRepair!) < const Duration(minutes: 1)) {
       return;
     }
     _lastRepair = now;
-    _trackReceive(_prekeys.maintain(uid, device));
+    _work.track(_prekeys.maintain(uid, device));
   }
 
   /// Contacts whose changed identity is blocking messages, with the NEW identity key.
@@ -554,7 +541,7 @@ class ChatService {
   ///    for a retry, and even when 500 or more messages share one timestamp. Unfinished messages
   ///    are retried from memory by [retryDeferred], not by re-reading them.
   StreamSubscription<void> startSync(String chatId, {int limit = 50}) {
-    if (_closed) throw StateError('Chat service is closed.');
+    if (_work.closed) throw StateError('Chat service is closed.');
     StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? inner;
     var cancelled = false;
     var generation = 0;
@@ -563,10 +550,10 @@ class ChatService {
     final col = _db.collection('chats').doc(chatId).collection('messages');
 
     Future<void> listen() async {
-      if (cancelled || _closed) return;
+      if (cancelled || _work.closed) return;
       final mine = ++generation;
       final cursor = await _cursor(chatId);
-      if (cancelled || _closed || mine != generation) return;
+      if (cancelled || _work.closed || mine != generation) return;
       Query<Map<String, dynamic>> q;
       if (cursor == null) {
         q = col.orderBy('ts', descending: true).limit(limit);
@@ -579,8 +566,8 @@ class ChatService {
       }
       syncPagesOpened[chatId] = (syncPagesOpened[chatId] ?? 0) + 1;
       inner = q.snapshots().listen((snap) {
-        _trackReceive(() async {
-          if (cancelled || _closed || mine != generation) return;
+        _work.track(() async {
+          if (cancelled || _work.closed || mine != generation) return;
           final added =
               snap.docChanges
                   .where((c) => c.type == DocumentChangeType.added)
@@ -600,7 +587,7 @@ class ChatService {
             );
           }
           for (final d in added) {
-            if (cancelled || _closed || mine != generation) return;
+            if (cancelled || _work.closed || mine != generation) return;
             final ok = await _handle(chatId, d.id, d.data()!);
             if (!ok) blocked = true;
             final ts = d.data()!['ts'];
@@ -625,7 +612,7 @@ class ChatService {
           }
           if (advanceTo != null &&
               !cancelled &&
-              !_closed &&
+              !_work.closed &&
               mine == generation) {
             try {
               await _advanceCursor(chatId, advanceTo);
@@ -637,7 +624,7 @@ class ChatService {
           if (cursor != null &&
               snap.docs.length >= _pageCap &&
               !cancelled &&
-              !_closed &&
+              !_work.closed &&
               mine == generation) {
             // More backlog: the next page starts right after this one.
             pageAfter = snap.docs.last;
@@ -650,14 +637,14 @@ class ChatService {
 
     final subscription = done.stream.listen(null);
     final cancel = subscription.cancel;
-    _syncCancels.add(cancel);
+    _work.addCancel(cancel);
     done.onCancel = () async {
       cancelled = true;
       generation++;
-      _syncCancels.remove(cancel);
+      _work.removeCancel(cancel);
       await inner?.cancel();
     };
-    _trackReceive(listen());
+    _work.track(listen());
     return subscription;
   }
 
@@ -669,19 +656,19 @@ class ChatService {
   ) async {
     try {
       await _lock.run(() async {
-        if (!_closed) await _process(chatId, msgId, data);
+        if (!_work.closed) await _process(chatId, msgId, data);
       });
-      if (_closed) return false;
+      if (_work.closed) return false;
       _deferred.remove('$chatId/$msgId');
       _unfinished.remove('$chatId/$msgId');
       return true;
     } on IdentityChangedException catch (e) {
-      if (_closed) return false;
+      if (_work.closed) return false;
       _alerts.set(e);
       _deferred['$chatId/$msgId'] = (chatId: chatId, msgId: msgId, data: data);
       return false;
     } catch (_) {
-      if (_closed) return false;
+      if (_work.closed) return false;
       // Storage or network trouble (or a peer flooding invalid messages): keep
       // the message and try again shortly.
       _deferred['$chatId/$msgId'] = (chatId: chatId, msgId: msgId, data: data);
@@ -696,7 +683,7 @@ class ChatService {
   /// Reprocesses deferred messages (call after the user accepts an identity
   /// change, or when storage/network recovers).
   Future<void> retryDeferred() async {
-    if (_closed) return;
+    if (_work.closed) return;
     final items = _deferred.values.toList();
     _alerts.clear();
     for (final m in items) {
