@@ -1,6 +1,6 @@
 # Changes to these paths always need a review from the maintainers.
 *                         @fireplacechat/maintainers
-/lib/src/crypto/          @fireplacechat/maintainers
+/lib/src/crypto/          @fireplacechat/crypto-reviewers
 /docs/decisions/          @fireplacechat/maintainers
 /.github/                 @fireplacechat/maintainers
 /android/app/build.gradle.kts  @fireplacechat/maintainers
