@@ -1,3 +1,6 @@
+import 'package:fireplace/src/model/chat/deferred_queue.dart';
+import 'package:fireplace/src/model/chat/work_tracker.dart';
+import 'package:fireplace/src/model/chat/identity_alerts.dart';
 import 'package:fireplace/src/model/chat/receive_journal.dart';
 import 'package:fireplace/src/model/chat/send_recovery.dart';
 import 'package:fireplace/src/model/chat/chat_directory.dart';
@@ -84,33 +87,18 @@ class ChatService {
   );
   final AsyncMutex _lock = AsyncMutex(); // serializes all session-state changes
 
-  bool _closed = false;
-  Future<void>? _closing;
-  final _syncCancels = <Future<void> Function()>{};
-  final _receiveWork = <Future<void>>{};
-
-  void _trackReceive(Future<void> work) {
-    final guarded = work.catchError((Object _) {});
-    _receiveWork.add(guarded);
-    unawaited(guarded.then((_) => _receiveWork.remove(guarded)));
-  }
+  final _work = WorkTracker();
 
   /// Stop scheduling receives and drain work before local session storage closes.
-  Future<void> close() => _closing ??= () async {
-    _closed = true;
-    _retryTimer?.cancel();
-    _retryTimer = null;
-    for (final cancel in _syncCancels.toList()) {
-      await cancel();
-    }
-    while (_receiveWork.isNotEmpty) {
-      await Future.wait(_receiveWork.toList());
-    }
+  Future<void> close() => _work.close(() async {
+    _work.markClosed();
+    _queue.close();
+    await _work.cancelAndDrain();
     await _lock.run(() async {});
-    _deferred.clear();
-    _unfinished.clear();
-    unawaited(_alertCtrl.close());
-  }();
+    _queue.clearDeferred();
+    _queue.clearUnfinished();
+    unawaited(_alerts.close());
+  });
 
   static String chatIdFor(String a, String b) => ChatDirectory.chatIdFor(a, b);
 
@@ -173,7 +161,7 @@ class ChatService {
     try {
       peerDevices = await _keys.fetchDevices(peerUid);
     } on IdentityChangedException catch (e) {
-      _setAlert(e);
+      _alerts.set(e);
       rethrow;
     }
     if (peerDevices.isEmpty) {
@@ -492,53 +480,28 @@ class ChatService {
 
   /// Messages that could not be processed yet (identity change awaiting the
   /// user, or a transient storage/network error). See [retryDeferred].
-  final Map<String, ({String chatId, String msgId, Map<String, dynamic> data})>
-  _deferred = {};
-  final Map<String, List<int>> _identityAlerts = {};
-  final _alertCtrl = StreamController<Map<String, List<int>>>.broadcast();
-  Timer? _retryTimer;
+  final _queue = DeferredQueue();
+  final _alerts = IdentityAlerts();
   DateTime? _lastRepair;
 
   /// A peer used a prekey we cannot answer: drop orphaned published prekeys and
   /// refill the pool (at most once a minute, in the background).
   void _repairPrekeys() {
-    if (_closed) return;
+    if (_work.closed) return;
     final now = DateTime.now();
     if (_lastRepair != null &&
         now.difference(_lastRepair!) < const Duration(minutes: 1)) {
       return;
     }
     _lastRepair = now;
-    _trackReceive(_prekeys.maintain(uid, device));
+    _work.track(_prekeys.maintain(uid, device));
   }
 
   /// Contacts whose changed identity is blocking messages, with the NEW identity key.
-  Map<String, List<int>> get identityAlerts =>
-      Map.unmodifiable(_identityAlerts);
-  Set<String> get identityAlertPeers => _identityAlerts.keys.toSet();
+  Map<String, List<int>> get identityAlerts => _alerts.snapshot;
+  Set<String> get identityAlertPeers => _alerts.peers;
 
-  Stream<Map<String, List<int>>> watchIdentityAlerts() => Stream.multi((sink) {
-    // Subscribe before delivering the initial snapshot. An alert arriving while
-    // that snapshot is delivered/paused must not disappear between yield/yield*.
-    final sub = _alertCtrl.stream.listen(
-      sink.add,
-      onError: sink.addError,
-      onDone: sink.close,
-    );
-    sink.onCancel = sub.cancel;
-    sink.add(identityAlerts);
-  });
-
-  void _setAlert(IdentityChangedException e) {
-    _identityAlerts[e.peerUid] = e.newIdentityPub;
-    _alertCtrl.add(identityAlerts);
-  }
-
-  /// Messages the listener has seen but not yet finished (being processed, or waiting for a
-  /// retry). The sync cursor must never move past the oldest of these: the retry list is
-  /// in memory only, so after a restart the cursor is the only thing that brings them back.
-  /// A null timestamp blocks all advancing until the message is done.
-  final Map<String, ({String chatId, Timestamp? ts})> _unfinished = {};
+  Stream<Map<String, List<int>>> watchIdentityAlerts() => _alerts.watch();
 
   String _cursorKey(String chatId) => 'cursor:${device.keys.deviceId}:$chatId';
 
@@ -570,7 +533,7 @@ class ChatService {
   ///    for a retry, and even when 500 or more messages share one timestamp. Unfinished messages
   ///    are retried from memory by [retryDeferred], not by re-reading them.
   StreamSubscription<void> startSync(String chatId, {int limit = 50}) {
-    if (_closed) throw StateError('Chat service is closed.');
+    if (_work.closed) throw StateError('Chat service is closed.');
     StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? inner;
     var cancelled = false;
     var generation = 0;
@@ -579,10 +542,10 @@ class ChatService {
     final col = _db.collection('chats').doc(chatId).collection('messages');
 
     Future<void> listen() async {
-      if (cancelled || _closed) return;
+      if (cancelled || _work.closed) return;
       final mine = ++generation;
       final cursor = await _cursor(chatId);
-      if (cancelled || _closed || mine != generation) return;
+      if (cancelled || _work.closed || mine != generation) return;
       Query<Map<String, dynamic>> q;
       if (cursor == null) {
         q = col.orderBy('ts', descending: true).limit(limit);
@@ -595,8 +558,8 @@ class ChatService {
       }
       syncPagesOpened[chatId] = (syncPagesOpened[chatId] ?? 0) + 1;
       inner = q.snapshots().listen((snap) {
-        _trackReceive(() async {
-          if (cancelled || _closed || mine != generation) return;
+        _work.track(() async {
+          if (cancelled || _work.closed || mine != generation) return;
           final added =
               snap.docChanges
                   .where((c) => c.type == DocumentChangeType.added)
@@ -610,38 +573,22 @@ class ChatService {
           // while this one waits on the lock, and must see these as unfinished.
           for (final d in added) {
             final t = d.data()?['ts'];
-            _unfinished['$chatId/${d.id}'] = (
-              chatId: chatId,
-              ts: t is Timestamp ? t : null,
-            );
+            _queue.registerUnfinished(chatId, d.id, t is Timestamp ? t : null);
           }
           for (final d in added) {
-            if (cancelled || _closed || mine != generation) return;
+            if (cancelled || _work.closed || mine != generation) return;
             final ok = await _handle(chatId, d.id, d.data()!);
             if (!ok) blocked = true;
             final ts = d.data()!['ts'];
             // Never advance past a message we still owe a retry.
             if (!blocked && ts is Timestamp) advanceTo = ts;
           }
-          if (advanceTo != null) {
-            // Never move past a message that is not finished (see [_unfinished]). Re-reading
-            // from the oldest unfinished message's own timestamp is safe: stored messages are
-            // skipped.
-            for (final u in _unfinished.values) {
-              if (u.chatId != chatId) continue;
-              final ts = u.ts;
-              if (ts == null) {
-                advanceTo = null;
-                break;
-              }
-              if (advanceTo != null && ts.compareTo(advanceTo) < 0) {
-                advanceTo = ts;
-              }
-            }
-          }
+          // Re-read from the oldest unfinished timestamp: stored messages are skipped.
+          // An unfinished message without a timestamp blocks advancing this chat.
+          advanceTo = _queue.clampCursor(chatId, advanceTo);
           if (advanceTo != null &&
               !cancelled &&
-              !_closed &&
+              !_work.closed &&
               mine == generation) {
             try {
               await _advanceCursor(chatId, advanceTo);
@@ -653,7 +600,7 @@ class ChatService {
           if (cursor != null &&
               snap.docs.length >= _pageCap &&
               !cancelled &&
-              !_closed &&
+              !_work.closed &&
               mine == generation) {
             // More backlog: the next page starts right after this one.
             pageAfter = snap.docs.last;
@@ -666,14 +613,14 @@ class ChatService {
 
     final subscription = done.stream.listen(null);
     final cancel = subscription.cancel;
-    _syncCancels.add(cancel);
+    _work.addCancel(cancel);
     done.onCancel = () async {
       cancelled = true;
       generation++;
-      _syncCancels.remove(cancel);
+      _work.removeCancel(cancel);
       await inner?.cancel();
     };
-    _trackReceive(listen());
+    _work.track(listen());
     return subscription;
   }
 
@@ -685,26 +632,22 @@ class ChatService {
   ) async {
     try {
       await _lock.run(() async {
-        if (!_closed) await _process(chatId, msgId, data);
+        if (!_work.closed) await _process(chatId, msgId, data);
       });
-      if (_closed) return false;
-      _deferred.remove('$chatId/$msgId');
-      _unfinished.remove('$chatId/$msgId');
+      if (_work.closed) return false;
+      _queue.complete(chatId, msgId);
       return true;
     } on IdentityChangedException catch (e) {
-      if (_closed) return false;
-      _setAlert(e);
-      _deferred['$chatId/$msgId'] = (chatId: chatId, msgId: msgId, data: data);
+      if (_work.closed) return false;
+      _alerts.set(e);
+      _queue.defer(chatId, msgId, data);
       return false;
     } catch (_) {
-      if (_closed) return false;
+      if (_work.closed) return false;
       // Storage or network trouble (or a peer flooding invalid messages): keep
       // the message and try again shortly.
-      _deferred['$chatId/$msgId'] = (chatId: chatId, msgId: msgId, data: data);
-      _retryTimer ??= Timer(const Duration(seconds: 65), () {
-        _retryTimer = null;
-        retryDeferred();
-      });
+      _queue.defer(chatId, msgId, data);
+      _queue.scheduleRetry(retryDeferred);
       return false;
     }
   }
@@ -712,10 +655,9 @@ class ChatService {
   /// Reprocesses deferred messages (call after the user accepts an identity
   /// change, or when storage/network recovers).
   Future<void> retryDeferred() async {
-    if (_closed) return;
-    final items = _deferred.values.toList();
-    _identityAlerts.clear();
-    _alertCtrl.add(identityAlerts);
+    if (_work.closed) return;
+    final items = _queue.pending;
+    _alerts.clear();
     for (final m in items) {
       await _handle(m.chatId, m.msgId, m.data);
     }
