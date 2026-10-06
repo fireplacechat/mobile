@@ -7,31 +7,7 @@ name: CI
 on:
   push:
     branches: [main]
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'integration_test/**'
-      - 'scripts/**'
-      - 'assets/**'
-      - 'pubspec.yaml'
-      - 'pubspec.lock'
-      - 'analysis_options.yaml'
-      - 'dart_test.yaml'
-      - '.github/workflows/ci.yml'
-      - '.github/scripts/**'
   pull_request:
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'integration_test/**'
-      - 'scripts/**'
-      - 'assets/**'
-      - 'pubspec.yaml'
-      - 'pubspec.lock'
-      - 'analysis_options.yaml'
-      - 'dart_test.yaml'
-      - '.github/workflows/ci.yml'
-      - '.github/scripts/**'
   workflow_dispatch:
 permissions:
   contents: read
