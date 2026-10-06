@@ -1,0 +1,39 @@
+# Contributor License Agreement check. Reports a status named `cla` on every pull request.
+# People agree once by commenting on the signatures issue (number kept in the repository
+# variable CLA_ISSUE). The script only calls the GitHub API and never runs the pull request's code.
+name: CLA
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+  issue_comment:
+    types: [created]
+concurrency:
+  group: cla-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+  issues: read
+  pull-requests: write
+  statuses: write
+jobs:
+  cla:
+    name: CLA
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'issue_comment' && format('{0}', github.event.issue.number) == vars.CLA_ISSUE)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Always the default branch, never the pull request's code.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CLA_ISSUE: ${{ vars.CLA_ISSUE }}
+          CLA_ALLOWLIST: XSS3cut10n3r,fireplacechat-com
+        with:
+          script: |
+            const { run } = require('./.github/scripts/cla-check.js');
+            await run({ github, context, core });

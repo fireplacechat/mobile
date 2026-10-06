@@ -7,29 +7,7 @@ name: CI
 on:
   push:
     branches: [main]
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'integration_test/**'
-      - 'scripts/**'
-      - 'assets/**'
-      - 'pubspec.yaml'
-      - 'pubspec.lock'
-      - 'analysis_options.yaml'
-      - 'dart_test.yaml'
-      - '.github/workflows/ci.yml'
   pull_request:
-    paths:
-      - 'lib/**'
-      - 'test/**'
-      - 'integration_test/**'
-      - 'scripts/**'
-      - 'assets/**'
-      - 'pubspec.yaml'
-      - 'pubspec.lock'
-      - 'analysis_options.yaml'
-      - 'dart_test.yaml'
-      - '.github/workflows/ci.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -53,6 +31,7 @@ jobs:
       - run: flutter analyze
       - run: python3 scripts/check_layout.py .
       - run: python3 scripts/test_check_layout.py
+      - run: node --test .github/scripts/cla-check.test.js
 
   unit:
     name: unit (shard ${{ matrix.shard }} of 3)
