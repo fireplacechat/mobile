@@ -1,4 +1,12 @@
+import 'package:fireplace/src/model/chat/receive_journal.dart';
+import 'package:fireplace/src/model/chat/send_recovery.dart';
+import 'package:fireplace/src/model/chat/chat_directory.dart';
+import 'package:fireplace/src/model/chat/session_store.dart';
 // ignore_for_file: prefer_initializing_formals
+import 'package:fireplace/src/model/chat/async_mutex.dart';
+import 'package:fireplace/src/model/chat/chat_exceptions.dart';
+import 'package:fireplace/src/model/chat/chat_summary.dart';
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
@@ -15,111 +23,14 @@ import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 
-/// The server refused a send, so nothing was published. The message is plain words that are safe to show
-/// as they are (unlike an arbitrary [ChatException]).
-class SendRefusedException extends ChatException {
-  SendRefusedException(super.message);
-}
-
-class ChatException implements Exception {
-  ChatException(this.message);
-  final String message;
-  @override
-  String toString() => message;
-}
-
-class ChatSummary {
-  ChatSummary(
-    this.chatId,
-    this.peerUid,
-    this.lastMessageAt, {
-    this.initiator,
-    this.accepted = true,
-    this.requestCount = 0,
-  });
-  final String chatId;
-  final String peerUid;
-  final DateTime? lastMessageAt;
-
-  /// Who started the chat. Null for chats created before message requests existed.
-  final String? initiator;
-
-  /// False while the chat is a message request awaiting the recipient.
-  final bool accepted;
-  final int requestCount;
-
-  /// A request somebody else sent me that I have not accepted yet.
-  bool isIncomingRequest(String me) =>
-      !accepted && initiator != null && initiator != me;
-}
-
-class _Mutex {
-  Future<void> _last = Future.value();
-  Future<T> run<T>(Future<T> Function() f) {
-    final c = Completer<T>();
-    final prev = _last;
-    _last = c.future.then((_) {}, onError: (_) {});
-    prev.then((_) async {
-      try {
-        c.complete(await f());
-      } catch (e, st) {
-        c.completeError(e, st);
-      }
-    });
-    return c.future;
-  }
-}
+export 'package:fireplace/src/model/chat/chat_exceptions.dart';
+export 'package:fireplace/src/model/chat/chat_summary.dart';
 
 /// Encrypts/decrypts messages and moves ciphertext through Firestore.
 /// Plaintext never leaves this class except into the on-device [LocalMessageStore].
 /// How long the server keeps a message. Each message carries an `expireAt` this far ahead, and a
 /// Firestore TTL policy on that field deletes it. Messages live on in the recipients' own phones.
 const messageRetention = Duration(days: 30);
-
-/// What is known about an attempt to send a message. "confirmed" means the server accepted the write,
-/// not that the other person has received, decrypted or read it.
-enum SendOutcome {
-  /// The server holds the message.
-  confirmed,
-
-  /// Definitely not published (the ordinary errors: the draft can be edited and sent again).
-  notPublished,
-
-  /// Published, but this phone could not save it to its own history. Do not send it again.
-  publishedLocalSaveFailed,
-
-  /// The network failed in a way that leaves it unknown whether the message was published.
-  publishUnknown,
-}
-
-/// Thrown by [ChatService.sendText] when the outcome is NOT a clear failure: the message may
-/// already have been delivered, so the UI must not invite a plain retry (which could duplicate it).
-class SendNotConfirmedException implements Exception {
-  const SendNotConfirmedException({
-    required this.outcome,
-    required this.chatId,
-    required this.messageId,
-    required this.body,
-    required this.attemptedAt,
-    required this.persisted,
-  });
-
-  /// [SendOutcome.publishUnknown] or [SendOutcome.publishedLocalSaveFailed].
-  final SendOutcome outcome;
-  final String chatId;
-
-  /// The server document id, stable across [ChatService.checkSendStatus].
-  final String messageId;
-  final String body;
-  final DateTime attemptedAt;
-
-  /// True when an "unconfirmed" entry was saved in the on-device history (so it survives a restart).
-  /// False when even that failed: the caller must keep the warning in memory.
-  final bool persisted;
-
-  @override
-  String toString() => 'Message not confirmed (${outcome.name})';
-}
 
 class ChatService {
   ChatService({
@@ -138,6 +49,8 @@ class ChatService {
        _secrets = secrets,
        _messages = messages,
        _safety = safety,
+       _sess = SessionStore(secrets, device),
+       _directory = ChatDirectory(db, messages, uid, safety),
        _commitBatch = commitBatch {
     keys.bindLocalDevice(uid, device);
   }
@@ -151,7 +64,25 @@ class ChatService {
   final Future<void> Function(WriteBatch batch)? _commitBatch;
   final SecretStore _secrets;
   final LocalMessageStore _messages;
-  final _Mutex _lock = _Mutex(); // serializes all session-state changes
+  final SessionStore _sess;
+  final ChatDirectory _directory;
+  late final _recovery = SendRecovery(
+    _db,
+    _messages,
+    uid,
+    device,
+    sendText: sendText,
+    peerOf: peerOf,
+  );
+  late final _journal = ReceiveJournal(
+    _secrets,
+    _messages,
+    _prekeys,
+    _sess,
+    uid,
+    device,
+  );
+  final AsyncMutex _lock = AsyncMutex(); // serializes all session-state changes
 
   bool _closed = false;
   Future<void>? _closing;
@@ -181,137 +112,25 @@ class ChatService {
     unawaited(_alertCtrl.close());
   }();
 
-  static String chatIdFor(String a, String b) {
-    final s = [a, b]..sort();
-    return '${s[0]}_${s[1]}';
-  }
+  static String chatIdFor(String a, String b) => ChatDirectory.chatIdFor(a, b);
 
-  String peerOf(String chatId) {
-    final parts = chatId.split('_');
-    if (parts.length != 2 || !parts.contains(uid)) {
-      throw ChatException('Not a chat of this user.');
-    }
-    return parts[0] == uid ? parts[1] : parts[0];
-  }
+  String peerOf(String chatId) => _directory.peerOf(chatId);
 
-  // ------------------------------------------------------------------- chats
+  Future<String> startChat(String username) => _directory.startChat(username);
 
-  /// Finds a user by username and makes sure the chat document exists.
-  Future<String> startChat(String username) async {
-    final name = username.trim().toLowerCase();
-    final u = await _db.collection('usernames').doc(name).get();
-    if (!u.exists) throw ChatException('No user named "$name".');
-    final peerUid = u.data()!['uid'] as String;
-    if (peerUid == uid) throw ChatException('You cannot chat with yourself.');
-    if (_safety?.isBlocked(peerUid) ?? false) {
-      throw ChatException(
-        'You blocked @$name. Unblock them in Settings to chat again.',
-      );
-    }
-    final chatId = chatIdFor(uid, peerUid);
-    final ref = _db.collection('chats').doc(chatId);
-    if (!(await ref.get()).exists) {
-      try {
-        await ref.set({
-          'participants': [uid, peerUid]..sort(),
-          'initiator': uid,
-          'accepted': false,
-          'requestCount': 0,
-          'createdAt': FieldValue.serverTimestamp(),
-          'lastMessageAt': FieldValue.serverTimestamp(),
-        });
-      } on FirebaseException catch (e) {
-        if (e.code == 'permission-denied') {
-          throw ChatException('You cannot start a chat with @$name.');
-        }
-        rethrow;
-      }
-    }
-    return chatId;
-  }
+  Future<void> acceptRequest(String chatId) => _directory.acceptRequest(chatId);
 
-  /// Accept a message request (the recipient only).
-  Future<void> acceptRequest(String chatId) async {
-    peerOf(chatId);
-    await _db.collection('chats').doc(chatId).update({
-      'accepted': true,
-      'lastMessageAt': FieldValue.serverTimestamp(),
-    });
-  }
+  Stream<List<ChatSummary>> watchChats() => _directory.watchChats();
 
-  Stream<List<ChatSummary>> watchChats() => _db
-      .collection('chats')
-      .where('participants', arrayContains: uid)
-      .snapshots()
-      .map(
-        (s) => [
-          for (final d in s.docs)
-            ChatSummary(
-              d.id,
-              peerOf(d.id),
-              (d.data()['lastMessageAt'] as Timestamp?)?.toDate(),
-              initiator: d.data()['initiator'] as String?,
-              accepted: (d.data()['accepted'] as bool?) ?? true,
-              requestCount: (d.data()['requestCount'] as int?) ?? 0,
-            ),
-        ],
-      );
+  Future<bool> removeChatIfPeerDeleted(String chatId) =>
+      _directory.removeChatIfPeerDeleted(chatId);
 
-  /// When the other person deleted their account, drop the conversation: delete
-  /// what I sent, the chat document (allowed by the rules once their profile is
-  /// gone) and the local copy. Returns true if the chat was removed.
-  Future<bool> removeChatIfPeerDeleted(String chatId) async {
-    final peer = peerOf(chatId);
-    if ((await _db.collection('users').doc(peer).get()).exists) return false;
-    final msgs = _db.collection('chats').doc(chatId).collection('messages');
-    while (true) {
-      final batchDocs = await msgs
-          .where('senderUid', isEqualTo: uid)
-          .limit(400)
-          .get();
-      if (batchDocs.docs.isEmpty) break;
-      final batch = _db.batch();
-      for (final d in batchDocs.docs) {
-        batch.delete(d.reference);
-      }
-      await batch.commit();
-    }
-    await _db.collection('chats').doc(chatId).delete();
-    await _messages.deleteChat(chatId);
-    return true;
-  }
-
-  Future<String?> usernameOf(String peerUid) async =>
-      (await _db.collection('users').doc(peerUid).get()).data()?['username']
-          as String?;
+  Future<String?> usernameOf(String peerUid) => _directory.usernameOf(peerUid);
 
   Stream<List<LocalMessage>> watchMessages(String chatId) =>
       _messages.watch(chatId);
 
   // ----------------------------------------------------------------- sessions
-
-  String _sessKey(String peerUid, String peerDev) =>
-      'sess:${device.keys.deviceId}:$peerUid:$peerDev';
-
-  Future<List<Session>> _loadSessions(String peerUid, String peerDev) async {
-    final raw = await _secrets.read(_sessKey(peerUid, peerDev));
-    if (raw == null) return [];
-    final out = <Session>[];
-    for (final j in jsonDecode(raw) as List) {
-      // Sessions from an older protocol version are dropped; a fresh handshake
-      // replaces them.
-      final sess = Session.tryFromJson(Map<String, dynamic>.from(j));
-      // also drop sessions whose stored key pairs no longer match each other
-      if (sess != null && await sess.selfCheck()) out.add(sess);
-    }
-    return out;
-  }
-
-  Future<void> _saveSessions(String peerUid, String peerDev, List<Session> s) =>
-      _secrets.write(
-        _sessKey(peerUid, peerDev),
-        jsonEncode([for (final x in s) x.toJson()]),
-      );
 
   // -------------------------------------------------------------------- send
 
@@ -328,7 +147,7 @@ class ChatService {
     // snapshot of the session; replaying it AFTER this send would roll the ratchet back and
     // reuse a counter. So finish it first (if storage is still failing, the send fails
     // safely instead).
-    await _recoverJournals();
+    await _journal.recoverJournals();
     final peerUid = peerOf(chatId);
     if (_safety?.isBlocked(peerUid) ?? false) {
       throw ChatException('You blocked this person. Unblock them to message.');
@@ -377,7 +196,7 @@ class ChatService {
     final skipped = <String>[];
     final advanced = <(String, String, List<Session>)>[];
     for (final target in [...peerDevices, ...own]) {
-      final sessions = await _loadSessions(target.uid, target.deviceId);
+      final sessions = await _sess.loadSessions(target.uid, target.deviceId);
       var preferred = pickSession(sessions);
       final stale =
           preferred != null &&
@@ -471,11 +290,11 @@ class ChatService {
     final undo = <(String, String, String?)>[];
     try {
       for (final (u, d, sessions) in advanced) {
-        undo.add((u, d, await _secrets.read(_sessKey(u, d))));
-        await _saveSessions(u, d, sessions);
+        undo.add((u, d, await _secrets.read(_sess.sessKey(u, d))));
+        await _sess.saveSessions(u, d, sessions);
       }
     } catch (_) {
-      await _restoreSessions(undo); // nothing was published
+      await _sess.restoreSessions(undo); // nothing was published
       rethrow;
     }
 
@@ -507,7 +326,7 @@ class ChatService {
         'resource-exhausted',
         'unauthenticated',
       }.contains(e.code)) {
-        await _restoreSessions(undo);
+        await _sess.restoreSessions(undo);
       }
       if (e.code == 'permission-denied') {
         throw ChatException(
@@ -619,92 +438,30 @@ class ChatService {
     );
   }
 
-  /// Asks the SERVER whether an unconfirmed message exists. Only server evidence counts: a
-  /// missing document, an offline error or a cached answer never proves it was not published.
-  /// Never publishes anything. When the server holds it, local history is repaired.
-  Future<SendOutcome> checkSendStatus(String chatId, String messageId) async {
-    peerOf(chatId);
-    final ref = _db
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .doc(messageId);
-    final DocumentSnapshot<Map<String, dynamic>> snap;
-    try {
-      snap = await ref.get(const GetOptions(source: Source.server));
-    } catch (_) {
-      return SendOutcome.publishUnknown;
-    }
-    final data = snap.data();
-    if (!snap.exists ||
-        snap.metadata.isFromCache ||
-        data == null ||
-        data['senderUid'] != uid ||
-        data['senderDevice'] != device.keys.deviceId) {
-      return SendOutcome.publishUnknown;
-    }
-    try {
-      await _confirmOwnSend(chatId, messageId);
-    } catch (_) {
-      // The server holds it, so it IS confirmed; the entry is repaired by the next check or sync.
-    }
-    return SendOutcome.confirmed;
-  }
+  Future<SendOutcome> checkSendStatus(String chatId, String messageId) =>
+      _recovery.checkSendStatus(chatId, messageId);
 
-  /// Turns our own "unconfirmed" entry into an ordinary sent message. Throws if the local write
-  /// fails: during sync that defers the message and holds the cursor, like any other storage
-  /// trouble, so the warning is always resolved eventually.
-  Future<void> _confirmOwnSend(String chatId, String messageId) async {
-    final m = await _messages.get(chatId, messageId);
-    if (m != null && m.status == MessageStatus.unconfirmed) {
-      await _messages.add(
-        LocalMessage(
-          id: m.id,
-          chatId: m.chatId,
-          senderUid: m.senderUid,
-          senderDevice: m.senderDevice,
-          outgoing: true,
-          sentAt: m.sentAt,
-          body: m.body,
-        ),
-      );
-    }
-  }
-
-  /// Writes a message that is KNOWN to be on the server into this device's history (repairs a
-  /// failed local save). No server write and no ratchet change.
   Future<void> saveSentLocally({
     required String chatId,
     required String messageId,
     required String body,
     required DateTime sentAt,
-  }) => _messages.add(
-    LocalMessage(
-      id: messageId,
-      chatId: chatId,
-      senderUid: uid,
-      senderDevice: device.keys.deviceId,
-      outgoing: true,
-      sentAt: sentAt,
-      body: body,
-    ),
+  }) => _recovery.saveSentLocally(
+    chatId: chatId,
+    messageId: messageId,
+    body: body,
+    sentAt: sentAt,
   );
 
-  /// The explicit "send another copy" decision. The original may already have been delivered, so
-  /// this is a NEW message: new id, ratchets advanced normally (old counters are never reused).
-  /// The warning for the original is removed afterwards.
   Future<void> resendUnconfirmed({
     required String chatId,
     required String messageId,
     required String body,
-  }) async {
-    await sendText(chatId, body);
-    try {
-      await _messages.remove(chatId, messageId);
-    } catch (_) {
-      // The old warning may linger; it is only a warning.
-    }
-  }
+  }) => _recovery.resendUnconfirmed(
+    chatId: chatId,
+    messageId: messageId,
+    body: body,
+  );
 
   // ----------------------------------------------------------------- receive
 
@@ -716,20 +473,8 @@ class ChatService {
   static Duration staleSessionAfter = const Duration(hours: 24);
   static const _pruneAfter = Duration(days: 30);
 
-  /// The session to send on: one the peer has proven it holds (smallest id, so both
-  /// sides converge), otherwise the newest one we started.
-  static Session? pickSession(List<Session> sessions) {
-    final usable = sessions.where((s) => s.canSend).toList();
-    if (usable.isEmpty) return null;
-    final acked = usable.where((s) => s.acknowledged).toList();
-    if (acked.isNotEmpty) {
-      return acked.reduce(
-        (a, b) => a.sessionId.compareTo(b.sessionId) <= 0 ? a : b,
-      );
-    }
-    usable.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return usable.first;
-  }
+  static Session? pickSession(List<Session> sessions) =>
+      SessionStore.pickSession(sessions);
 
   /// Minimum time between two sends from this device. The server enforces 500 ms
   /// per account across all chats; this stays safely above it so honest use never
@@ -979,91 +724,6 @@ class ChatService {
   DateTime _ts(DocumentSnapshot<Map<String, dynamic>> d) =>
       (d.data()?['ts'] as Timestamp?)?.toDate() ?? DateTime.now();
 
-  Future<void> _restoreSessions(List<(String, String, String?)> undo) async {
-    for (final (u, d, raw) in undo) {
-      try {
-        raw == null
-            ? await _secrets.delete(_sessKey(u, d))
-            : await _secrets.write(_sessKey(u, d), raw);
-      } catch (_) {
-        // Best effort: a failed restore only leaves a counter gap, never a reuse.
-      }
-    }
-  }
-
-  // ---- receive journal ------------------------------------------------------
-  // After a message authenticates, its effects (history entry, advanced session,
-  // spent one-time prekey) must all happen even if the app dies half way. The result
-  // is first written as ONE journal record; applying it is idempotent and is
-  // replayed before any other message is processed.
-
-  String get _journalIndexKey => 'journals:${device.keys.deviceId}';
-  String _journalKey(String chatId, String msgId) =>
-      'journal:${device.keys.deviceId}:$chatId:$msgId';
-
-  Future<List<String>> _journalIndex() async {
-    final raw = await _secrets.read(_journalIndexKey);
-    return raw == null ? [] : (jsonDecode(raw) as List).cast<String>();
-  }
-
-  Future<void> _writeJournal(Map<String, dynamic> j) async {
-    final key = _journalKey(j['chatId'] as String, j['msgId'] as String);
-    await _secrets.write(key, jsonEncode(j));
-    final idx = await _journalIndex();
-    if (!idx.contains(key)) {
-      await _secrets.write(_journalIndexKey, jsonEncode([...idx, key]));
-    }
-  }
-
-  Future<void> _applyJournal(Map<String, dynamic> j) async {
-    final chatId = j['chatId'] as String, msgId = j['msgId'] as String;
-    if (!await _messages.has(chatId, msgId)) {
-      await _messages.add(
-        LocalMessage(
-          id: msgId,
-          chatId: chatId,
-          senderUid: j['senderUid'] as String,
-          senderDevice: j['senderDevice'] as String,
-          outgoing: false,
-          sentAt: DateTime.fromMillisecondsSinceEpoch(j['sentAt'] as int),
-          body: j['body'] as String,
-          status: MessageStatus.values.byName(j['status'] as String),
-        ),
-      );
-    }
-    await _secrets.write(
-      _sessKey(j['senderUid'] as String, j['senderDevice'] as String),
-      j['sessions'] as String,
-    );
-    final opk = j['opk'];
-    if (opk is String) {
-      await _prekeys.consumeOneTime(uid, device.keys.deviceId, opk);
-    }
-    final key = _journalKey(chatId, msgId);
-    await _secrets.delete(key);
-    final idx = await _journalIndex();
-    await _secrets.write(
-      _journalIndexKey,
-      jsonEncode(idx.where((k) => k != key).toList()),
-    );
-  }
-
-  /// Completes any message whose effects were only partly applied (call under the lock).
-  Future<void> _recoverJournals() async {
-    for (final key in await _journalIndex()) {
-      final raw = await _secrets.read(key);
-      if (raw == null) {
-        final idx = await _journalIndex();
-        await _secrets.write(
-          _journalIndexKey,
-          jsonEncode(idx.where((k) => k != key).toList()),
-        );
-        continue;
-      }
-      await _applyJournal(jsonDecode(raw) as Map<String, dynamic>);
-    }
-  }
-
   /// Decrypts one message and persists the result. Order matters: the
   /// plaintext is written to history BEFORE the advanced session is saved, so a
   /// crash in between costs nothing (the retry decrypts again, and the history
@@ -1073,12 +733,12 @@ class ChatService {
     String msgId,
     Map<String, dynamic> data,
   ) async {
-    await _recoverJournals(); // finish anything a crash left half applied, in order
+    await _journal.recoverJournals(); // finish anything a crash left half applied, in order
     if (data['senderUid'] == uid &&
         data['senderDevice'] == device.keys.deviceId) {
       // Our own send, seen on the server: it WAS published, so a pending "not confirmed" warning
       // for it resolves by itself.
-      await _confirmOwnSend(chatId, msgId);
+      await _recovery.confirmOwnSend(chatId, msgId);
       return;
     }
     if (await _messages.has(chatId, msgId)) return;
@@ -1134,7 +794,7 @@ class ChatService {
       return;
     }
 
-    final sessions = await _loadSessions(su, sd);
+    final sessions = await _sess.loadSessions(su, sd);
     Session? session;
     String? acceptedWith; // one-time prekey consumed by a new session
     for (final s in sessions) {
@@ -1228,7 +888,7 @@ class ChatService {
       'sessions': jsonEncode([for (final x in sessions) x.toJson()]),
       'opk': acceptedWith,
     };
-    await _writeJournal(journal);
-    await _applyJournal(journal);
+    await _journal.writeJournal(journal);
+    await _journal.applyJournal(journal);
   }
 }

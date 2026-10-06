@@ -1,3 +1,11 @@
+import 'package:fireplace/src/view/chat/widgets/composer_note.dart';
+import 'package:fireplace/src/view/chat/widgets/request_banner.dart';
+import 'package:fireplace/src/view/chat/widgets/unconfirmed_note.dart';
+import 'package:fireplace/src/view/chat/widgets/new_device_banner.dart';
+import 'package:fireplace/src/view/chat/widgets/identity_alert_banner.dart';
+import 'package:fireplace/src/view/chat/widgets/memory_pending.dart';
+import 'package:fireplace/src/view/chat/widgets/message_recovery_action.dart';
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -21,8 +29,6 @@ import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/view/chat/composer/message_input_formatter.dart';
-
-enum _MessageAction { checking, resending, saving }
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key, required this.chatId, this.initialMessageId});
@@ -50,8 +56,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   /// Messages whose outcome could not be saved in the on-device history (the storage itself
   /// failed), so the warning lives in memory only. Keyed by the server message id.
-  final Map<String, _MemoryPending> _memoryPending = {};
-  final _messageActions = <String, _MessageAction>{};
+  final Map<String, MemoryPending> _memoryPending = {};
+  final _messageActions = <String, MessageRecoveryAction>{};
   String? _sendError;
   bool _contactBusy = false, _reviewing = false;
   String? _contactError;
@@ -363,7 +369,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ref
             .read(pendingLocalSendsProvider.notifier)
             .add(e, ownerUid: session.uid);
-        setState(() => _memoryPending[e.messageId] = _MemoryPending(e));
+        setState(() => _memoryPending[e.messageId] = MemoryPending(e));
       }
       // Edits made while the send was in flight survive: only an untouched draft is cleared.
       if (_draftRevision == draftRevision) _text.clear();
@@ -398,7 +404,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final session = ref.read(appSessionProvider).value;
     if (session == null || _messageActions.containsKey(messageId)) return;
     setState(() {
-      _messageActions[messageId] = _MessageAction.checking;
+      _messageActions[messageId] = MessageRecoveryAction.checking;
       _checkNote.remove(messageId);
     });
     try {
@@ -449,7 +455,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   Future<void> _sendAgain(String messageId, String body) async {
     final session = ref.read(appSessionProvider).value;
     if (session == null || _messageActions.containsKey(messageId)) return;
-    setState(() => _messageActions[messageId] = _MessageAction.resending);
+    setState(
+      () => _messageActions[messageId] = MessageRecoveryAction.resending,
+    );
     try {
       final go = await showDialog<bool>(
         context: context,
@@ -486,7 +494,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         ref
             .read(pendingLocalSendsProvider.notifier)
             .add(e, ownerUid: session.uid);
-        setState(() => _memoryPending[e.messageId] = _MemoryPending(e));
+        setState(() => _memoryPending[e.messageId] = MemoryPending(e));
       }
     } on ChatException catch (e) {
       if (mounted) setState(() => _checkNote[messageId] = e.message);
@@ -502,10 +510,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   }
 
   /// Repairs local history for a message known to be on the server. No publish.
-  Future<void> _saveOnDevice(_MemoryPending mem) async {
+  Future<void> _saveOnDevice(MemoryPending mem) async {
     final session = ref.read(appSessionProvider).value;
     if (session == null || _messageActions.containsKey(mem.messageId)) return;
-    setState(() => _messageActions[mem.messageId] = _MessageAction.saving);
+    setState(
+      () => _messageActions[mem.messageId] = MessageRecoveryAction.saving,
+    );
     try {
       await session.chat.saveSentLocally(
         chatId: widget.chatId,
@@ -703,7 +713,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           }
         });
       } else {
-        _memoryPending.putIfAbsent(send.messageId, () => _MemoryPending(send));
+        _memoryPending.putIfAbsent(send.messageId, () => MemoryPending(send));
       }
     }
     final allMessages =
@@ -907,7 +917,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 child: Column(
                   children: [
                     if (peerUid != null && session != null)
-                      _IdentityAlertBanner(
+                      IdentityAlertBanner(
                         peerUid: peerUid,
                         name: name,
                         busy: _reviewing,
@@ -915,9 +925,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             _reviewIdentity(session, peerUid, pub),
                       ),
                     if (peerUid != null)
-                      _NewDeviceBanner(peerUid: peerUid, name: name),
+                      NewDeviceBanner(peerUid: peerUid, name: name),
                     if (incomingRequest && session != null && peerUid != null)
-                      _RequestBanner(
+                      RequestBanner(
                         name: name,
                         busy: _contactBusy,
                         onAccept: () => _contactAction(
@@ -1043,7 +1053,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                         _memoryPending[message.id]?.outcome ==
                                             SendOutcome
                                                 .publishedLocalSaveFailed))
-                                  _UnconfirmedNote(
+                                  UnconfirmedNote(
                                     messageId: message.id,
                                     savedLocallyFailed:
                                         _memoryPending[message.id]?.outcome ==
@@ -1087,7 +1097,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
             if (blocked)
-              _ComposerNote(
+              ComposerNote(
                 key: Key('blockedNote'),
                 text: 'You blocked @$name.',
                 action: TextButton(
@@ -1100,17 +1110,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 ),
               )
             else if (incomingRequest)
-              _ComposerNote(
+              ComposerNote(
                 key: Key('acceptToReplyNote'),
                 text: 'Accept this request to reply.',
               )
             else if (waiting)
-              _ComposerNote(
+              ComposerNote(
                 key: Key('waitingNote'),
                 text: 'Waiting for @$name to accept your request.',
               )
             else if (identityHeld)
-              _ComposerNote(
+              ComposerNote(
                 key: Key('identityHeldNote'),
                 text: 'Review this contact’s security code before sending.',
               )
@@ -1227,291 +1237,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ComposerNote extends StatelessWidget {
-  const _ComposerNote({super.key, required this.text, this.action});
-  final String text;
-  final Widget? action;
-
-  @override
-  Widget build(BuildContext context) => SafeArea(
-    top: false,
-    child: ConstrainedBox(
-      constraints: BoxConstraints(
-        maxHeight: math.max(
-          72,
-          (MediaQuery.sizeOf(context).height -
-                  MediaQuery.viewInsetsOf(context).bottom) *
-              .3,
-        ),
-      ),
-      child: SingleChildScrollView(
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(text),
-              if (action != null)
-                Align(alignment: Alignment.centerRight, child: action!),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-class _RequestBanner extends StatelessWidget {
-  const _RequestBanner({
-    required this.name,
-    required this.onAccept,
-    required this.onBlock,
-    required this.onReport,
-    this.busy = false,
-  });
-  final bool busy;
-  final String name;
-  final VoidCallback onAccept, onBlock, onReport;
-  @override
-  Widget build(BuildContext context) => UiNotice(
-    key: const Key('requestBanner'),
-    warning: true,
-    text:
-        '@$name wants to chat. You will not see their messages until you accept. They will not be told whether you looked.',
-    actions: [
-      FilledButton(
-        key: const Key('acceptRequest'),
-        onPressed: busy ? null : onAccept,
-        child: Text(busy ? 'Working…' : 'Accept'),
-      ),
-      OutlinedButton(
-        key: const Key('blockRequest'),
-        onPressed: busy ? null : onBlock,
-        child: const Text('Block'),
-      ),
-      TextButton(
-        key: const Key('reportRequest'),
-        onPressed: busy ? null : onReport,
-        child: const Text('Report'),
-      ),
-    ],
-  );
-}
-
-/// A not-confirmed send whose warning could not be saved on disk, kept for this screen only.
-class _MemoryPending {
-  _MemoryPending(SendNotConfirmedException e)
-    : messageId = e.messageId,
-      body = e.body,
-      chatId = e.chatId,
-      sentAt = e.attemptedAt,
-      outcome = e.outcome;
-  final String messageId;
-  final String body, chatId;
-  final DateTime sentAt;
-  SendOutcome outcome;
-
-  LocalMessage asLocalMessage(AppSession? session) => LocalMessage(
-    id: messageId,
-    chatId: chatId,
-    senderUid: session?.uid ?? '',
-    senderDevice: session?.device.keys.deviceId ?? '',
-    outgoing: true,
-    sentAt: sentAt,
-    body: body,
-    status: outcome == SendOutcome.publishedLocalSaveFailed
-        ? MessageStatus.ok
-        : MessageStatus.unconfirmed,
-  );
-}
-
-/// The warning under an outgoing message whose delivery is not known. It never shows a
-/// sent or read tick, never invites a plain retry, and its actions cannot publish by accident.
-class _UnconfirmedNote extends StatelessWidget {
-  const _UnconfirmedNote({
-    required this.messageId,
-    required this.savedLocallyFailed,
-    required this.action,
-    required this.note,
-    required this.onCheck,
-    required this.onSendAgain,
-    required this.onSave,
-  });
-  final String messageId;
-  final bool savedLocallyFailed;
-  final _MessageAction? action;
-  final String? note;
-  final VoidCallback onCheck;
-  final VoidCallback onSendAgain;
-  final VoidCallback onSave;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = FireplaceUiTokens.of(context);
-    final theme = Theme.of(context);
-    final title = savedLocallyFailed
-        ? 'Sent — could not save on this device'
-        : 'Message not confirmed';
-    final detail = savedLocallyFailed
-        ? 'Your message was sent. Do not send it again.'
-        : 'This message may have reached them. Sending it again could create a duplicate.';
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Container(
-        key: ValueKey('unconfirmed-$messageId'),
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        constraints: const BoxConstraints(maxWidth: 480),
-        decoration: BoxDecoration(
-          color: t.warningSurface,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Semantics(
-              liveRegion: true,
-              child: Row(
-                children: [
-                  Icon(Icons.warning_amber_rounded, size: 18, color: t.danger),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      title,
-                      key: const Key('unconfirmedTitle'),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(detail, style: theme.textTheme.bodySmall),
-            if (note != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                note!,
-                key: const Key('checkNote'),
-                style: theme.textTheme.bodySmall,
-              ),
-            ],
-            Wrap(
-              children: [
-                if (savedLocallyFailed)
-                  TextButton(
-                    key: const Key('saveOnDevice'),
-                    onPressed: action == null ? onSave : null,
-                    child: Text(
-                      action == _MessageAction.saving
-                          ? 'Saving…'
-                          : 'Save on this device',
-                    ),
-                  )
-                else ...[
-                  TextButton(
-                    key: const Key('checkSendStatus'),
-                    onPressed: action == null ? onCheck : null,
-                    child: Text(
-                      action == _MessageAction.checking
-                          ? 'Checking…'
-                          : 'Check status',
-                    ),
-                  ),
-                  TextButton(
-                    key: const Key('resendUnconfirmed'),
-                    onPressed: action == null ? onSendAgain : null,
-                    child: Text(
-                      action == _MessageAction.resending
-                          ? 'Sending…'
-                          : 'Send again…',
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NewDeviceBanner extends ConsumerStatefulWidget {
-  const _NewDeviceBanner({required this.peerUid, required this.name});
-  final String peerUid;
-  final String name;
-  @override
-  ConsumerState<_NewDeviceBanner> createState() => _NewDeviceBannerState();
-}
-
-class _NewDeviceBannerState extends ConsumerState<_NewDeviceBanner> {
-  bool _dismissed = false;
-  @override
-  Widget build(BuildContext context) {
-    final fresh =
-        ref.watch(newPeerDevicesProvider(widget.peerUid)).value ?? const [];
-    if (fresh.isEmpty || _dismissed) return SizedBox.shrink();
-    return UiNotice(
-      key: const Key('newDeviceBanner'),
-      warning: true,
-      text:
-          '${widget.name} added a new device. If this is unexpected, verify their security code.',
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) =>
-                  VerifyScreen(peerUid: widget.peerUid, peerName: widget.name),
-            ),
-          ),
-          child: const Text('Verify'),
-        ),
-        TextButton(
-          onPressed: () => setState(() => _dismissed = true),
-          child: const Text('Dismiss'),
-        ),
-      ],
-    );
-  }
-}
-
-/// Shown while a contact's changed identity key is holding up their messages.
-
-class _IdentityAlertBanner extends ConsumerWidget {
-  const _IdentityAlertBanner({
-    required this.peerUid,
-    required this.name,
-    required this.onReview,
-    this.busy = false,
-  });
-  final String peerUid, name;
-  final bool busy;
-  final void Function(List<int> newIdentityPub) onReview;
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final pub = ref.watch(identityAlertsProvider).value?[peerUid];
-    if (pub == null) return const SizedBox.shrink();
-    return UiNotice(
-      key: const Key('identityBanner'),
-      warning: true,
-      text:
-          "@$name's security code changed. Messages are on hold until you review it.",
-      actions: [
-        TextButton(
-          key: const Key('reviewIdentity'),
-          onPressed: busy ? null : () => onReview(pub),
-          child: Text(busy ? 'Reviewing…' : 'Review'),
-        ),
-      ],
     );
   }
 }
