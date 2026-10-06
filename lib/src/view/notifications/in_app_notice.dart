@@ -7,7 +7,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/ui/chat_activity.dart';
 import 'package:fireplace/src/ui/chat_screen.dart';
-import 'package:fireplace/src/ui/message_format.dart';
+import 'package:fireplace/src/model/chat/message_format.dart';
 
 /// Foreground-only, one coalesced card. All navigation is local.
 class InAppNoticeHost extends ConsumerStatefulWidget {
