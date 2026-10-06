@@ -1,3 +1,4 @@
+import 'package:fireplace/src/model/chat/deferred_queue.dart';
 import 'package:fireplace/src/model/chat/work_tracker.dart';
 import 'package:fireplace/src/model/chat/identity_alerts.dart';
 import 'package:fireplace/src/model/chat/receive_journal.dart';
@@ -91,12 +92,11 @@ class ChatService {
   /// Stop scheduling receives and drain work before local session storage closes.
   Future<void> close() => _work.close(() async {
     _work.markClosed();
-    _retryTimer?.cancel();
-    _retryTimer = null;
+    _queue.close();
     await _work.cancelAndDrain();
     await _lock.run(() async {});
-    _deferred.clear();
-    _unfinished.clear();
+    _queue.clearDeferred();
+    _queue.clearUnfinished();
     unawaited(_alerts.close());
   });
 
@@ -480,10 +480,8 @@ class ChatService {
 
   /// Messages that could not be processed yet (identity change awaiting the
   /// user, or a transient storage/network error). See [retryDeferred].
-  final Map<String, ({String chatId, String msgId, Map<String, dynamic> data})>
-  _deferred = {};
+  final _queue = DeferredQueue();
   final _alerts = IdentityAlerts();
-  Timer? _retryTimer;
   DateTime? _lastRepair;
 
   /// A peer used a prekey we cannot answer: drop orphaned published prekeys and
@@ -504,12 +502,6 @@ class ChatService {
   Set<String> get identityAlertPeers => _alerts.peers;
 
   Stream<Map<String, List<int>>> watchIdentityAlerts() => _alerts.watch();
-
-  /// Messages the listener has seen but not yet finished (being processed, or waiting for a
-  /// retry). The sync cursor must never move past the oldest of these: the retry list is
-  /// in memory only, so after a restart the cursor is the only thing that brings them back.
-  /// A null timestamp blocks all advancing until the message is done.
-  final Map<String, ({String chatId, Timestamp? ts})> _unfinished = {};
 
   String _cursorKey(String chatId) => 'cursor:${device.keys.deviceId}:$chatId';
 
@@ -581,10 +573,7 @@ class ChatService {
           // while this one waits on the lock, and must see these as unfinished.
           for (final d in added) {
             final t = d.data()?['ts'];
-            _unfinished['$chatId/${d.id}'] = (
-              chatId: chatId,
-              ts: t is Timestamp ? t : null,
-            );
+            _queue.registerUnfinished(chatId, d.id, t is Timestamp ? t : null);
           }
           for (final d in added) {
             if (cancelled || _work.closed || mine != generation) return;
@@ -594,22 +583,9 @@ class ChatService {
             // Never advance past a message we still owe a retry.
             if (!blocked && ts is Timestamp) advanceTo = ts;
           }
-          if (advanceTo != null) {
-            // Never move past a message that is not finished (see [_unfinished]). Re-reading
-            // from the oldest unfinished message's own timestamp is safe: stored messages are
-            // skipped.
-            for (final u in _unfinished.values) {
-              if (u.chatId != chatId) continue;
-              final ts = u.ts;
-              if (ts == null) {
-                advanceTo = null;
-                break;
-              }
-              if (advanceTo != null && ts.compareTo(advanceTo) < 0) {
-                advanceTo = ts;
-              }
-            }
-          }
+          // Re-read from the oldest unfinished timestamp: stored messages are skipped.
+          // An unfinished message without a timestamp blocks advancing this chat.
+          advanceTo = _queue.clampCursor(chatId, advanceTo);
           if (advanceTo != null &&
               !cancelled &&
               !_work.closed &&
@@ -659,23 +635,19 @@ class ChatService {
         if (!_work.closed) await _process(chatId, msgId, data);
       });
       if (_work.closed) return false;
-      _deferred.remove('$chatId/$msgId');
-      _unfinished.remove('$chatId/$msgId');
+      _queue.complete(chatId, msgId);
       return true;
     } on IdentityChangedException catch (e) {
       if (_work.closed) return false;
       _alerts.set(e);
-      _deferred['$chatId/$msgId'] = (chatId: chatId, msgId: msgId, data: data);
+      _queue.defer(chatId, msgId, data);
       return false;
     } catch (_) {
       if (_work.closed) return false;
       // Storage or network trouble (or a peer flooding invalid messages): keep
       // the message and try again shortly.
-      _deferred['$chatId/$msgId'] = (chatId: chatId, msgId: msgId, data: data);
-      _retryTimer ??= Timer(const Duration(seconds: 65), () {
-        _retryTimer = null;
-        retryDeferred();
-      });
+      _queue.defer(chatId, msgId, data);
+      _queue.scheduleRetry(retryDeferred);
       return false;
     }
   }
@@ -684,7 +656,7 @@ class ChatService {
   /// change, or when storage/network recovers).
   Future<void> retryDeferred() async {
     if (_work.closed) return;
-    final items = _deferred.values.toList();
+    final items = _queue.pending;
     _alerts.clear();
     for (final m in items) {
       await _handle(m.chatId, m.msgId, m.data);
