@@ -1,3 +1,4 @@
+import 'package:fireplace/src/model/chat/identity_alerts.dart';
 import 'package:fireplace/src/model/chat/receive_journal.dart';
 import 'package:fireplace/src/model/chat/send_recovery.dart';
 import 'package:fireplace/src/model/chat/chat_directory.dart';
@@ -109,7 +110,7 @@ class ChatService {
     await _lock.run(() async {});
     _deferred.clear();
     _unfinished.clear();
-    unawaited(_alertCtrl.close());
+    unawaited(_alerts.close());
   }();
 
   static String chatIdFor(String a, String b) => ChatDirectory.chatIdFor(a, b);
@@ -173,7 +174,7 @@ class ChatService {
     try {
       peerDevices = await _keys.fetchDevices(peerUid);
     } on IdentityChangedException catch (e) {
-      _setAlert(e);
+      _alerts.set(e);
       rethrow;
     }
     if (peerDevices.isEmpty) {
@@ -494,8 +495,7 @@ class ChatService {
   /// user, or a transient storage/network error). See [retryDeferred].
   final Map<String, ({String chatId, String msgId, Map<String, dynamic> data})>
   _deferred = {};
-  final Map<String, List<int>> _identityAlerts = {};
-  final _alertCtrl = StreamController<Map<String, List<int>>>.broadcast();
+  final _alerts = IdentityAlerts();
   Timer? _retryTimer;
   DateTime? _lastRepair;
 
@@ -513,26 +513,10 @@ class ChatService {
   }
 
   /// Contacts whose changed identity is blocking messages, with the NEW identity key.
-  Map<String, List<int>> get identityAlerts =>
-      Map.unmodifiable(_identityAlerts);
-  Set<String> get identityAlertPeers => _identityAlerts.keys.toSet();
+  Map<String, List<int>> get identityAlerts => _alerts.snapshot;
+  Set<String> get identityAlertPeers => _alerts.peers;
 
-  Stream<Map<String, List<int>>> watchIdentityAlerts() => Stream.multi((sink) {
-    // Subscribe before delivering the initial snapshot. An alert arriving while
-    // that snapshot is delivered/paused must not disappear between yield/yield*.
-    final sub = _alertCtrl.stream.listen(
-      sink.add,
-      onError: sink.addError,
-      onDone: sink.close,
-    );
-    sink.onCancel = sub.cancel;
-    sink.add(identityAlerts);
-  });
-
-  void _setAlert(IdentityChangedException e) {
-    _identityAlerts[e.peerUid] = e.newIdentityPub;
-    _alertCtrl.add(identityAlerts);
-  }
+  Stream<Map<String, List<int>>> watchIdentityAlerts() => _alerts.watch();
 
   /// Messages the listener has seen but not yet finished (being processed, or waiting for a
   /// retry). The sync cursor must never move past the oldest of these: the retry list is
@@ -693,7 +677,7 @@ class ChatService {
       return true;
     } on IdentityChangedException catch (e) {
       if (_closed) return false;
-      _setAlert(e);
+      _alerts.set(e);
       _deferred['$chatId/$msgId'] = (chatId: chatId, msgId: msgId, data: data);
       return false;
     } catch (_) {
@@ -714,8 +698,7 @@ class ChatService {
   Future<void> retryDeferred() async {
     if (_closed) return;
     final items = _deferred.values.toList();
-    _identityAlerts.clear();
-    _alertCtrl.add(identityAlerts);
+    _alerts.clear();
     for (final m in items) {
       await _handle(m.chatId, m.msgId, m.data);
     }
