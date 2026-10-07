@@ -1,3 +1,4 @@
+import 'package:fireplace/src/view/chat/chat_safety_notices.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/chat_composer.dart';
 import 'package:fireplace/src/view/chat/message_menu.dart';
@@ -5,13 +6,8 @@ import 'package:fireplace/src/view/chat/route_visibility.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/model/chat/contact_controller.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
-import 'package:fireplace/src/view/chat/widgets/request_banner.dart';
 import 'package:fireplace/src/view/chat/widgets/unconfirmed_note.dart';
-import 'package:fireplace/src/view/chat/widgets/new_device_banner.dart';
-import 'package:fireplace/src/view/chat/widgets/identity_alert_banner.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
-
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -511,96 +507,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         child: Column(
           children: [
             if (!_showAll && widget.initialMessageId != null)
-              UiNotice(
-                key: const Key('searchLocation'),
-                text: target < 0
-                    ? 'This search result is no longer on this device.'
-                    : 'Search result — showing messages up to this point.',
-                actions: [
-                  TextButton(
-                    onPressed: () {
-                      setState(() => _showAll = true);
-                      _latest();
-                    },
-                    child: const Text('Show latest messages'),
-                  ),
-                ],
+              SearchLocationNotice(
+                target: target,
+                onShowLatest: () {
+                  setState(() => _showAll = true);
+                  _latest();
+                },
               ),
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: math.max(
-                  48,
-                  (MediaQuery.sizeOf(context).height -
-                          MediaQuery.viewInsetsOf(context).bottom) *
-                      (MediaQuery.sizeOf(context).height > 650 ? .45 : .33),
-                ),
+            ChatSafetyNotices(
+              peerUid: peerUid,
+              name: name,
+              hasSession: session != null,
+              incomingRequest: incomingRequest,
+              outgoingPending: outgoingPending,
+              waiting: waiting,
+              requestsLeft:
+                  ChatService.requestLimit - (summary?.requestCount ?? 0),
+              contact: _contactController,
+              send: _sendController,
+              keyboardInset: keyboardInset,
+              onReviewIdentity: (pub) =>
+                  _contactController.reviewIdentity(peerUid!, pub),
+              onAccept: () => _contactController.contactAction(
+                () => session!.chat.acceptRequest(widget.chatId),
               ),
-              child: SingleChildScrollView(
-                key: const Key('chatSafetyNotices'),
-                child: Column(
-                  children: [
-                    if (peerUid != null && session != null)
-                      IdentityAlertBanner(
-                        peerUid: peerUid,
-                        name: name,
-                        busy: _contactController.reviewing,
-                        onReview: (pub) =>
-                            _contactController.reviewIdentity(peerUid, pub),
-                      ),
-                    if (peerUid != null)
-                      NewDeviceBanner(peerUid: peerUid, name: name),
-                    if (incomingRequest && session != null && peerUid != null)
-                      RequestBanner(
-                        name: name,
-                        busy: _contactController.busy,
-                        onAccept: () => _contactController.contactAction(
-                          () => session.chat.acceptRequest(widget.chatId),
-                        ),
-                        onBlock: () => _contactController.contactAction(
-                          () => _blockPeer(session, peerUid, name),
-                        ),
-                        onReport: () =>
-                            _contactController.contactAction(() async {
-                              await showReportDialog(
-                                context,
-                                ref,
-                                peerUid: peerUid,
-                                name: name,
-                                chatId: widget.chatId,
-                              );
-                            }),
-                      ),
-                    if (_contactController.error != null)
-                      UiNotice(warning: true, text: _contactController.error!),
-                    if (_sendController.sendError != null)
-                      UiNotice(
-                        key: const Key('sendFailure'),
-                        warning: true,
-                        brandText: true,
-                        text: _sendController.sendError!,
-                        actions: [
-                          TextButton(
-                            onPressed: () => _sendController.dismissError(),
-                            child: const Text('Dismiss'),
-                          ),
-                        ],
-                      ),
-                    if (outgoingPending && !waiting)
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
-                        child: Text(
-                          'Message request sent. @$name sees it once they accept '
-                          '(${ChatService.requestLimit - summary.requestCount} left).',
-                          key: Key('requestSentNote'),
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ),
-                  ],
-                ),
+              onBlock: () => _contactController.contactAction(
+                () => _blockPeer(session!, peerUid!, name),
               ),
+              onReport: () => _contactController.contactAction(() async {
+                await showReportDialog(
+                  context,
+                  ref,
+                  peerUid: peerUid!,
+                  name: name,
+                  chatId: widget.chatId,
+                );
+              }),
             ),
             Expanded(
               child: Stack(
