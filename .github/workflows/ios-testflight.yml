@@ -1,0 +1,103 @@
+name: iOS TestFlight
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, for example v0.1.0'
+        required: true
+        type: string
+      mode:
+        description: 'Check without signing, or upload with owner approval'
+        required: true
+        default: check
+        type: choice
+        options: [check, upload]
+permissions:
+  contents: read
+concurrency: ios-release
+jobs:
+  check:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Require main
+        run: |
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "Run iOS TestFlight on main only."; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate version
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected vX.Y.Z."; exit 1; }
+          package_version=$(awk '$1 == "version:" { print $2 }' pubspec.yaml)
+          [ "$VERSION" = "v${package_version%%+*}" ] || { echo "Version must match pubspec.yaml."; exit 1; }
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: pubspec.yaml
+          cache: true
+      - run: flutter pub get
+      - run: flutter build ios --release --no-codesign
+      - name: Print built app version
+        run: |
+          set -euo pipefail
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/ios/iphoneos/Runner.app/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/ios/iphoneos/Runner.app/Info.plist
+  upload:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode == 'upload' }}
+    needs: check
+    runs-on: macos-latest
+    timeout-minutes: 60
+    environment: ios-release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: pubspec.yaml
+          cache: true
+      - run: flutter pub get
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          ruby-version: '3.4.8'
+          bundler-cache: true
+          working-directory: ios
+      - name: Mask credentials and prepare temporary API key
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+        run: |
+          set -euo pipefail
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID MATCH_PASSWORD MATCH_GIT_URL MATCH_GIT_BASIC_AUTHORIZATION; do
+            value="${!name}"
+            [ -n "$value" ] || { echo "Missing environment secret: $name"; exit 1; }
+            value="${value//'%'/'%25'}"
+            value="${value//$'\r'/'%0D'}"
+            value="${value//$'\n'/'%0A'}"
+            printf '::add-mask::%s\n' "$value"
+          done
+          umask 077
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/fireplace-asc-key.p8"
+          chmod 600 "$RUNNER_TEMP/fireplace-asc-key.p8"
+          printf 'ASC_KEY_PATH=%s/fireplace-asc-key.p8\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Run beta lane
+        working-directory: ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+        run: bundle exec fastlane beta
+      - name: Remove temporary API key
+        if: ${{ always() }}
+        run: rm -f "$RUNNER_TEMP/fireplace-asc-key.p8"
