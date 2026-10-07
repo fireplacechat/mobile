@@ -1,3 +1,4 @@
+import 'package:fireplace/src/model/chat/contact_controller.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
 import 'package:fireplace/src/view/chat/widgets/composer_note.dart';
 import 'package:fireplace/src/view/chat/widgets/request_banner.dart';
@@ -53,11 +54,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   int _draftRevision = 0;
   String _lastDraftText = '';
 
-  bool _contactBusy = false, _reviewing = false;
-  String? _contactError;
+  late final ContactController _contactController;
   @override
   void initState() {
     super.initState();
+    _contactController =
+        ContactController(
+          reviewOnce: (peerUid, pub) async {
+            final session = ref.read(appSessionProvider).value;
+            if (session != null) {
+              await _reviewIdentityOnce(session, peerUid, pub);
+            }
+          },
+        )..addListener(() {
+          if (mounted) setState(() {});
+        });
     _sendController =
         SendController(
           chatId: () => widget.chatId,
@@ -69,10 +80,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           clearDraft: () => _text.clear(),
           notice: _snack,
           showNewest: _showNewestAfterOwnSend,
-          reviewIdentity: (peerUid, pub) async {
-            final session = ref.read(appSessionProvider).value;
-            if (session != null) await _reviewIdentity(session, peerUid, pub);
-          },
+          reviewIdentity: (peerUid, pub) =>
+              _contactController.reviewIdentity(peerUid, pub),
           identityAlerts: () => ref.read(identityAlertsProvider).value ?? {},
           confirmSendAnotherCopy: _confirmSendAnotherCopy,
         )..addListener(() {
@@ -238,7 +247,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           icon: Icons.flag_outlined,
           destructive: true,
           onSelected: () => run(
-            () => _contactAction(() async {
+            () => _contactController.contactAction(() async {
               await showReportDialog(
                 context,
                 ref,
@@ -349,6 +358,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _scroll.removeListener(_onTimelineScroll);
     _scroll.dispose();
     _sendController.dispose();
+    _contactController.dispose();
     super.dispose();
   }
 
@@ -381,47 +391,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void _snack(String m) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
-  }
-
-  /// Lets the user compare and explicitly decide about a changed contact key.
-  /// Nothing is trusted automatically.
-  Future<void> _contactAction(Future<void> Function() action) async {
-    if (_contactBusy) return;
-    setState(() {
-      _contactBusy = true;
-      _contactError = null;
-    });
-    try {
-      await action();
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _contactError = 'Could not update this contact. Try again.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _contactBusy = false);
-    }
-  }
-
-  Future<void> _reviewIdentity(
-    AppSession session,
-    String peerUid,
-    List<int> pub,
-  ) async {
-    if (_reviewing) return;
-    setState(() => _reviewing = true);
-    try {
-      await _reviewIdentityOnce(session, peerUid, pub);
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _contactError = 'Could not finish the security review. Check this contact’s security code before continuing. Try again.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _reviewing = false);
-    }
   }
 
   Future<void> _reviewIdentityOnce(
@@ -699,13 +668,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 if (v == 'mute') {
                   await _mute(!muted);
                 } else if (v == 'block') {
-                  await _contactAction(
+                  await _contactController.contactAction(
                     () => _blockPeer(session, peerUid, name),
                   );
                 } else if (v == 'unblock') {
-                  await _contactAction(() => session.safety.unblock(peerUid));
+                  await _contactController.contactAction(
+                    () => session.safety.unblock(peerUid),
+                  );
                 } else if (v == 'report') {
-                  await _contactAction(() async {
+                  await _contactController.contactAction(() async {
                     await showReportDialog(
                       context,
                       ref,
@@ -773,34 +744,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       IdentityAlertBanner(
                         peerUid: peerUid,
                         name: name,
-                        busy: _reviewing,
+                        busy: _contactController.reviewing,
                         onReview: (pub) =>
-                            _reviewIdentity(session, peerUid, pub),
+                            _contactController.reviewIdentity(peerUid, pub),
                       ),
                     if (peerUid != null)
                       NewDeviceBanner(peerUid: peerUid, name: name),
                     if (incomingRequest && session != null && peerUid != null)
                       RequestBanner(
                         name: name,
-                        busy: _contactBusy,
-                        onAccept: () => _contactAction(
+                        busy: _contactController.busy,
+                        onAccept: () => _contactController.contactAction(
                           () => session.chat.acceptRequest(widget.chatId),
                         ),
-                        onBlock: () => _contactAction(
+                        onBlock: () => _contactController.contactAction(
                           () => _blockPeer(session, peerUid, name),
                         ),
-                        onReport: () => _contactAction(() async {
-                          await showReportDialog(
-                            context,
-                            ref,
-                            peerUid: peerUid,
-                            name: name,
-                            chatId: widget.chatId,
-                          );
-                        }),
+                        onReport: () =>
+                            _contactController.contactAction(() async {
+                              await showReportDialog(
+                                context,
+                                ref,
+                                peerUid: peerUid,
+                                name: name,
+                                chatId: widget.chatId,
+                              );
+                            }),
                       ),
-                    if (_contactError != null)
-                      UiNotice(warning: true, text: _contactError!),
+                    if (_contactController.error != null)
+                      UiNotice(warning: true, text: _contactController.error!),
                     if (_sendController.sendError != null)
                       UiNotice(
                         key: const Key('sendFailure'),
@@ -963,9 +935,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 key: Key('blockedNote'),
                 text: 'You blocked @$name.',
                 action: TextButton(
-                  onPressed: session == null || _contactBusy
+                  onPressed: session == null || _contactController.busy
                       ? null
-                      : () => _contactAction(
+                      : () => _contactController.contactAction(
                           () => session.safety.unblock(peerUid),
                         ),
                   child: Text('Unblock'),
