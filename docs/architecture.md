@@ -1,6 +1,6 @@
 # Architecture
 
-Fireplace is a Flutter app for iOS and Android using Firebase. Its feature layout is being introduced in stages: one-to-one moves first, then separately reviewed extractions. This page describes the current tree and the remaining boundaries.
+Fireplace is a Flutter app for iOS and Android using Firebase. Code is organized by feature and layer. Providers assemble session resources, models own logic and data access, and views own screens and interaction.
 
 ## Start here
 
@@ -14,22 +14,23 @@ Fireplace is a Flutter app for iOS and Android using Firebase. Its feature layou
 
 ```text
 lib/src/
-├── view/<feature>/    screens and feature widgets
-├── model/<feature>/   feature logic, state and Firebase access
-├── widgets/           shared widgets
-├── styles/            colours, spacing, typography and brand drawing
-├── db/                local encrypted history and secret storage
-├── utils/             reserved for small pure helpers
-├── crypto/            protocol primitives and cryptographic sessions
-├── app.dart           first-screen routing
-└── app/               provider wiring and session composition
+├── app/                provider wiring and session composition
+├── app.dart            first-screen routing
+├── crypto/             protocol primitives and cryptographic sessions
+├── db/                 local encrypted history and secret storage
+├── model/              feature logic, state and Firebase access
+├── styles/             colours, spacing, typography and brand drawing
+├── view/               screens and feature widgets
+└── widgets/            shared widgets
 ```
 
-`chat_list` is a separate feature from `chat`. Other feature boundaries include account, auth, devices, recovery, safety, search, settings, notifications, push and keys. Not every target folder exists yet.
+Model features: `account`, `chat`, `common`, `keys`, `notifications`, `push`, `safety`, `search`, `settings`. View features: `account`, `auth`, `chat`, `chat_list`, `devices`, `notifications`, `recovery`, `safety`, `search`, `settings`. `chat_list` is separate from `chat`.
+
+`utils/` is reserved for small pure helpers; no such source directory is currently needed.
 
 ## Dependencies
 
-`scripts/check_layout.py` checks imports in the migrated layers:
+`scripts/check_layout.py` enforces the layer boundaries and rejects the two retired top-level source directories:
 
 - `view` can use model, database, crypto, styles, widgets and helpers; Firebase access belongs in the model.
 - `model` can use database, crypto and helpers, without importing UI widgets or styles.
@@ -55,21 +56,21 @@ Firestore stores public keys, ciphertext and account/chat metadata. Secure stora
 
 `model/chat/chat_sync_coordinator.dart` owns active background-sync subscriptions and the latest chat list. Chat-list and blocked-set events trigger reconciliation. It writes the local unread baseline before starting sync and re-checks eligibility after that I/O. The provider registers its cleanup in the original order, before registering the two event subscriptions. `AppSession` and the other providers retain their public interfaces.
 
-## Remaining extractions
+## Feature responsibilities
 
-Shared presentation widgets now live in `widgets/`; the message bubble and day separator live in `view/chat/widgets/`.
+Shared presentation widgets live in `widgets/`; the message bubble and day separator live in `view/chat/widgets/`.
 
-Recovery-key, device-linking and password-change flows now live in `view/recovery/`, `view/devices/` and `view/account/`;
+Recovery-key, device-linking and password-change flows live in `view/recovery/`, `view/devices/` and `view/account/`.
 
-Composite account, device, safety, settings and chat-list screens now live in their feature folders. Chat activity helpers and message formatting live in `model/chat/`. Chat directory, session storage, send recovery, receive journaling, sender and receiver are behind the existing chat-service facade.
+Account, device, safety, settings and chat-list screens live in their feature folders. Chat visibility and message formatting live in `model/chat/`; unread and arrival bookkeeping lives in `model/notifications/`. Chat directory, session storage, send recovery, receive journaling, sender and receiver are behind the existing chat-service facade.
 
 `ChatService` creates one mutex and passes the same instance to the sender and receiver. It also owns the shared `IdentityAlerts`, `WorkTracker` and `DeferredQueue` holders. Its `close()` marks work closed, stops the retry timer, cancels syncs and drains receive work, waits for the mutex, clears deferred and unfinished entries, then closes alerts. The public constructor, methods and test hooks remain compatible. `ChatTuning` holds the tuning values; the facade forwards the existing static API.
 
 The chat screen delegates send/recovery state to `SendController` and contact-action/security-review state to `ContactController`. Controllers receive getters and callbacks from the screen; dialogs and snack bars remain in the view layer, and draft editing stays in the screen. Controller notifications replace the original `setState` wrappers; pending-memory mutations during `build()` stay silent.
 
-`TimelineScroll` owns scrolling and the silent anchor cache; `RouteVisibility` owns route and lifecycle registration. `messageMenuActions` builds the existing message actions through view-layer callbacks. The screen keeps its draft, reveal-all state, message-provider listener and build-time frame callbacks. The screen now composes `ChatComposer`, `ChatSafetyNotices`, `SearchLocationNotice`, the app-bar parts, `ChatTimeline` and the unavailable/privacy guard screens in `view/chat/`. `UiAppBar` construction stays in the State so its height uses the original context. The State also reads the keyboard inset above `Scaffold` and passes it into composer and notice layout. Each extraction preserves behavior and public APIs. Crypto session code stays whole; only its imports change in the first move.
+`TimelineScroll` owns scrolling and the silent anchor cache; `RouteVisibility` owns route and lifecycle registration. `messageMenuActions` builds the existing message actions through view-layer callbacks. The screen keeps its draft, reveal-all state, message-provider listener and build-time frame callbacks. The screen composes `ChatComposer`, `ChatSafetyNotices`, `SearchLocationNotice`, the app-bar parts, `ChatTimeline` and the unavailable/privacy guard screens in `view/chat/`. `UiAppBar` construction stays in the State so its height uses the original context. The State also reads the keyboard inset above `Scaffold` and passes it into composer and notice layout. Crypto session code stays whole.
 
-`test/` mirrors the target layers. Some tests already use their target location while their implementation still lives in a legacy composite. Fixture helpers stay in `test/support/`; protocol vectors in `test/vectors/` stay unchanged. Earlier decision records retain paths from when they were written..
+`test/` mirrors the source layers. Fixture helpers stay in `test/support/`; protocol vectors in `test/vectors/` stay unchanged. Earlier decision records retain paths from when they were written.
 
 ## Verification
 
@@ -81,7 +82,7 @@ TZ=UTC flutter test --concurrency=1
 TZ=UTC flutter test scripts/render/render_screens_test.dart
 ```
 
-For a move or extraction, preview PNG hashes must match the parent revision. Tests change only in imports and file locations.
+For a move or extraction, preview PNG hashes must match the parent revision. Existing test bodies stay unchanged; imports and locations may follow the moved code.
 
 For new work, put screens in `view/<feature>/`, logic in `model/<feature>/`, and local storage in `db/`. Reuse shared widgets. Cryptographic, wire-format or authentication changes require a decision record and tests.
 
