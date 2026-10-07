@@ -22,7 +22,7 @@ lib/src/
 ├── utils/             reserved for small pure helpers
 ├── crypto/            protocol primitives and cryptographic sessions
 ├── app.dart           first-screen routing
-├── app/               providers awaiting extraction
+├── app/               provider wiring and session composition
 ├── services/          chat service facade and lifecycle wiring
 └── ui/                chat-screen state and compatibility exports awaiting extraction
 ```
@@ -51,6 +51,12 @@ All app imports use `package:fireplace/...`. Top-level startup wiring can assemb
 
 Firestore stores public keys, ciphertext and account/chat metadata. Secure storage holds device keys and ratchet state. Encrypted local files hold history and preferences. Providers assemble these resources and manage their lifecycle.
 
+## Session lifecycle
+
+`app/providers.dart` keeps the ordered startup sequence and Riverpod dependencies. It delegates cancellation and reverse-order cleanup to `model/common/session_scope.dart`. `SessionScope` owns the cleanup future and reads mounted state at call time; disposal during initialization leaves cleanup to the startup sequence's `finally` block.
+
+`model/chat/chat_sync_coordinator.dart` owns active background-sync subscriptions and the latest chat list. Chat-list and blocked-set events trigger reconciliation. It writes the local unread baseline before starting sync and re-checks eligibility after that I/O. The provider registers its cleanup in the original order, before registering the two event subscriptions. `AppSession` and the other providers retain their public interfaces.
+
 ## Remaining extractions
 
 Shared presentation widgets now live in `widgets/`; the message bubble and day separator live in `view/chat/widgets/`. `ui/presentation.dart` retains their compatibility exports.
@@ -63,7 +69,7 @@ Composite account, device, safety, settings and chat-list screens now live in th
 
 The chat screen delegates send/recovery state to `SendController` and contact-action/security-review state to `ContactController`. Controllers receive getters and callbacks from the screen; dialogs and snack bars remain in the view layer, and draft editing stays in the screen. Controller notifications replace the original `setState` wrappers; pending-memory mutations during `build()` stay silent.
 
-`TimelineScroll` owns scrolling and the silent anchor cache; `RouteVisibility` owns route and lifecycle registration. `messageMenuActions` builds the existing message actions through view-layer callbacks. The screen keeps its draft, reveal-all state, message-provider listener and build-time frame callbacks. The screen now composes `ChatComposer`, `ChatSafetyNotices`, `SearchLocationNotice`, the app-bar parts, `ChatTimeline` and the unavailable/privacy guard screens in `view/chat/`. `UiAppBar` construction stays in the State so its height uses the original context. The State also reads the keyboard inset above `Scaffold` and passes it into composer and notice layout. Provider extraction awaits a separately reviewed design. Each extraction preserves behavior and public APIs. Crypto session code stays whole; only its imports change in the first move.
+`TimelineScroll` owns scrolling and the silent anchor cache; `RouteVisibility` owns route and lifecycle registration. `messageMenuActions` builds the existing message actions through view-layer callbacks. The screen keeps its draft, reveal-all state, message-provider listener and build-time frame callbacks. The screen now composes `ChatComposer`, `ChatSafetyNotices`, `SearchLocationNotice`, the app-bar parts, `ChatTimeline` and the unavailable/privacy guard screens in `view/chat/`. `UiAppBar` construction stays in the State so its height uses the original context. The State also reads the keyboard inset above `Scaffold` and passes it into composer and notice layout. Each extraction preserves behavior and public APIs. Crypto session code stays whole; only its imports change in the first move.
 
 `test/` mirrors the target layers. Some tests already use their target location while their implementation still lives in a legacy composite. Fixture helpers stay in `test/support/`; protocol vectors in `test/vectors/` stay unchanged. Earlier decision records retain paths from when they were written; `scripts/lib-map.csv` and `scripts/test-map.csv` record the one-to-one path changes.
 

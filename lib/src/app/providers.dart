@@ -86,11 +86,13 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
   final scope = SessionScope(isMounted: () => ref.mounted);
   ref.onDispose(scope.disposed);
   try {
+    // 1. Resolve the signed-in account.
     final user = await ref.watch(authUserProvider.future);
     scope.checkActive();
     if (user == null) return null;
     final db = ref.watch(firestoreProvider);
     final secrets = ref.watch(secretStoreProvider);
+    // 2. Wait for the account profile.
     // An account being deleted (or left half-deleted) must not be used normally.
     // A brand-new sign-up writes its profile right after the account exists, so
     // give that a few seconds before treating a missing profile as "half deleted".
@@ -108,11 +110,13 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     if (profile == null || profile['deleting'] == true) {
       throw AccountDeletionPending(user.uid);
     }
+    // 3. Record activity and load device keys.
     // Record that the account is in use (the 13-month inactivity sweep keys off this).
     unawaited(ActivityService(db).markActiveIfDue(user.uid, profile));
     final keys = KeyService(db, secrets);
     final device = await keys.ensureDevice(user.uid);
     scope.checkActive();
+    // 4. Restore notifications when enabled and already permitted.
     final pushNotifications = pushEnabled
         ? PushNotificationService(
             db: db,
@@ -127,9 +131,11 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       pushNotifications?.startIfPermitted().catchError((Object _) {}) ??
           Future<void>.value(),
     );
+    // 5. Maintain prekeys.
     final prekeys = PreKeyService(db, secrets);
     await prekeys.maintain(user.uid, device); // rotate/replenish prekeys
     scope.checkActive();
+    // 6. Open local history and preferences.
     final docs = await getApplicationDocumentsDirectory();
     scope.checkActive();
     final store = await EncryptedFileMessageStore.open(
@@ -146,6 +152,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     );
     scope.add(chatPreferences.close);
     scope.checkActive();
+    // 7. Start safety state and the chat service.
     final safety = SafetyService(db, secrets, user.uid);
     scope.add(safety.dispose);
     await safety.start();
@@ -161,6 +168,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       safety: safety,
     );
     scope.add(chat.close);
+    // 8. Resolve the display username.
     final username =
         (await db.collection('users').doc(user.uid).get()).data()?['username']
             as String? ??
@@ -168,6 +176,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
         '';
     scope.checkActive();
 
+    // 9. Coordinate background sync and subscribe to eligibility changes.
     // Decrypt in the background while the app is open, but only for chats that
     // should be live: not an unaccepted request from a stranger (so strangers
     // cannot burn through our one-time prekeys), not blocked, not hidden.
@@ -189,6 +198,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       coordinator.blockedChanged();
     });
     scope.add(blockedSub.cancel);
+    // 10. Return the session with cleanup and local-data removal.
     final session = AppSession(
       uid: user.uid,
       username: username,
