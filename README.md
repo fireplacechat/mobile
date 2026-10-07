@@ -1,4 +1,4 @@
-# fireplace.
+# Fireplace Mobile
 
 <p align="center"><img src="docs/assets/readme-banner.png" alt="fireplace." width="100%"></p>
 
