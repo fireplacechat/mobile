@@ -25,7 +25,7 @@ Run `flutter analyze` and `dart format` on every file you touch, tests included,
 ## Layout
 `lib/src/crypto/` protocol, keys and ratchet · `lib/src/model/<feature>/` logic and Firebase access ·
 `lib/src/db/` local storage · `lib/src/view/<feature>/` screens · `lib/src/styles/` design · `lib/src/widgets/` shared widgets.
-`lib/src/app.dart` selects the first screen. Composite files temporarily remain in `services/`, `ui/` and `app/` until extracted.
+`lib/src/app.dart` selects the first screen. `lib/src/app/providers.dart` wires session resources and providers.
 See [architecture](docs/architecture.md); run `python3 scripts/check_layout.py .` to check migrated layers.
 Backend rules/operator tooling and website/legal sources are maintained separately in private repositories.
 

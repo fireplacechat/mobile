@@ -104,6 +104,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   // Kept for the existing lifecycle characterization tests.
+  @visibleForTesting
   void didChangeAppLifecycleState(AppLifecycleState state) =>
       _routeVisibility.didChangeAppLifecycleState(state);
 
