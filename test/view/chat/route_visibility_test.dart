@@ -1,5 +1,5 @@
 import 'package:fireplace/src/model/chat/chat_visibility.dart';
-import 'package:fireplace/src/ui/chat_activity.dart' show chatRouteObserver;
+import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/chat/route_visibility.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

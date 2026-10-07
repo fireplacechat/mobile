@@ -4,7 +4,7 @@ import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/chat_sync_coordinator.dart';
 import 'package:fireplace/src/model/safety/safety_service.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
-import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class FakeSafety extends Fake implements SafetyService {

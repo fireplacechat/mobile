@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/brand/logo.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
-import 'package:fireplace/src/ui/safety_ui.dart';
-import 'package:fireplace/src/ui/settings_screen.dart';
+import 'package:fireplace/src/view/safety/requests_screen.dart';
+import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';

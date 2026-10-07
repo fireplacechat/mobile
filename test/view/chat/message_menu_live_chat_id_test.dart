@@ -1,6 +1,6 @@
 import 'package:fireplace/src/styles/theme.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_route_observer.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

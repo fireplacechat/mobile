@@ -17,12 +17,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/crypto/fingerprint.dart';
 import 'package:fireplace/src/db/local_messages.dart';
-import 'package:fireplace/src/services/chat_service.dart';
-import 'package:fireplace/src/ui/safety_ui.dart';
-import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/model/chat/chat_service.dart';
+import 'package:fireplace/src/view/safety/confirm_block.dart';
+import 'package:fireplace/src/view/safety/report_dialog.dart';
+import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/widgets/dialog.dart';
+import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/model/chat/chat_visibility.dart';
+import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -100,6 +104,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   // Kept for the existing lifecycle characterization tests.
+  @visibleForTesting
   void didChangeAppLifecycleState(AppLifecycleState state) =>
       _routeVisibility.didChangeAppLifecycleState(state);
 

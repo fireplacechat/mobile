@@ -31,6 +31,9 @@ FORBID = {
 }
 imp = re.compile(r"""^\s*(?:import|export)\s+'([^']+)'""")
 bad = 0; big = []
+for retired in ('ui', 'services'):
+    if os.path.exists(os.path.join(lib, retired)):
+        print(f'VIOLATION retired directory: {retired}/ must not exist'); bad += 1
 for dp, _, fs in os.walk(lib):
     for f in fs:
         if not f.endswith('.dart'): continue

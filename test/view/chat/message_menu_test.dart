@@ -1,6 +1,6 @@
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/view/chat/message_menu.dart';
 import 'package:fireplace/src/db/local_messages.dart';

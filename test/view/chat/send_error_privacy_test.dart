@@ -1,7 +1,7 @@
 // REVIEW R09: GPT's own rule is "hide internal exceptions" (auth, startup). The chat still shows
 // "Could not send: <raw exception>" for unexpected errors. Phase 6 already hides that and
 // uses conservative uncertain-outcome copy; keep that copy rather than promising safe retry.
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

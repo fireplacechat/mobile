@@ -1,6 +1,6 @@
 // REVIEW R04: a screen reader must hear WHO sent a message. On b01a65d a bubble is announced as its time
 // (label) followed by its text (value), with no sender.
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

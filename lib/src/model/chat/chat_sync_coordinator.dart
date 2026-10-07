@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/safety/safety_service.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
-import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/model/chat/chat_service.dart';
 
 class ChatSyncCoordinator {
   ChatSyncCoordinator({

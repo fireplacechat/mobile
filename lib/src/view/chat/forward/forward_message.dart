@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/db/local_messages.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
-import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/model/notifications/chat_activity.dart';
+import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/widgets/dialog.dart';
+import 'package:fireplace/src/widgets/page.dart';
+import 'package:fireplace/src/widgets/status.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';

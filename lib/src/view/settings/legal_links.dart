@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/widgets/page.dart';
+import 'package:fireplace/src/widgets/status.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
 
 /// Where the current privacy policy and terms live. The pages are generated from `site/pages/`.

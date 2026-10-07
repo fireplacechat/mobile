@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/ui/chat_list_screen.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

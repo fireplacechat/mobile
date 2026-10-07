@@ -52,8 +52,23 @@ class LayoutTests(unittest.TestCase):
     def test_long_file_warns_without_failing(self):
         self.assertIn('WARN', self.check({'crypto/session.dart': '// preserved\n' * 501}, True))
 
-    def test_legacy_composite_is_explicitly_transitional(self):
-        self.check({'ui/chat_screen.dart': "import 'package:fireplace/src/model/chat/send.dart';"}, True)
+    def test_retired_directories_fail_even_when_empty(self):
+        for retired in ('ui', 'services'):
+            with self.subTest(retired=retired), tempfile.TemporaryDirectory() as directory:
+                (Path(directory) / 'lib' / 'src' / retired).mkdir(parents=True)
+                result = subprocess.run(
+                    [sys.executable, str(CHECKER), directory],
+                    capture_output=True, text=True,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('retired directory', result.stdout)
+
+    def test_retired_directories_fail_with_source_files(self):
+        for retired in ('ui', 'services'):
+            with self.subTest(retired=retired):
+                self.assertIn('retired directory', self.check(
+                    {f'{retired}/example.dart': '// retired directory'}, False,
+                ))
 
 
 if __name__ == '__main__':

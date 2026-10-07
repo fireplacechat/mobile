@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/ui/presentation.dart';
-import 'package:fireplace/src/ui/safety_ui.dart';
+import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/widgets/page.dart';
+import 'package:fireplace/src/widgets/status.dart';
+import 'package:fireplace/src/widgets/avatar.dart';
+import 'package:fireplace/src/widgets/settings_section.dart';
+import 'package:fireplace/src/view/safety/report_dialog.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 
 class ChatDetailsScreen extends ConsumerStatefulWidget {

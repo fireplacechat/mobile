@@ -1,10 +1,10 @@
-import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
-import 'package:fireplace/src/ui/safety_ui.dart';
+import 'package:fireplace/src/view/safety/report_dialog.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';

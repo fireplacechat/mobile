@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';

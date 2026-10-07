@@ -1,7 +1,7 @@
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/view/chat/composer/message_input_formatter.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/model/search/message_search.dart';
 
 import '../../support/ui_fixture.dart';
 

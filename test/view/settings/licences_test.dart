@@ -1,4 +1,4 @@
-import 'package:fireplace/src/ui/settings_screen.dart';
+import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';

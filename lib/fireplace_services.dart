@@ -1,7 +1,7 @@
 export 'package:fireplace/src/model/account/account_service.dart';
 export 'package:fireplace/src/model/account/activity_service.dart';
 export 'package:fireplace/src/model/account/auth_service.dart';
-export 'package:fireplace/src/services/chat_service.dart';
+export 'package:fireplace/src/model/chat/chat_service.dart';
 export 'package:fireplace/src/db/encrypted_message_store.dart';
 export 'package:fireplace/src/model/keys/key_service.dart';
 export 'package:fireplace/src/db/local_messages.dart';
