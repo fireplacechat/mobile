@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
-import 'package:fireplace/src/view/chat/widgets/message_recovery_action.dart';
+import 'package:fireplace/src/model/chat/message_recovery_action.dart';
 
 /// The warning under an outgoing message whose delivery is not known. It never shows a
 /// sent or read tick, never invites a plain retry, and its actions cannot publish by accident.
