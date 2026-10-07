@@ -37,7 +37,7 @@ The device holds decrypted history. Someone with an unlocked phone, screen captu
 - *Metadata:* not hidden.
 - *Account takeover:* anyone with the password can sign in; they also need the local keys or the recovery key/linked device to read chats, but can create a new identity and get contacts' warnings. Weak or reused passwords are a risk. Authentication proves an account, not a real-world person.
 - *Operator/Admin compromise:* Firebase Admin credentials (and the operator CLI key) can read all metadata, edit rules and public key records, and ban accounts. Keep them out of the repository and the client.
-- *Dependencies:* ML-KEM/ML-DSA come from the pure-Dart `pqcrypto` package (not FIPS-validated; not hardened against side channels). The protocol glue is project code that has had review by tools and tests but **no external cryptographic audit**.
+- *Dependencies:* ML-KEM/ML-DSA come from the pure-Dart `pqcrypto` package (not FIPS-validated; not hardened against side channels). The classical AES-GCM, X25519, Ed25519 and HKDF primitives from `cryptography` also use Dart implementations on Android/iOS with the current provider configuration; browser builds can use Web Crypto with Dart fallbacks. No constant-time or side-channel-hardening guarantee is claimed for these implementations. The protocol glue is project code that has had review by tools and tests but **no external cryptographic audit**.
 
 ## Not supported
 Group chats, calls, attachments, real-email recovery, push notifications (planned; the free Firebase plan has no sender), multi-device history sync (a new device starts with an empty history), message deletion for everyone, disappearing messages.

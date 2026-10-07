@@ -134,17 +134,28 @@ class RecoveryService {
     LinkRequest req, {
     Duration timeout = const Duration(minutes: 10),
   }) async {
-    final snap = await _requests(req.uid)
-        .doc(req.keys.deviceId)
-        .snapshots()
-        .firstWhere((s) => s.data()?['response'] != null)
-        .timeout(
-          timeout,
-          onTimeout: () => throw RecoveryException('Linking timed out.'),
+    try {
+      final snap = await _requests(req.uid)
+          .doc(req.keys.deviceId)
+          .snapshots()
+          .where((s) => s.data()?['response'] != null)
+          .timeout(timeout)
+          .first;
+      return SealedIdentity.fromJson(
+        Map<String, dynamic>.from(snap.data()!['response']),
+      );
+    } on TimeoutException {
+      // Deleting this document also removes a response racing the timeout.
+      // approveLink uses update, so it cannot recreate a deleted request.
+      try {
+        await cancelLink(req);
+      } catch (_) {
+        throw RecoveryException(
+          'Linking timed out. Could not cancel the request. Try again.',
         );
-    return SealedIdentity.fromJson(
-      Map<String, dynamic>.from(snap.data()!['response']),
-    );
+      }
+      throw RecoveryException('Linking timed out.');
+    }
   }
 
   /// The confirmation code the new device expects to see on the approving device.
