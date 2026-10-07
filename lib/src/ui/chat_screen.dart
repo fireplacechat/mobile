@@ -1,3 +1,4 @@
+import 'package:fireplace/src/view/chat/message_menu.dart';
 import 'package:fireplace/src/view/chat/route_visibility.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/model/chat/contact_controller.dart';
@@ -25,9 +26,6 @@ import 'package:fireplace/src/ui/presentation.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
 import 'package:fireplace/src/ui/chat_activity.dart';
-import 'package:fireplace/src/view/chat/forward/forward_message.dart';
-import 'package:fireplace/src/model/chat/message_format.dart';
-import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/view/chat/composer/message_input_formatter.dart';
@@ -137,111 +135,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await ref.read(chatActivityProvider.notifier).mute(widget.chatId, value);
     } catch (_) {
       if (mounted) _snack('Could not save the mute preference. Try again.');
-    }
-  }
-
-  /// The long-press menu for one message. Add reply/delete/react here later.
-  List<MessageAction> _actionsFor(
-    LocalMessage message, {
-    required String name,
-    required String? peerUid,
-    required bool blocked,
-    required bool incomingRequest,
-    required bool identityHeld,
-  }) {
-    final owner = ref.read(appSessionProvider).value;
-    bool available() {
-      if (!mounted || owner == null) return false;
-      final summary = ref.read(chatSummaryProvider(widget.chatId));
-      return identical(ref.read(appSessionProvider).value, owner) &&
-          summary != null &&
-          ref.read(chatActivityProvider.notifier).eligible(summary);
-    }
-
-    void run(VoidCallback action) {
-      if (available()) action();
-    }
-
-    final readable = message.status != MessageStatus.undecryptable;
-    final canShare = !incomingRequest && !identityHeld && !blocked && readable;
-    return [
-      if (canShare)
-        MessageAction(
-          id: 'copy',
-          label: 'Copy',
-          icon: Icons.copy_outlined,
-          onSelected: () => run(() => _copyMessage(message)),
-        ),
-      if (canShare &&
-          !messageTooLong(message.body) &&
-          message.status == MessageStatus.ok)
-        MessageAction(
-          id: 'forward',
-          label: 'Forward',
-          icon: Icons.forward_outlined,
-          onSelected: () => run(() => forwardMessage(context, message, name)),
-        ),
-      if (canShare)
-        MessageAction(
-          id: 'selectText',
-          label: 'Select text',
-          icon: Icons.text_fields_outlined,
-          onSelected: () => run(
-            () => showSelectTextSheet(
-              context,
-              displayMessage(message.body).plain,
-              protectSelection: (ctx, child) => Consumer(
-                builder: (ctx, sheetRef, _) {
-                  sheetRef.watch(appSessionProvider);
-                  sheetRef.watch(chatsProvider);
-                  sheetRef.watch(blockedUidsProvider);
-                  sheetRef.watch(hiddenChatsProvider);
-                  sheetRef.watch(identityAlertsProvider);
-                  return available()
-                      ? child
-                      : const Text(
-                          'This conversation is no longer available. Close this sheet and return to your chats.',
-                        );
-                },
-              ),
-            ),
-          ),
-        ),
-      // Only another person's message can be reported.
-      if (!message.outgoing &&
-          peerUid != null &&
-          !incomingRequest &&
-          !identityHeld &&
-          !blocked)
-        MessageAction(
-          id: 'report',
-          label: 'Report',
-          icon: Icons.flag_outlined,
-          destructive: true,
-          onSelected: () => run(
-            () => _contactController.contactAction(() async {
-              await showReportDialog(
-                context,
-                ref,
-                peerUid: peerUid,
-                name: name,
-                chatId: widget.chatId,
-                focus: message,
-              );
-            }),
-          ),
-        ),
-    ];
-  }
-
-  Future<void> _copyMessage(LocalMessage message) async {
-    try {
-      await Clipboard.setData(
-        ClipboardData(text: displayMessage(message.body).plain),
-      );
-      if (mounted) _snack('Message copied');
-    } catch (_) {
-      if (mounted) _snack('Could not copy this message. Try again.');
     }
   }
 
@@ -768,8 +661,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   key: _timeline.anchorFor(message.id),
                                   message: message,
                                   senderName: name,
-                                  actions: _actionsFor(
+                                  actions: messageMenuActions(
                                     message,
+                                    ref: ref,
+                                    context: context,
+                                    isMounted: () => mounted,
+                                    notice: _snack,
+                                    chatId: () => widget.chatId,
+                                    contactAction:
+                                        _contactController.contactAction,
                                     name: name,
                                     peerUid: peerUid,
                                     blocked: blocked,
