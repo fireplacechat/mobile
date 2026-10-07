@@ -69,3 +69,5 @@ certificate; it does not replace the store's upload validation.
 The workflow is manual-only and creates a draft without binaries. It adds no
 secrets or environments and uses only the built-in GitHub token for that job.
 Future store-upload automation needs a separate owner decision.
+
+iPhone only for now; the app runs scaled on iPad. A wide-screen layout is on the roadmap.
