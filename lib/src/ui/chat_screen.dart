@@ -1,10 +1,10 @@
+import 'package:fireplace/src/model/chat/send_controller.dart';
 import 'package:fireplace/src/view/chat/widgets/composer_note.dart';
 import 'package:fireplace/src/view/chat/widgets/request_banner.dart';
 import 'package:fireplace/src/view/chat/widgets/unconfirmed_note.dart';
 import 'package:fireplace/src/view/chat/widgets/new_device_banner.dart';
 import 'package:fireplace/src/view/chat/widgets/identity_alert_banner.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
-import 'package:fireplace/src/model/chat/message_recovery_action.dart';
 
 import 'dart:math' as math;
 
@@ -14,7 +14,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/crypto/fingerprint.dart';
-import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/services/chat_service.dart';
 import 'package:fireplace/src/ui/safety_ui.dart';
@@ -49,22 +48,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   final _scroll = ScrollController();
   final _timelineViewport = GlobalKey();
   final _messageAnchors = <String, GlobalKey>{};
-  bool _sending = false;
+  late final SendController _sendController;
   bool _awayFromLatest = false;
   int _draftRevision = 0;
   String _lastDraftText = '';
 
-  /// Messages whose outcome could not be saved in the on-device history (the storage itself
-  /// failed), so the warning lives in memory only. Keyed by the server message id.
-  final Map<String, MemoryPending> _memoryPending = {};
-  final _messageActions = <String, MessageRecoveryAction>{};
-  String? _sendError;
   bool _contactBusy = false, _reviewing = false;
   String? _contactError;
-  final Map<String, String> _checkNote = {};
   @override
   void initState() {
     super.initState();
+    _sendController =
+        SendController(
+          chatId: () => widget.chatId,
+          chat: () => ref.read(appSessionProvider).value?.chat,
+          ownerUid: () => ref.read(appSessionProvider).value?.uid,
+          pendingSends: () => ref.read(pendingLocalSendsProvider.notifier),
+          draft: () => _text.text,
+          draftRevision: () => _draftRevision,
+          clearDraft: () => _text.clear(),
+          notice: _snack,
+          showNewest: _showNewestAfterOwnSend,
+          reviewIdentity: (peerUid, pub) async {
+            final session = ref.read(appSessionProvider).value;
+            if (session != null) await _reviewIdentity(session, peerUid, pub);
+          },
+          identityAlerts: () => ref.read(identityAlertsProvider).value ?? {},
+          confirmSendAnotherCopy: _confirmSendAnotherCopy,
+        )..addListener(() {
+          if (mounted) setState(() {});
+        });
     _visibilityNotifier = ref.read(visibleChatProvider.notifier);
     _foreground =
         WidgetsBinding.instance.lifecycleState == null ||
@@ -335,204 +348,39 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     _text.dispose();
     _scroll.removeListener(_onTimelineScroll);
     _scroll.dispose();
+    _sendController.dispose();
     super.dispose();
   }
 
-  Future<void> _send() async {
-    if (messageTooLong(_text.text)) {
-      setState(() => _sendError = messageLimitError);
-      return;
-    }
-    final body = _text.text.trim();
-    final session = ref.read(appSessionProvider).value;
-    if (body.isEmpty || session == null || _sending) return;
-    final peerUid = session.chat.peerOf(widget.chatId);
-    if (ref.read(identityAlertsProvider).value?.containsKey(peerUid) == true) {
-      _snack('Review the security code change before sending.');
-      return;
-    }
-    final draftRevision = _draftRevision;
-    setState(() {
-      _sending = true;
-      _sendError = null;
-    });
-    try {
-      await session.chat.sendText(widget.chatId, body);
-      if (!mounted) return;
-      if (_draftRevision == draftRevision) _text.clear();
-      _showNewestAfterOwnSend();
-    } on SendNotConfirmedException catch (e) {
-      // The message may already have been delivered, so this is NOT a plain failure: the attempted
-      // draft moves into a pending bubble (warning below it) instead of staying poised to resend.
-      if (!mounted) return;
-      if (!e.persisted) {
-        ref
-            .read(pendingLocalSendsProvider.notifier)
-            .add(e, ownerUid: session.uid);
-        setState(() => _memoryPending[e.messageId] = MemoryPending(e));
-      }
-      // Edits made while the send was in flight survive: only an untouched draft is cleared.
-      if (_draftRevision == draftRevision) _text.clear();
-      _showNewestAfterOwnSend();
-    } on IdentityChangedException catch (e) {
-      if (mounted) await _reviewIdentity(session, e.peerUid, e.newIdentityPub);
-    } on ChatException catch (e) {
-      if (mounted) setState(() => _sendError = e.message);
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _sendError = 'We could not confirm this send. It may have reached them. Check your history before sending again.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _sending = false);
-    }
-  }
-
-  void _forgetPending(String id) {
-    _memoryPending.remove(id);
-    ref.read(pendingLocalSendsProvider.notifier).remove(widget.chatId, id);
+  Future<bool?> _confirmSendAnotherCopy() {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => UiDialog(
+        title: const Text('Send another copy?'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'The original may already have been delivered. This sends a new message.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('cancelResend'),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            key: const Key('confirmResend'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Send another copy'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _snack(String m) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
-  }
-
-  /// Asks the server whether the message exists. Never publishes anything.
-  Future<void> _checkStatus(String messageId) async {
-    final session = ref.read(appSessionProvider).value;
-    if (session == null || _messageActions.containsKey(messageId)) return;
-    setState(() {
-      _messageActions[messageId] = MessageRecoveryAction.checking;
-      _checkNote.remove(messageId);
-    });
-    try {
-      final outcome = await session.chat.checkSendStatus(
-        widget.chatId,
-        messageId,
-      );
-      if (!mounted) return;
-      if (outcome == SendOutcome.confirmed) {
-        final mem = _memoryPending[messageId];
-        if (mem != null) {
-          mem.outcome = SendOutcome.publishedLocalSaveFailed;
-          ref
-              .read(pendingLocalSendsProvider.notifier)
-              .confirmed(widget.chatId, messageId, ownerUid: session.uid);
-          try {
-            await session.chat.saveSentLocally(
-              chatId: widget.chatId,
-              messageId: messageId,
-              body: mem.body,
-              sentAt: mem.sentAt,
-            );
-            _forgetPending(messageId);
-          } catch (_) {
-            // Still held in memory; the message is confirmed on the server.
-          }
-        }
-        _snack('Message confirmed: it reached the server.');
-      } else {
-        setState(
-          () => _checkNote[messageId] =
-              'Still not sure. It may or may not have been delivered.',
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _checkNote[messageId] =
-              'Could not check yet. Nothing was sent again. Try later.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _messageActions.remove(messageId));
-    }
-  }
-
-  /// The explicit "send another copy" decision.
-  Future<void> _sendAgain(String messageId, String body) async {
-    final session = ref.read(appSessionProvider).value;
-    if (session == null || _messageActions.containsKey(messageId)) return;
-    setState(
-      () => _messageActions[messageId] = MessageRecoveryAction.resending,
-    );
-    try {
-      final go = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => UiDialog(
-          title: const Text('Send another copy?'),
-          content: const SingleChildScrollView(
-            child: Text(
-              'The original may already have been delivered. This sends a new message.',
-            ),
-          ),
-          actions: [
-            TextButton(
-              key: const Key('cancelResend'),
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              key: const Key('confirmResend'),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Send another copy'),
-            ),
-          ],
-        ),
-      );
-      if (go != true || !mounted) return;
-      await session.chat.resendUnconfirmed(
-        chatId: widget.chatId,
-        messageId: messageId,
-        body: body,
-      );
-      if (mounted) setState(() => _forgetPending(messageId));
-    } on SendNotConfirmedException catch (e) {
-      if (mounted && !e.persisted) {
-        ref
-            .read(pendingLocalSendsProvider.notifier)
-            .add(e, ownerUid: session.uid);
-        setState(() => _memoryPending[e.messageId] = MemoryPending(e));
-      }
-    } on ChatException catch (e) {
-      if (mounted) setState(() => _checkNote[messageId] = e.message);
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _checkNote[messageId] = 'The new copy is not confirmed. It may have reached them. Do not send another copy without checking.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _messageActions.remove(messageId));
-    }
-  }
-
-  /// Repairs local history for a message known to be on the server. No publish.
-  Future<void> _saveOnDevice(MemoryPending mem) async {
-    final session = ref.read(appSessionProvider).value;
-    if (session == null || _messageActions.containsKey(mem.messageId)) return;
-    setState(
-      () => _messageActions[mem.messageId] = MessageRecoveryAction.saving,
-    );
-    try {
-      await session.chat.saveSentLocally(
-        chatId: widget.chatId,
-        messageId: mem.messageId,
-        body: mem.body,
-        sentAt: mem.sentAt,
-      );
-      if (mounted) setState(() => _forgetPending(mem.messageId));
-    } catch (_) {
-      if (mounted) {
-        setState(
-          () => _checkNote[mem.messageId] = 'Could not save on this device yet. Your message was sent: do not send it again.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _messageActions.remove(mem.messageId));
-    }
   }
 
   /// Lets the user compare and explicitly decide about a changed contact key.
@@ -649,7 +497,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final account = ref.watch(appSessionProvider);
     final session = account.value;
     if (account.isLoading || account.hasError || !_sameAccount(session)) {
-      if (session?.uid != _ownerUid) _memoryPending.clear();
+      if (session?.uid != _ownerUid) {
+        _sendController.clearMemoryPending();
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && session?.uid != _ownerUid && _text.text.isNotEmpty) {
           _text.clear();
@@ -704,7 +554,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             m.status == MessageStatus.ok,
       );
       if (confirmed) {
-        _memoryPending.remove(send.messageId);
+        _sendController.dropMemoryPending(send.messageId);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted) {
             ref
@@ -713,13 +563,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           }
         });
       } else {
-        _memoryPending.putIfAbsent(send.messageId, () => MemoryPending(send));
+        _sendController.rememberMemoryPending(
+          send.messageId,
+          () => MemoryPending(send),
+        );
       }
     }
     final allMessages =
         [
           ...stored,
-          for (final m in _memoryPending.values)
+          for (final m in _sendController.memoryPending.values)
             if (!stored.any((x) => x.id == m.messageId))
               m.asLocalMessage(session),
         ]..sort((a, b) {
@@ -948,15 +801,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       ),
                     if (_contactError != null)
                       UiNotice(warning: true, text: _contactError!),
-                    if (_sendError != null)
+                    if (_sendController.sendError != null)
                       UiNotice(
                         key: const Key('sendFailure'),
                         warning: true,
                         brandText: true,
-                        text: _sendError!,
+                        text: _sendController.sendError!,
                         actions: [
                           TextButton(
-                            onPressed: () => setState(() => _sendError = null),
+                            onPressed: () => _sendController.dismissError(),
                             child: const Text('Dismiss'),
                           ),
                         ],
@@ -1050,22 +903,31 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                 if (message.outgoing &&
                                     (message.status ==
                                             MessageStatus.unconfirmed ||
-                                        _memoryPending[message.id]?.outcome ==
+                                        _sendController
+                                                .memoryPending[message.id]
+                                                ?.outcome ==
                                             SendOutcome
                                                 .publishedLocalSaveFailed))
                                   UnconfirmedNote(
                                     messageId: message.id,
                                     savedLocallyFailed:
-                                        _memoryPending[message.id]?.outcome ==
+                                        _sendController
+                                            .memoryPending[message.id]
+                                            ?.outcome ==
                                         SendOutcome.publishedLocalSaveFailed,
-                                    action: _messageActions[message.id],
-                                    note: _checkNote[message.id],
-                                    onCheck: () => _checkStatus(message.id),
-                                    onSendAgain: () =>
-                                        _sendAgain(message.id, message.body),
+                                    action: _sendController
+                                        .messageActions[message.id],
+                                    note: _sendController.checkNote[message.id],
+                                    onCheck: () =>
+                                        _sendController.checkStatus(message.id),
+                                    onSendAgain: () => _sendController
+                                        .sendAgain(message.id, message.body),
                                     onSave: () {
-                                      final mem = _memoryPending[message.id];
-                                      if (mem != null) _saveOnDevice(mem);
+                                      final mem = _sendController
+                                          .memoryPending[message.id];
+                                      if (mem != null) {
+                                        _sendController.saveOnDevice(mem);
+                                      }
                                     },
                                   ),
                               ],
@@ -1132,9 +994,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     const SingleActivator(
                       LogicalKeyboardKey.enter,
                       control: true,
-                    ): _send,
+                    ): _sendController.send,
                     const SingleActivator(LogicalKeyboardKey.enter, meta: true):
-                        _send,
+                        _sendController.send,
                   },
                   child: Container(
                     padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -1209,15 +1071,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                 .onPrimary,
                           ),
                           onPressed:
-                              _sending ||
+                              _sendController.sending ||
                                   _text.text.trim().isEmpty ||
                                   session == null
                               ? null
-                              : _send,
-                          tooltip: _sending
+                              : _sendController.send,
+                          tooltip: _sendController.sending
                               ? 'Sending message'
                               : 'Send message',
-                          icon: _sending
+                          icon: _sendController.sending
                               ? SizedBox.square(
                                   dimension: 20,
                                   child: CircularProgressIndicator(
