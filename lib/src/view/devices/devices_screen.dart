@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
-import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/widgets/dialog.dart';
+import 'package:fireplace/src/widgets/page.dart';
+import 'package:fireplace/src/widgets/status.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

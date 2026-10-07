@@ -10,7 +10,10 @@ import 'package:fireplace/src/crypto/fingerprint.dart';
 import 'package:fireplace/src/model/keys/verify_payload.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
-import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/widgets/dialog.dart';
+import 'package:fireplace/src/widgets/page.dart';
+import 'package:fireplace/src/widgets/status.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
 
 class _Info {

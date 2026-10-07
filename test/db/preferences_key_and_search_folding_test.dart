@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/secret_store.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/model/search/message_search.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 LocalMessage msg(String id, String body) => LocalMessage(

@@ -4,7 +4,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/brand/logo.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
-import 'package:fireplace/src/ui/safety_ui.dart';
+import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/ui/settings_screen.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';

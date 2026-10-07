@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
-import 'package:fireplace/src/ui/recovery_screens.dart';
+import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

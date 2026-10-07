@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
-import 'package:fireplace/src/ui/presentation.dart';
+import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/widgets/page.dart';
 
 class ChatAppearanceScreen extends ConsumerWidget {
   const ChatAppearanceScreen({super.key});

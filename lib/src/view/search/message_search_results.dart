@@ -6,7 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/model/notifications/chat_activity.dart';
+import 'package:fireplace/src/model/search/message_search.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 
 List<MessageSearchHit> _scan((Map<String, List<LocalMessage>>, String) input) =>

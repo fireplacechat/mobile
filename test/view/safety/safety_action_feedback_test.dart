@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:fireplace/fireplace_services.dart';
-import 'package:fireplace/src/ui/safety_ui.dart';
+import 'package:fireplace/src/view/safety/blocked_users_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';

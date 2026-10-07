@@ -4,7 +4,7 @@ import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/styles/theme.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
 import 'package:flutter/material.dart';

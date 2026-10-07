@@ -6,7 +6,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:fireplace/src/crypto/codec.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/db/secret_store.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
