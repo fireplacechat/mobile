@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
-import 'package:fireplace/src/ui/settings_screen.dart';
+import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/model/chat/chat_visibility.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/view/chat/chat_route_observer.dart';
-import 'package:fireplace/src/ui/chat_list_screen.dart';
+import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';

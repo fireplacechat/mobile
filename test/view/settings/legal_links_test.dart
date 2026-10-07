@@ -4,7 +4,7 @@
 // package-free solution (show the address, selectable, with a Copy link button); opening it in a browser
 // needs `url_launcher` and is left to the owner's decision on new packages.
 import 'package:fireplace/src/view/auth/auth_screen.dart';
-import 'package:fireplace/src/ui/settings_screen.dart';
+import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

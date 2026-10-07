@@ -6,7 +6,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/ui/chat_list_screen.dart';
+import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';

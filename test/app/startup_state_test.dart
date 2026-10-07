@@ -3,7 +3,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/app.dart';
-import 'package:fireplace/src/ui/new_device_screen.dart';
+import 'package:fireplace/src/view/devices/new_device_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
