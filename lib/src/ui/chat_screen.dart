@@ -1,3 +1,4 @@
+import 'package:fireplace/src/view/chat/route_visibility.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/model/chat/contact_controller.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
@@ -39,13 +40,10 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen>
-    with RouteAware, WidgetsBindingObserver {
-  ModalRoute<void>? _route;
+class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _ownerUid;
-  late final ChatVisibility _visibilityNotifier;
+  late final RouteVisibility _routeVisibility;
   bool _showAll = false;
-  bool _foreground = true;
   final _text = TextEditingController();
   late final SendController _sendController;
   late final TimelineScroll _timeline;
@@ -85,11 +83,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         )..addListener(() {
           if (mounted) setState(() {});
         });
-    _visibilityNotifier = ref.read(visibleChatProvider.notifier);
-    _foreground =
-        WidgetsBinding.instance.lifecycleState == null ||
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-    WidgetsBinding.instance.addObserver(this);
+    _routeVisibility = RouteVisibility(
+      chatId: () => widget.chatId,
+      notifier: ref.read(visibleChatProvider.notifier),
+      currentlyVisible: () => ref.read(visibleChatProvider),
+      isMounted: () => mounted,
+      onVisible: _markSeen,
+    )..start();
     _text.addListener(_onDraftChanged);
     _timeline = TimelineScroll(isMounted: () => mounted)
       ..addListener(() {
@@ -101,47 +101,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final route = ModalRoute.of(context);
-    if (route != _route && route is ModalRoute<void>) {
-      chatRouteObserver.unsubscribe(this);
-      _route = route;
-      chatRouteObserver.subscribe(this, route);
+    if (route is ModalRoute<void>) {
+      _routeVisibility.subscribe(route);
     }
   }
 
-  void _visibility() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        _visibilityNotifier.clearIf(widget.chatId);
-        return;
-      }
-      final visible = _foreground && (_route?.isCurrent ?? false);
-      final notifier = _visibilityNotifier;
-      if (visible) {
-        notifier.show(widget.chatId);
-        _markSeen();
-      } else if (ref.read(visibleChatProvider) == widget.chatId) {
-        notifier.show(null);
-      }
-    });
-  }
-
-  @override
-  void didPush() => _visibility();
-  @override
-  void didPushNext() => _visibility();
-  @override
-  void didPopNext() => _visibility();
-  @override
-  void didPop() => _visibility();
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    _foreground = state == AppLifecycleState.resumed;
-    _visibility();
-  }
+  // Kept for the existing lifecycle characterization tests.
+  void didChangeAppLifecycleState(AppLifecycleState state) =>
+      _routeVisibility.didChangeAppLifecycleState(state);
 
   void _markSeen() {
-    if (!_foreground ||
-        !(_route?.isCurrent ?? false) ||
+    if (!_routeVisibility.foreground ||
+        !_routeVisibility.isCurrentRoute ||
         !ref.read(chatActivityProvider).preferencesAvailable) {
       return;
     }
@@ -292,11 +263,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
 
   @override
   void dispose() {
-    chatRouteObserver.unsubscribe(this);
-    final id = widget.chatId;
-    final visibility = _visibilityNotifier;
-    WidgetsBinding.instance.addPostFrameCallback((_) => visibility.clearIf(id));
-    WidgetsBinding.instance.removeObserver(this);
+    _routeVisibility.dispose();
     _text.removeListener(_onDraftChanged);
     _text.dispose();
     _timeline.dispose();
