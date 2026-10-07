@@ -6,6 +6,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:pqcrypto/pqcrypto.dart';
 
 import 'package:fireplace/src/crypto/codec.dart';
+import 'package:fireplace/src/crypto/contributory.dart';
 import 'package:fireplace/src/crypto/device.dart';
 import 'package:fireplace/src/crypto/key_checks.dart';
 import 'package:fireplace/src/crypto/prekeys.dart';
@@ -567,13 +568,16 @@ class Session {
     );
   }
 
-  static Future<Uint8List> _dh(KeyPair kp, SimplePublicKey pk) async =>
-      Uint8List.fromList(
-        await (await _x25519.sharedSecretKey(
-          keyPair: kp,
-          remotePublicKey: pk,
-        )).extractBytes(),
-      );
+  static Future<Uint8List> _dh(KeyPair kp, SimplePublicKey pk) async {
+    final secret = await (await _x25519.sharedSecretKey(
+      keyPair: kp,
+      remotePublicKey: pk,
+    )).extractBytes();
+    if (!isContributoryX25519Secret(secret)) {
+      throw SessionException('invalid X25519 contribution');
+    }
+    return Uint8List.fromList(secret);
+  }
 
   static Future<(Uint8List, String)> _deriveRoot({
     required DeviceBundle initiator,

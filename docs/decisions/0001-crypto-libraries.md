@@ -8,4 +8,4 @@ Checked on pub.dev: `pqc_e2ee` 1.0.0 (no repository link), `sk_pqc` 0.1.0, `pq_a
 
 **Rejected as dependencies:** `pqc_e2ee`, `sk_pqc`, `pq_aura_flutter` (0.x / single maintainer / no audit, or no source link; protocol logic should be ours and reviewable). They remain useful as references.
 
-**Caveats:** `pqcrypto` is not CMVP/FIPS-140 validated and pure Dart is not constant-time-hardened; this is covered by the external review in Phase 10. Spike test: `test/spike/pq_library_spike_test.dart` (passes).
+**Caveats:** The classical primitives from `cryptography` also use Dart implementations on Android/iOS in the current configuration; no `cryptography_flutter` provider is enabled. Browser builds can use Web Crypto with Dart fallbacks. Neither this configuration nor the protocol is claimed to be constant-time-hardened. `pqcrypto` is not CMVP/FIPS-140 validated and pure Dart is not constant-time-hardened; independent cryptographic and side-channel review remains outstanding. Spike test: `test/spike/pq_library_spike_test.dart` (passes).

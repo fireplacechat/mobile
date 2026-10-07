@@ -5,6 +5,7 @@ import 'package:cryptography/cryptography.dart';
 import 'package:pqcrypto/pqcrypto.dart';
 
 import 'package:fireplace/src/crypto/codec.dart';
+import 'package:fireplace/src/crypto/contributory.dart';
 import 'package:fireplace/src/crypto/device.dart';
 import 'package:fireplace/src/crypto/identity.dart';
 
@@ -97,12 +98,16 @@ class LinkCrypto {
     kemPub,
   ]);
 
-  static Future<SecretKey> _key(List<int> dh, List<int> ss, Uint8List info) =>
-      Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(
-        secretKey: SecretKey(concat([dh, ss])),
-        nonce: const <int>[],
-        info: info,
-      );
+  static Future<SecretKey> _key(List<int> dh, List<int> ss, Uint8List info) {
+    if (!isContributoryX25519Secret(dh)) {
+      throw LinkException('Invalid device linking key.');
+    }
+    return Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(
+      secretKey: SecretKey(concat([dh, ss])),
+      nonce: const <int>[],
+      info: info,
+    );
+  }
 
   static Future<SealedIdentity> seal(
     AccountIdentity identity, {
