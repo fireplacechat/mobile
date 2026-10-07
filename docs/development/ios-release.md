@@ -106,3 +106,6 @@ export. The temporary export plist obtains its profile name from match.
 | Build number already used | Bump the patch version and its build number in `pubspec.yaml`, merge and rebuild. |
 | Missing Compliance | Answer the owner-reviewed encryption questions for the build in TestFlight. |
 | Missing environment secret or approval | Verify the pre-created protected `ios-release` environment and its seven secrets. |
+
+## Allowed actions
+The repository allows only GitHub-owned actions and the pinned `subosito/flutter-action` (Settings, Actions, General). The iOS workflows therefore use the Ruby and Bundler already on the macOS runner and install fastlane from `ios/Gemfile.lock`; do not add a third-party action to them without adding it to that allow-list on purpose.

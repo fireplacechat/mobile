@@ -60,11 +60,15 @@ jobs:
           flutter-version-file: pubspec.yaml
           cache: true
       - run: flutter pub get
-      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
-        with:
-          ruby-version: '3.4.8'
-          bundler-cache: true
-          working-directory: ios
+      # The repository only allows GitHub-owned actions and the pinned Flutter action, so no Ruby
+      # setup action: the macOS runner already ships Ruby and Bundler; fastlane comes from ios/Gemfile.lock.
+      - name: Install fastlane from the lockfile
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          ruby --version
+          bundle config set --local path vendor/bundle
+          bundle install --jobs 4 --retry 3
       - name: Mask credentials and prepare temporary API key
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
