@@ -1,0 +1,78 @@
+require 'tmpdir'
+require 'xcodeproj'
+
+opt_out_usage
+default_platform :ios
+
+def fireplace_api_key
+  app_store_connect_api_key(
+    key_id: ENV.fetch('ASC_KEY_ID'),
+    issuer_id: ENV.fetch('ASC_ISSUER_ID'),
+    key_filepath: ENV.fetch('ASC_KEY_PATH'),
+    duration: 1200,
+    in_house: false
+  )
+end
+
+platform :ios do
+  desc 'Create or refresh encrypted App Store signing material (owner setup only)'
+  lane :signing do
+    setup_ci(timeout: 0)
+    match(
+      type: 'appstore',
+      readonly: false,
+      api_key: fireplace_api_key,
+      team_id: ENV.fetch('APPLE_TEAM_ID')
+    )
+  end
+
+  desc 'Use existing signing material and upload one build to TestFlight'
+  lane :beta do
+    setup_ci(timeout: 0)
+    key = fireplace_api_key
+    match(
+      type: 'appstore',
+      readonly: true,
+      api_key: key,
+      team_id: ENV.fetch('APPLE_TEAM_ID')
+    )
+    root = File.expand_path('../..', __dir__)
+    identifier = 'com.fireplacechat.app'
+    profile = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING].fetch(identifier)
+    update_code_signing_settings(
+      path: File.join(root, 'ios', 'Runner.xcodeproj'),
+      targets: ['Runner'],
+      build_configurations: ['Release'],
+      use_automatic_signing: false,
+      team_id: ENV.fetch('APPLE_TEAM_ID'),
+      code_sign_identity: 'Apple Distribution',
+      sdk: 'iphoneos*',
+      profile_name: profile,
+      bundle_identifier: identifier
+    )
+    Dir.mktmpdir('fireplace-export-', ENV['RUNNER_TEMP']) do |temporary|
+      export_options = File.join(temporary, 'ExportOptions.plist')
+      Xcodeproj::Plist.write_to_path(
+        {
+          'method' => 'app-store-connect',
+          'signingStyle' => 'manual',
+          'teamID' => ENV.fetch('APPLE_TEAM_ID'),
+          'provisioningProfiles' => { identifier => profile },
+          'manageAppVersionAndBuildNumber' => false,
+          'destination' => 'export'
+        },
+        export_options
+      )
+      Dir.chdir(root) do
+        sh('flutter', 'build', 'ipa', '--release', "--export-options-plist=#{export_options}")
+      end
+    end
+    bundles = Dir[File.join(root, 'build', 'ios', 'ipa', '*.ipa')]
+    UI.user_error!('Expected exactly one newly built IPA') unless bundles.length == 1
+    upload_to_testflight(
+      api_key: key,
+      ipa: bundles.first,
+      skip_waiting_for_build_processing: true
+    )
+  end
+end

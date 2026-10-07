@@ -24,8 +24,10 @@ on the owner's machine in this phase; CI gets no signing key or passwords.
    Create new release**. The first bundle upload also enrols the app in Play
    App Signing: the owner retains the upload key, Google holds the app-signing
    key. Keep the bundle private and upload it only to the store.
-5. For iOS/TestFlight, **iOS builds are not published from this repository yet**.
-   The Apple account, signed build and TestFlight upload remain owner steps.
+5. For iOS/TestFlight, follow the [owner checklist](ios-release.md). The same
+   version rules apply: `CFBundleVersion` is the number after `+`; zero padding
+   is fine because Apple compares the components as integers. Signing and upload
+   require the owner's protected-environment approval.
 6. Once the store build is out, review the draft and press **Publish release**.
    This creates the tag at the recorded commit. The `v*` tag protection prevents
    moving or deleting it: a wrongly named tag cannot be undone. Check both the
