@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
 import 'package:fireplace/src/view/safety/report_dialog.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';

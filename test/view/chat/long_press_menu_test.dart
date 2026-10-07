@@ -1,6 +1,6 @@
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/gestures.dart';

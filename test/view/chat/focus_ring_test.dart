@@ -1,7 +1,7 @@
 // Review finding E2: the keyboard focus ring is drawn as part of the bubble border, so focusing a message
 // makes it 4 px wider and taller and shifts its text (a visible jump while tabbing through a chat).
 // The ring must be painted over the bubble without changing its size.
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

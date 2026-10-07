@@ -3,7 +3,7 @@ import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/auth/auth_screen.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/ui/chat_list_screen.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
 import 'package:fireplace/src/ui/new_device_screen.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';

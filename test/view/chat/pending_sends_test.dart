@@ -1,6 +1,6 @@
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/styles/theme.dart';

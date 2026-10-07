@@ -3,7 +3,7 @@
 //  b) a chat whose last outgoing message is "not confirmed" previews as an ordinary sent message in the list.
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/ui/chat_list_screen.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

@@ -7,7 +7,7 @@ import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/ui/safety_ui.dart';
 import 'package:fireplace/src/ui/chat_activity.dart';
 import 'package:fireplace/src/ui/chat_list_screen.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

@@ -13,7 +13,7 @@ import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/auth/auth_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
 import 'package:fireplace/src/ui/chat_list_screen.dart';
-import 'package:fireplace/src/ui/chat_screen.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/ui/chat_activity.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
