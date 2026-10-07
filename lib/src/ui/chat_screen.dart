@@ -1,3 +1,6 @@
+import 'package:fireplace/src/view/chat/message_menu.dart';
+import 'package:fireplace/src/view/chat/route_visibility.dart';
+import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/model/chat/contact_controller.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
 import 'package:fireplace/src/view/chat/widgets/composer_note.dart';
@@ -23,9 +26,6 @@ import 'package:fireplace/src/ui/presentation.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
 import 'package:fireplace/src/ui/chat_activity.dart';
-import 'package:fireplace/src/view/chat/forward/forward_message.dart';
-import 'package:fireplace/src/model/chat/message_format.dart';
-import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/view/chat/composer/message_input_formatter.dart';
@@ -38,19 +38,13 @@ class ChatScreen extends ConsumerStatefulWidget {
   ConsumerState<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends ConsumerState<ChatScreen>
-    with RouteAware, WidgetsBindingObserver {
-  ModalRoute<void>? _route;
+class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _ownerUid;
-  late final ChatVisibility _visibilityNotifier;
+  late final RouteVisibility _routeVisibility;
   bool _showAll = false;
-  bool _foreground = true;
   final _text = TextEditingController();
-  final _scroll = ScrollController();
-  final _timelineViewport = GlobalKey();
-  final _messageAnchors = <String, GlobalKey>{};
   late final SendController _sendController;
-  bool _awayFromLatest = false;
+  late final TimelineScroll _timeline;
   int _draftRevision = 0;
   String _lastDraftText = '';
 
@@ -79,7 +73,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
           draftRevision: () => _draftRevision,
           clearDraft: () => _text.clear(),
           notice: _snack,
-          showNewest: _showNewestAfterOwnSend,
+          showNewest: () => _timeline.showNewestAfterOwnSend(_latest),
           reviewIdentity: (peerUid, pub) =>
               _contactController.reviewIdentity(peerUid, pub),
           identityAlerts: () => ref.read(identityAlertsProvider).value ?? {},
@@ -87,60 +81,36 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         )..addListener(() {
           if (mounted) setState(() {});
         });
-    _visibilityNotifier = ref.read(visibleChatProvider.notifier);
-    _foreground =
-        WidgetsBinding.instance.lifecycleState == null ||
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
-    WidgetsBinding.instance.addObserver(this);
+    _routeVisibility = RouteVisibility(
+      chatId: () => widget.chatId,
+      notifier: ref.read(visibleChatProvider.notifier),
+      currentlyVisible: () => ref.read(visibleChatProvider),
+      isMounted: () => mounted,
+      onVisible: _markSeen,
+    )..start();
     _text.addListener(_onDraftChanged);
-    _scroll.addListener(_onTimelineScroll);
+    _timeline = TimelineScroll(isMounted: () => mounted)
+      ..addListener(() {
+        if (mounted) setState(() {});
+      });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final route = ModalRoute.of(context);
-    if (route != _route && route is ModalRoute<void>) {
-      chatRouteObserver.unsubscribe(this);
-      _route = route;
-      chatRouteObserver.subscribe(this, route);
+    if (route is ModalRoute<void>) {
+      _routeVisibility.subscribe(route);
     }
   }
 
-  void _visibility() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        _visibilityNotifier.clearIf(widget.chatId);
-        return;
-      }
-      final visible = _foreground && (_route?.isCurrent ?? false);
-      final notifier = _visibilityNotifier;
-      if (visible) {
-        notifier.show(widget.chatId);
-        _markSeen();
-      } else if (ref.read(visibleChatProvider) == widget.chatId) {
-        notifier.show(null);
-      }
-    });
-  }
-
-  @override
-  void didPush() => _visibility();
-  @override
-  void didPushNext() => _visibility();
-  @override
-  void didPopNext() => _visibility();
-  @override
-  void didPop() => _visibility();
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    _foreground = state == AppLifecycleState.resumed;
-    _visibility();
-  }
+  // Kept for the existing lifecycle characterization tests.
+  void didChangeAppLifecycleState(AppLifecycleState state) =>
+      _routeVisibility.didChangeAppLifecycleState(state);
 
   void _markSeen() {
-    if (!_foreground ||
-        !(_route?.isCurrent ?? false) ||
+    if (!_routeVisibility.foreground ||
+        !_routeVisibility.isCurrentRoute ||
         !ref.read(chatActivityProvider).preferencesAvailable) {
       return;
     }
@@ -168,111 +138,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     }
   }
 
-  /// The long-press menu for one message. Add reply/delete/react here later.
-  List<MessageAction> _actionsFor(
-    LocalMessage message, {
-    required String name,
-    required String? peerUid,
-    required bool blocked,
-    required bool incomingRequest,
-    required bool identityHeld,
-  }) {
-    final owner = ref.read(appSessionProvider).value;
-    bool available() {
-      if (!mounted || owner == null) return false;
-      final summary = ref.read(chatSummaryProvider(widget.chatId));
-      return identical(ref.read(appSessionProvider).value, owner) &&
-          summary != null &&
-          ref.read(chatActivityProvider.notifier).eligible(summary);
-    }
-
-    void run(VoidCallback action) {
-      if (available()) action();
-    }
-
-    final readable = message.status != MessageStatus.undecryptable;
-    final canShare = !incomingRequest && !identityHeld && !blocked && readable;
-    return [
-      if (canShare)
-        MessageAction(
-          id: 'copy',
-          label: 'Copy',
-          icon: Icons.copy_outlined,
-          onSelected: () => run(() => _copyMessage(message)),
-        ),
-      if (canShare &&
-          !messageTooLong(message.body) &&
-          message.status == MessageStatus.ok)
-        MessageAction(
-          id: 'forward',
-          label: 'Forward',
-          icon: Icons.forward_outlined,
-          onSelected: () => run(() => forwardMessage(context, message, name)),
-        ),
-      if (canShare)
-        MessageAction(
-          id: 'selectText',
-          label: 'Select text',
-          icon: Icons.text_fields_outlined,
-          onSelected: () => run(
-            () => showSelectTextSheet(
-              context,
-              displayMessage(message.body).plain,
-              protectSelection: (ctx, child) => Consumer(
-                builder: (ctx, sheetRef, _) {
-                  sheetRef.watch(appSessionProvider);
-                  sheetRef.watch(chatsProvider);
-                  sheetRef.watch(blockedUidsProvider);
-                  sheetRef.watch(hiddenChatsProvider);
-                  sheetRef.watch(identityAlertsProvider);
-                  return available()
-                      ? child
-                      : const Text(
-                          'This conversation is no longer available. Close this sheet and return to your chats.',
-                        );
-                },
-              ),
-            ),
-          ),
-        ),
-      // Only another person's message can be reported.
-      if (!message.outgoing &&
-          peerUid != null &&
-          !incomingRequest &&
-          !identityHeld &&
-          !blocked)
-        MessageAction(
-          id: 'report',
-          label: 'Report',
-          icon: Icons.flag_outlined,
-          destructive: true,
-          onSelected: () => run(
-            () => _contactController.contactAction(() async {
-              await showReportDialog(
-                context,
-                ref,
-                peerUid: peerUid,
-                name: name,
-                chatId: widget.chatId,
-                focus: message,
-              );
-            }),
-          ),
-        ),
-    ];
-  }
-
-  Future<void> _copyMessage(LocalMessage message) async {
-    try {
-      await Clipboard.setData(
-        ClipboardData(text: displayMessage(message.body).plain),
-      );
-      if (mounted) _snack('Message copied');
-    } catch (_) {
-      if (mounted) _snack('Could not copy this message. Try again.');
-    }
-  }
-
   void _onDraftChanged() {
     if (_text.text == _lastDraftText) return;
     _lastDraftText = _text.text;
@@ -280,83 +145,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     if (mounted) setState(() {});
   }
 
-  void _onTimelineScroll() {
-    final away = _scroll.hasClients && _scroll.offset > 96;
-    if (away != _awayFromLatest && mounted) {
-      setState(() => _awayFromLatest = away);
-    }
-  }
-
-  (GlobalKey, double)? _readingAnchor() {
-    final viewport = _timelineViewport.currentContext?.findRenderObject();
-    if (viewport is! RenderBox || !viewport.hasSize) return null;
-    final top = viewport.localToGlobal(Offset.zero).dy;
-    final bottom = top + viewport.size.height;
-    (GlobalKey, double)? anchor;
-    for (final key in _messageAnchors.values) {
-      final box = key.currentContext?.findRenderObject();
-      if (box is! RenderBox || !box.hasSize || !box.attached) continue;
-      final y = box.localToGlobal(Offset.zero).dy;
-      if (y < bottom &&
-          y + box.size.height > top &&
-          (anchor == null || (y - top).abs() < (anchor.$2 - top).abs())) {
-        anchor = (key, y);
-      }
-    }
-    return anchor;
-  }
-
-  void _keepReadingAnchor((GlobalKey, double) anchor) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scroll.hasClients || _scroll.offset <= 96) return;
-      final box = anchor.$1.currentContext?.findRenderObject();
-      if (box is! RenderBox || !box.hasSize || !box.attached) return;
-      // The reversed timeline grows upwards. Restore the visible message's
-      // position rather than the numeric offset from its changing bottom.
-      final shift = box.localToGlobal(Offset.zero).dy - anchor.$2;
-      final target = (_scroll.offset - shift).clamp(
-        0.0,
-        _scroll.position.maxScrollExtent,
-      );
-      if (shift.abs() > .5) _scroll.jumpTo(target);
-    });
-  }
-
-  /// The user just sent something: show it, even if they had scrolled up to read older messages
-  /// (a message that ARRIVES while reading still never moves the view).
-  void _showNewestAfterOwnSend() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _latest();
-    });
-  }
-
   void _latest() {
     if (!_showAll && widget.initialMessageId != null) {
       setState(() => _showAll = true);
     }
-    if (!_scroll.hasClients) return;
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _scroll.jumpTo(0);
-    } else {
-      _scroll.animateTo(
-        0,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-      );
-    }
+    _timeline.scrollToLatest(
+      reduceMotion: MediaQuery.disableAnimationsOf(context),
+    );
   }
 
   @override
   void dispose() {
-    chatRouteObserver.unsubscribe(this);
-    final id = widget.chatId;
-    final visibility = _visibilityNotifier;
-    WidgetsBinding.instance.addPostFrameCallback((_) => visibility.clearIf(id));
-    WidgetsBinding.instance.removeObserver(this);
+    _routeVisibility.dispose();
     _text.removeListener(_onDraftChanged);
     _text.dispose();
-    _scroll.removeListener(_onTimelineScroll);
-    _scroll.dispose();
+    _timeline.dispose();
     _sendController.dispose();
     _contactController.dispose();
     super.dispose();
@@ -561,7 +364,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       if (mounted) _markSeen();
     });
     final visibleIds = msgs.map((m) => m.id).toSet();
-    _messageAnchors.removeWhere((id, _) => !visibleIds.contains(id));
+    _timeline.pruneAnchors(visibleIds);
     final summary = ref.watch(chatSummaryProvider(widget.chatId));
     final me = session?.uid ?? '';
     final incomingRequest = summary?.isIncomingRequest(me) ?? false;
@@ -576,10 +379,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         peerUid != null &&
         ref.watch(identityAlertsProvider).value?.containsKey(peerUid) == true;
     ref.listen(messagesProvider(widget.chatId), (previous, next) {
-      if (!_scroll.hasClients || next.hasError) return;
-      if (_scroll.offset > 96) {
-        final anchor = _readingAnchor();
-        if (anchor != null) _keepReadingAnchor(anchor);
+      if (!_timeline.controller.hasClients || next.hasError) return;
+      if (_timeline.controller.offset > 96) {
+        final anchor = _timeline.readingAnchor();
+        if (anchor != null) _timeline.keepReadingAnchor(anchor);
         return;
       }
       final before = previous?.value;
@@ -592,9 +395,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
         return;
       }
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _scroll.hasClients && _scroll.offset <= 96) {
-          _scroll.jumpTo(0);
-        }
+        _timeline.jumpToLatestIfNear();
       });
     });
     final verified =
@@ -805,7 +606,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             ),
             Expanded(
               child: Stack(
-                key: _timelineViewport,
+                key: _timeline.viewportKey,
                 fit: StackFit.expand,
                 children: [
                   blocked
@@ -838,7 +639,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                         )
                       : ListView.builder(
                           key: const Key('messageTimeline'),
-                          controller: _scroll,
+                          controller: _timeline.controller,
                           reverse: true,
                           padding: EdgeInsets.all(12),
                           itemCount: msgs.length,
@@ -857,14 +658,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                                 if (showDate)
                                   DaySeparator(date: message.sentAt),
                                 MessageBubble(
-                                  key: _messageAnchors.putIfAbsent(
-                                    message.id,
-                                    GlobalKey.new,
-                                  ),
+                                  key: _timeline.anchorFor(message.id),
                                   message: message,
                                   senderName: name,
-                                  actions: _actionsFor(
+                                  actions: messageMenuActions(
                                     message,
+                                    ref: ref,
+                                    context: context,
+                                    isMounted: () => mounted,
+                                    notice: _snack,
+                                    chatId: () => widget.chatId,
+                                    contactAction:
+                                        _contactController.contactAction,
                                     name: name,
                                     peerUid: peerUid,
                                     blocked: blocked,
@@ -906,7 +711,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             );
                           },
                         ),
-                  if (_awayFromLatest && msgs.isNotEmpty)
+                  if (_timeline.awayFromLatest && msgs.isNotEmpty)
                     Positioned(
                       left: 16,
                       right: 16,
