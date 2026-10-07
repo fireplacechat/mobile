@@ -31,6 +31,7 @@ jobs:
       - run: flutter analyze
       - run: python3 scripts/check_layout.py .
       - run: python3 scripts/test_check_layout.py
+      - run: bash scripts/test_build_aab.sh
       - run: node --test .github/scripts/cla-check.test.js
 
   unit:

@@ -1,0 +1,47 @@
+# Draft notes for the commit used by a store build, with automatic source archives.
+# Store builds are made/uploaded separately; this release holds no binaries.
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, for example v0.1.0'
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency: release
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Require main
+        run: |
+          [ "$GITHUB_REF" = refs/heads/main ] || { echo "Run Release on main only."; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate version and refuse an existing tag or release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected vX.Y.Z."; exit 1; }
+          package_version=$(awk '$1 == "version:" { print $2 }' pubspec.yaml)
+          [ "$VERSION" = "v${package_version%%+*}" ] || { echo "Version must match pubspec.yaml."; exit 1; }
+          # Successful list requests distinguish absence from an API/auth failure.
+          tags=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$VERSION" --jq '.[].ref')
+          if grep -Fxq "refs/tags/$VERSION" <<<"$tags"; then
+            echo "Tag already exists."; exit 1
+          fi
+          releases=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name')
+          if grep -Fxq "$VERSION" <<<"$releases"; then
+            echo "Release already exists."; exit 1
+          fi
+      - name: Create draft and print its URL
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --draft --target "$GITHUB_SHA" --generate-notes --title "Fireplace ${VERSION#v}"
