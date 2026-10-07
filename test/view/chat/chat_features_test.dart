@@ -7,7 +7,7 @@ import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
 import 'package:fireplace/src/ui/recovery_screens.dart';
 import 'package:fireplace/src/styles/theme.dart';
-import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

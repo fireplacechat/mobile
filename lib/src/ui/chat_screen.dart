@@ -17,7 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/crypto/fingerprint.dart';
 import 'package:fireplace/src/db/local_messages.dart';
-import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/ui/safety_ui.dart';
 import 'package:fireplace/src/ui/presentation.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';

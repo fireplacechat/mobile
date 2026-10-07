@@ -1,4 +1,4 @@
-import 'package:fireplace/src/services/chat_service.dart' show ChatService;
+import 'package:fireplace/src/model/chat/chat_service.dart' show ChatService;
 
 /// The server refused a send, so nothing was published. The message is plain words that are safe to show
 /// as they are (unlike an arbitrary [ChatException]).

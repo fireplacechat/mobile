@@ -2,7 +2,7 @@ import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
-import 'package:fireplace/src/services/chat_service.dart';
+import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/chat/widgets/day_separator.dart';
 import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
