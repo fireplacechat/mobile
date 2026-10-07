@@ -1,9 +1,10 @@
+import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/view/chat/chat_composer.dart';
 import 'package:fireplace/src/view/chat/message_menu.dart';
 import 'package:fireplace/src/view/chat/route_visibility.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/model/chat/contact_controller.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
-import 'package:fireplace/src/view/chat/widgets/composer_note.dart';
 import 'package:fireplace/src/view/chat/widgets/request_banner.dart';
 import 'package:fireplace/src/view/chat/widgets/unconfirmed_note.dart';
 import 'package:fireplace/src/view/chat/widgets/new_device_banner.dart';
@@ -13,7 +14,6 @@ import 'package:fireplace/src/model/chat/memory_pending.dart';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
@@ -21,14 +21,11 @@ import 'package:fireplace/src/crypto/fingerprint.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/services/chat_service.dart';
 import 'package:fireplace/src/ui/safety_ui.dart';
-import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/ui/presentation.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
 import 'package:fireplace/src/ui/chat_activity.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
-import 'package:fireplace/src/model/chat/message_limits.dart';
-import 'package:fireplace/src/view/chat/composer/message_input_formatter.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key, required this.chatId, this.initialMessageId});
@@ -398,6 +395,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         _timeline.jumpToLatestIfNear();
       });
     });
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final verified =
         peerUid != null &&
         ref.watch(peerVerifiedProvider(peerUid)).value == true;
@@ -735,144 +733,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ],
               ),
             ),
-            if (blocked)
-              ComposerNote(
-                key: Key('blockedNote'),
-                text: 'You blocked @$name.',
-                action: TextButton(
-                  onPressed: session == null || _contactController.busy
-                      ? null
-                      : () => _contactController.contactAction(
-                          () => session.safety.unblock(peerUid),
-                        ),
-                  child: Text('Unblock'),
-                ),
-              )
-            else if (incomingRequest)
-              ComposerNote(
-                key: Key('acceptToReplyNote'),
-                text: 'Accept this request to reply.',
-              )
-            else if (waiting)
-              ComposerNote(
-                key: Key('waitingNote'),
-                text: 'Waiting for @$name to accept your request.',
-              )
-            else if (identityHeld)
-              ComposerNote(
-                key: Key('identityHeldNote'),
-                text: 'Review this contact’s security code before sending.',
-              )
-            else
-              SafeArea(
-                top: false,
-                child: CallbackShortcuts(
-                  bindings: {
-                    const SingleActivator(
-                      LogicalKeyboardKey.enter,
-                      control: true,
-                    ): _sendController.send,
-                    const SingleActivator(LogicalKeyboardKey.enter, meta: true):
-                        _sendController.send,
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                    decoration: BoxDecoration(
-                      color: FireplaceUiTokens.of(context).panel,
-                      border: Border(
-                        top: BorderSide(
-                          color: FireplaceUiTokens.of(context).separator,
-                        ),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxHeight:
-                                  ((MediaQuery.sizeOf(context).height -
-                                              MediaQuery.viewInsetsOf(context)
-                                                  .bottom) *
-                                          .35)
-                                      .clamp(120, 280),
-                            ),
-                            child: TextField(
-                              key: Key('composer'),
-                              controller: _text,
-                              inputFormatters: [MessageInputFormatter()],
-                              minLines: 1,
-                              maxLines:
-                                  MediaQuery.sizeOf(context).height -
-                                          MediaQuery.viewInsetsOf(context)
-                                              .bottom <
-                                      500
-                                  ? 3
-                                  : 6,
-                              textCapitalization: TextCapitalization.sentences,
-                              decoration: InputDecoration(
-                                counter:
-                                    messageCharacters(_text.text) >=
-                                        (maxMessageCharacters * .9).floor()
-                                    ? Text(
-                                        '${messageCharacters(_text.text)} / 16,384',
-                                        key: const Key('messageCounter'),
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
-                                      )
-                                    : null,
-                                hintText: 'Message',
-                                contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 10,
-                                ),
-                              ),
-                              textInputAction: TextInputAction.newline,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        IconButton.filled(
-                          key: Key('send'),
-                          style: IconButton.styleFrom(
-                            minimumSize: const Size(48, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            backgroundColor: Theme.of(context)
-                                .colorScheme
-                                .primary,
-                            foregroundColor: Theme.of(context)
-                                .colorScheme
-                                .onPrimary,
-                          ),
-                          onPressed:
-                              _sendController.sending ||
-                                  _text.text.trim().isEmpty ||
-                                  session == null
-                              ? null
-                              : _sendController.send,
-                          tooltip: _sendController.sending
-                              ? 'Sending message'
-                              : 'Send message',
-                          icon: _sendController.sending
-                              ? SizedBox.square(
-                                  dimension: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onPrimary,
-                                  ),
-                                )
-                              : Icon(Icons.arrow_upward_rounded),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            ChatComposer(
+              keyboardInset: keyboardInset,
+              text: _text,
+              name: name,
+              blocked: blocked,
+              incomingRequest: incomingRequest,
+              waiting: waiting,
+              identityHeld: identityHeld,
+              hasSession: session != null,
+              contactBusy: _contactController.busy,
+              send: _sendController,
+              onUnblock: () => _contactController.contactAction(
+                () => session!.safety.unblock(peerUid!),
               ),
+            ),
           ],
         ),
       ),
