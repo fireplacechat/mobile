@@ -27,3 +27,4 @@ Plans change, and nothing here is a promise or a date. Ideas and questions are w
 - Group chats, voice and video calls, stickers and GIFs.
 - Typing indicators, read receipts, "online" or "last seen". These are left out on purpose.
 - Analytics, crash reporting or any tracking.
+
