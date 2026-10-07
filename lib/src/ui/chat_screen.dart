@@ -1,3 +1,4 @@
+import 'package:fireplace/src/view/chat/chat_app_bar_parts.dart';
 import 'package:fireplace/src/view/chat/chat_safety_notices.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/chat_composer.dart';
@@ -400,56 +401,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       appBar: UiAppBar(
         context: context,
         toolbarHeight: 64,
-        leading: IconButton(
-          key: const Key('chatBack'),
-          tooltip: otherUnread == 0
-              ? 'Back to chats'
-              : 'Back to chats, $otherUnread unread messages in other chats',
-          onPressed: () => Navigator.maybePop(context),
-          icon: Badge(
-            isLabelVisible: otherUnread > 0,
-            label: Text(unreadLabel(otherUnread)),
-            child: const BackButtonIcon(),
-          ),
-        ),
-        title: Row(
-          children: [
-            PersonAvatar(name: name, size: 36),
-            SizedBox(width: 10),
-            Expanded(
-              child: InkWell(
-                key: const Key('chatDetails'),
-                onTap: peerUid == null || session == null
-                    ? null
-                    : () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ChatDetailsScreen(
-                            peerUid: peerUid,
-                            chatId: widget.chatId,
-                            name: name,
-                            onBlock: () => _blockPeer(session, peerUid, name),
-                            onUnblock: () => session.safety.unblock(peerUid),
-                          ),
-                        ),
-                      ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Text(name, overflow: TextOverflow.ellipsis),
-                ),
+        leading: ChatBackButton(otherUnread: otherUnread),
+        title: ChatTitle(
+          name: name,
+          peerUid: peerUid,
+          hasSession: session != null,
+          onOpenDetails: (partContext) => Navigator.of(partContext).push(
+            MaterialPageRoute(
+              builder: (_) => ChatDetailsScreen(
+                peerUid: peerUid!,
+                chatId: widget.chatId,
+                name: name,
+                onBlock: () => _blockPeer(session!, peerUid, name),
+                onUnblock: () => session!.safety.unblock(peerUid),
               ),
             ),
-          ],
+          ),
         ),
         actions: [
           if (peerUid != null)
-            IconButton(
-              key: Key('verify'),
-              tooltip: 'Verify security code',
-              icon: Icon(
-                verified ? Icons.verified_user : Icons.shield_outlined,
-                color: verified ? Theme.of(context).colorScheme.primary : null,
-              ),
-              onPressed: () => Navigator.of(context).push(
+            ChatVerifyButton(
+              verified: verified,
+              onPressed: (partContext) => Navigator.of(partContext).push(
                 MaterialPageRoute(
                   builder: (_) =>
                       VerifyScreen(peerUid: peerUid, peerName: name),
@@ -457,48 +430,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
           if (peerUid != null && session != null)
-            PopupMenuButton<String>(
-              key: Key('chatMenu'),
-              onSelected: (v) async {
-                if (v == 'mute') {
-                  await _mute(!muted);
-                } else if (v == 'block') {
-                  await _contactController.contactAction(
-                    () => _blockPeer(session, peerUid, name),
-                  );
-                } else if (v == 'unblock') {
-                  await _contactController.contactAction(
-                    () => session.safety.unblock(peerUid),
-                  );
-                } else if (v == 'report') {
-                  await _contactController.contactAction(() async {
-                    await showReportDialog(
-                      context,
-                      ref,
-                      peerUid: peerUid,
-                      name: name,
-                      chatId: widget.chatId,
-                    );
-                  });
-                }
-              },
-              itemBuilder: (_) => [
-                PopupMenuItem(
-                  key: const Key('menuMute'),
-                  value: 'mute',
-                  child: Text(muted ? 'Unmute chat' : 'Mute chat'),
-                ),
-                PopupMenuItem(
-                  key: Key('menuBlock'),
-                  value: blocked ? 'unblock' : 'block',
-                  child: Text(blocked ? 'Unblock' : 'Block'),
-                ),
-                PopupMenuItem(
-                  key: Key('menuReport'),
-                  value: 'report',
-                  child: Text('Report'),
-                ),
-              ],
+            ChatOverflowMenu(
+              muted: muted,
+              blocked: blocked,
+              onMute: () => _mute(!muted),
+              onBlock: () => _contactController.contactAction(
+                () => _blockPeer(session, peerUid, name),
+              ),
+              onUnblock: () => _contactController.contactAction(
+                () => session.safety.unblock(peerUid),
+              ),
+              onReport: () => _contactController.contactAction(() async {
+                await showReportDialog(
+                  context,
+                  ref,
+                  peerUid: peerUid,
+                  name: name,
+                  chatId: widget.chatId,
+                );
+              }),
             ),
         ],
       ),
