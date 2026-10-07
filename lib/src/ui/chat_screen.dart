@@ -1,3 +1,4 @@
+import 'package:fireplace/src/view/chat/chat_unavailable.dart';
 import 'package:fireplace/src/view/chat/chat_timeline.dart';
 import 'package:fireplace/src/view/chat/chat_app_bar_parts.dart';
 import 'package:fireplace/src/view/chat/chat_safety_notices.dart';
@@ -271,21 +272,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           _text.clear();
         }
       });
-      return Scaffold(
-        appBar: UiAppBar(
-          context: context,
-          title: const Text('Conversation unavailable'),
-        ),
-        body: UiEmptyState(
-          title: 'Return to your chats',
-          message: 'Your account changed or is not ready. Open the conversation again from your chat list.',
-          action: TextButton(
-            onPressed: () =>
-                Navigator.of(context).popUntil((route) => route.isFirst),
-            child: const Text('Return to chats'),
-          ),
-        ),
-      );
+      return ChatUnavailableScreen();
     }
     _ownerUid ??= session?.uid;
     final peerUid = session?.chat.peerOf(widget.chatId);
@@ -296,18 +283,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final stored = messageState.value ?? const <LocalMessage>[];
     final blockState = ref.watch(blockedUidsProvider);
     if (blockState.isLoading || blockState.hasError || !blockState.hasValue) {
-      return Scaffold(
-        appBar: UiAppBar(context: context, title: const Text('Conversation')),
-        body: blockState.isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : UiEmptyState(
-                title: 'Could not load privacy settings',
-                message: 'Your conversation stays hidden until these settings are available.',
-                action: TextButton(
-                  onPressed: () => ref.invalidate(blockedUidsProvider),
-                  child: const Text('Try again'),
-                ),
-              ),
+      return ChatPrivacyErrorScreen(
+        loading: blockState.isLoading,
+        onRetry: () => ref.invalidate(blockedUidsProvider),
       );
     }
     final pending = ref.watch(pendingLocalSendsProvider);
