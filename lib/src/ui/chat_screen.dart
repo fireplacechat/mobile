@@ -1,3 +1,4 @@
+import 'package:fireplace/src/view/chat/chat_timeline.dart';
 import 'package:fireplace/src/view/chat/chat_app_bar_parts.dart';
 import 'package:fireplace/src/view/chat/chat_safety_notices.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
@@ -7,7 +8,6 @@ import 'package:fireplace/src/view/chat/route_visibility.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/model/chat/contact_controller.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
-import 'package:fireplace/src/view/chat/widgets/unconfirmed_note.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
 
 import 'package:flutter/material.dart';
@@ -495,134 +495,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               }),
             ),
             Expanded(
-              child: Stack(
-                key: _timeline.viewportKey,
-                fit: StackFit.expand,
-                children: [
-                  blocked
-                      ? const UiEmptyState(
-                          title: 'Conversation hidden',
-                          message: 'Unblock this contact in Settings to see your history again.',
-                        )
-                      : messageState.hasError
-                      ? UiEmptyState(
-                          title: 'Could not load history',
-                          message:
-                              'Try again to read the history on this device.',
-                          action: TextButton(
-                            onPressed: () =>
-                                ref.invalidate(messagesProvider(widget.chatId)),
-                            child: const Text('Try again'),
-                          ),
-                        )
-                      : messageState.isLoading && msgs.isEmpty
-                      ? const Center(child: CircularProgressIndicator())
-                      : msgs.isEmpty
-                      ? UiEmptyState(
-                          icon: Icons.lock_outline_rounded,
-                          title: incomingRequest
-                              ? 'A new message request'
-                              : 'A private conversation',
-                          message: incomingRequest
-                              ? 'Messages stay hidden until you accept.'
-                              : 'Messages are end-to-end encrypted. Say hello when you’re ready.',
-                        )
-                      : ListView.builder(
-                          key: const Key('messageTimeline'),
-                          controller: _timeline.controller,
-                          reverse: true,
-                          padding: EdgeInsets.all(12),
-                          itemCount: msgs.length,
-                          itemBuilder: (_, i) {
-                            final index = msgs.length - 1 - i;
-                            final message = msgs[index];
-                            final showDate =
-                                index == 0 ||
-                                !sameLocalDay(
-                                  msgs[index - 1].sentAt,
-                                  message.sentAt,
-                                );
-                            return Column(
-                              key: ValueKey(message.id),
-                              children: [
-                                if (showDate)
-                                  DaySeparator(date: message.sentAt),
-                                MessageBubble(
-                                  key: _timeline.anchorFor(message.id),
-                                  message: message,
-                                  senderName: name,
-                                  actions: messageMenuActions(
-                                    message,
-                                    ref: ref,
-                                    context: context,
-                                    isMounted: () => mounted,
-                                    notice: _snack,
-                                    chatId: () => widget.chatId,
-                                    contactAction:
-                                        _contactController.contactAction,
-                                    name: name,
-                                    peerUid: peerUid,
-                                    blocked: blocked,
-                                    incomingRequest: incomingRequest,
-                                    identityHeld: identityHeld,
-                                  ),
-                                ),
-                                if (message.outgoing &&
-                                    (message.status ==
-                                            MessageStatus.unconfirmed ||
-                                        _sendController
-                                                .memoryPending[message.id]
-                                                ?.outcome ==
-                                            SendOutcome
-                                                .publishedLocalSaveFailed))
-                                  UnconfirmedNote(
-                                    messageId: message.id,
-                                    savedLocallyFailed:
-                                        _sendController
-                                            .memoryPending[message.id]
-                                            ?.outcome ==
-                                        SendOutcome.publishedLocalSaveFailed,
-                                    action: _sendController
-                                        .messageActions[message.id],
-                                    note: _sendController.checkNote[message.id],
-                                    onCheck: () =>
-                                        _sendController.checkStatus(message.id),
-                                    onSendAgain: () => _sendController
-                                        .sendAgain(message.id, message.body),
-                                    onSave: () {
-                                      final mem = _sendController
-                                          .memoryPending[message.id];
-                                      if (mem != null) {
-                                        _sendController.saveOnDevice(mem);
-                                      }
-                                    },
-                                  ),
-                              ],
-                            );
-                          },
-                        ),
-                  if (_timeline.awayFromLatest && msgs.isNotEmpty)
-                    Positioned(
-                      left: 16,
-                      right: 16,
-                      bottom: 8,
-                      child: Align(
-                        alignment: Alignment.bottomRight,
-                        child: FilledButton(
-                          key: const Key('latestMessages'),
-                          onPressed: _latest,
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.arrow_downward, size: 18),
-                              SizedBox(width: 8),
-                              Flexible(child: Text('Latest messages')),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+              child: ChatTimeline(
+                blocked: blocked,
+                historyFailed: messageState.hasError,
+                loading: messageState.isLoading,
+                msgs: msgs,
+                incomingRequest: incomingRequest,
+                name: name,
+                awayFromLatest: _timeline.awayFromLatest,
+                viewportKey: _timeline.viewportKey,
+                scrollController: _timeline.controller,
+                anchorFor: _timeline.anchorFor,
+                send: _sendController,
+                actionsFor: (message) => messageMenuActions(
+                  message,
+                  ref: ref,
+                  context: context,
+                  isMounted: () => mounted,
+                  notice: _snack,
+                  chatId: () => widget.chatId,
+                  contactAction: _contactController.contactAction,
+                  name: name,
+                  peerUid: peerUid,
+                  blocked: blocked,
+                  incomingRequest: incomingRequest,
+                  identityHeld: identityHeld,
+                ),
+                onRetryHistory: () =>
+                    ref.invalidate(messagesProvider(widget.chatId)),
+                onLatest: _latest,
               ),
             ),
             ChatComposer(
