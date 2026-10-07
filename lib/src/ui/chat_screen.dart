@@ -3,8 +3,8 @@ import 'package:fireplace/src/view/chat/widgets/request_banner.dart';
 import 'package:fireplace/src/view/chat/widgets/unconfirmed_note.dart';
 import 'package:fireplace/src/view/chat/widgets/new_device_banner.dart';
 import 'package:fireplace/src/view/chat/widgets/identity_alert_banner.dart';
-import 'package:fireplace/src/view/chat/widgets/memory_pending.dart';
-import 'package:fireplace/src/view/chat/widgets/message_recovery_action.dart';
+import 'package:fireplace/src/model/chat/memory_pending.dart';
+import 'package:fireplace/src/model/chat/message_recovery_action.dart';
 
 import 'dart:math' as math;
 
