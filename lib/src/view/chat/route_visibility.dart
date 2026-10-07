@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:fireplace/src/model/chat/chat_visibility.dart';
-import 'package:fireplace/src/ui/chat_activity.dart' show chatRouteObserver;
+import 'package:fireplace/src/view/chat/chat_route_observer.dart'
+    show chatRouteObserver;
 
 class RouteVisibility with RouteAware, WidgetsBindingObserver {
   RouteVisibility({

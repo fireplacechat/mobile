@@ -13,7 +13,7 @@ import 'package:fireplace/src/ui/chat_list_screen.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
-import 'package:fireplace/src/ui/chat_activity.dart';
+import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
 
 class FireplaceApp extends StatefulWidget {
