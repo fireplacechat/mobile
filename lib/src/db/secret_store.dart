@@ -13,8 +13,15 @@ abstract class SecretStore {
 /// iOS Keychain / Android Keystore backed store.
 class SecureSecretStore implements SecretStore {
   SecureSecretStore([FlutterSecureStorage? storage])
-    : _s = storage ?? const FlutterSecureStorage();
+    : _s = storage ?? const FlutterSecureStorage(iOptions: iosOptions);
   final FlutterSecureStorage _s;
+
+  /// Keep new iOS items non-migratable without widening locked-device access.
+  /// Background key access needs a separate decision before it is enabled.
+  static const iosOptions = IOSOptions(
+    accessibility: KeychainAccessibility.unlocked_this_device,
+    synchronizable: false,
+  );
 
   @override
   Future<String?> read(String key) => _s.read(key: key);
@@ -23,6 +30,10 @@ class SecureSecretStore implements SecretStore {
       _s.write(key: key, value: value);
   @override
   Future<void> delete(String key) => _s.delete(key: key);
+
+  /// Intentional whole-install reset, including any old account's key remnants.
+  /// Do not replace with guessed UID prefixes: session keys also use device IDs.
+  /// Revisit deletion isolation before supporting concurrent local accounts.
   @override
   Future<void> clear() => _s.deleteAll();
 }

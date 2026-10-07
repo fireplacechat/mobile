@@ -31,6 +31,23 @@ class LocalMessage {
   final String body; // plaintext, or a short reason when undecryptable
   final MessageStatus status;
 
+  /// Account-relative direction for presentation. Stored `outgoing` records
+  /// device-level send/receive bookkeeping, including linked-device copies.
+  LocalMessage forAccount(String uid) {
+    final mine = senderUid == uid;
+    if (outgoing == mine) return this;
+    return LocalMessage(
+      id: id,
+      chatId: chatId,
+      senderUid: senderUid,
+      senderDevice: senderDevice,
+      outgoing: mine,
+      sentAt: sentAt,
+      body: body,
+      status: status,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'chatId': chatId,
