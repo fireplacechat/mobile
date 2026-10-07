@@ -5,8 +5,11 @@ Plans change, and nothing here is a promise or a date. Ideas and questions are w
 [`help wanted`](https://github.com/fireplacechat/mobile/labels/help%20wanted) and
 [`good first issue`](https://github.com/fireplacechat/mobile/labels/good%20first%20issue).
 
+## Done recently
+- The code is organised by feature, in small focused files, with a written architecture map ([docs/architecture.md](architecture.md)) and checks that keep it that way.
+- Contributor documents are in place: a Code of Conduct, a contributor license agreement, issue templates and starter issues.
+
 ## Now
-- Making the code easier to read and contribute to: a feature-based layout, small focused files, a written architecture map ([docs/architecture.md](architecture.md)).
 - Preparing for a first beta on iOS and Android: testing on real devices, accessibility checks, store setup.
 
 ## Next
