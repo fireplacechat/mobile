@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:fireplace/fireplace_services.dart';
+import 'package:fireplace/src/model/chat/chat_sync_coordinator.dart';
 import 'package:fireplace/src/model/common/session_scope.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 
@@ -170,66 +171,22 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     // Decrypt in the background while the app is open, but only for chats that
     // should be live: not an unaccepted request from a stranger (so strangers
     // cannot burn through our one-time prekeys), not blocked, not hidden.
-    final syncs = <String, StreamSubscription<void>>{};
-    var latest = <ChatSummary>[];
-    scope.add(() async {
-      for (final sub in syncs.values.toList()) {
-        await sub.cancel();
-      }
-      syncs.clear();
-    });
-    Future<void> reconcile() async {
-      if (scope.stopped) return;
-      final hidden = await safety.hiddenChats();
-      if (scope.stopped) return;
-      final wanted = <String>{
-        for (final c in latest)
-          if (!c.isIncomingRequest(user.uid) &&
-              !safety.isBlocked(c.peerUid) &&
-              !hidden.contains(c.chatId))
-            c.chatId,
-      };
-      for (final id in syncs.keys.toList()) {
-        if (!wanted.contains(id)) await syncs.remove(id)?.cancel();
-      }
-      for (final id in wanted) {
-        if (scope.stopped) return;
-        if (chatPreferences.available && chatPreferences.needsBaseline(id)) {
-          try {
-            // Capture disk history before starting receive sync. Later network
-            // arrivals must not be swallowed by first-run read bookkeeping.
-            final existing = await store.watch(id).first;
-            await chatPreferences.seedExisting(
-              id,
-              existing.where((m) => !m.outgoing).map((m) => m.id),
-            );
-          } catch (_) {
-            // A broken UI sidecar does not stop messaging; Settings offers reset.
-          }
-        }
-        // Baseline I/O may have yielded to a block, hide, request change or disposal.
-        final nowHidden = await safety.hiddenChats();
-        if (scope.stopped) return;
-        if (!latest.any(
-              (c) =>
-                  c.chatId == id &&
-                  !c.isIncomingRequest(user.uid) &&
-                  !safety.isBlocked(c.peerUid),
-            ) ||
-            nowHidden.contains(id)) {
-          continue;
-        }
-        syncs.putIfAbsent(id, () => chat.startSync(id));
-      }
-    }
-
-    final chatsSub = chat.watchChats().listen((chats) {
-      latest = chats;
-      unawaited(reconcile().catchError((Object _) {}));
-    }, onError: (_) {});
+    final coordinator = ChatSyncCoordinator(
+      uid: user.uid,
+      safety: safety,
+      chat: chat,
+      chatPreferences: chatPreferences,
+      store: store,
+      isStopped: () => scope.stopped,
+    );
+    scope.add(coordinator.stop);
+    final chatsSub = chat.watchChats().listen(
+      (chats) => coordinator.chatsChanged(chats),
+      onError: (_) {},
+    );
     scope.add(chatsSub.cancel);
     final blockedSub = safety.watchBlocked().listen((_) {
-      unawaited(reconcile().catchError((Object _) {}));
+      coordinator.blockedChanged();
     });
     scope.add(blockedSub.cancel);
     final session = AppSession(
