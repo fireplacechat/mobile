@@ -4,8 +4,10 @@
 |---|---|
 | [architecture.md](architecture.md) | feature layout, dependencies and remaining extraction steps |
 | [development/](development/) | set up, coding style, CI, Android release notes, optional stricter lint config |
+| [development/app-check.md](development/app-check.md) | App Check monitoring, setup and rollback |
 | [protocol/](protocol/) | threat model, crypto evaluation notes, account deletion |
 | [decisions/](decisions/) | numbered design decisions (0001 onward): why each choice was made |
+| [decisions/0017-app-check.md](decisions/0017-app-check.md) | monitoring-only app attestation decision |
 | [roadmap/](roadmap/) | planned features and the feature matrix |
 | [assets/](assets/) | images used by the documentation |
 
