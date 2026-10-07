@@ -23,19 +23,15 @@ class ContactController extends ChangeNotifier {
   /// Nothing is trusted automatically.
   Future<void> contactAction(Future<void> Function() action) async {
     if (_contactBusy) return;
-    {
-      _contactBusy = true;
-      _contactError = null;
-      _changed();
-    }
+    _contactBusy = true;
+    _contactError = null;
+    _changed();
     try {
       await action();
     } catch (_) {
       if (!_disposed) {
-        {
-          _contactError = 'Could not update this contact. Try again.';
-          _changed();
-        }
+        _contactError = 'Could not update this contact. Try again.';
+        _changed();
       }
     } finally {
       if (!_disposed) {
@@ -47,18 +43,14 @@ class ContactController extends ChangeNotifier {
 
   Future<void> reviewIdentity(String peerUid, List<int> pub) async {
     if (_reviewing) return;
-    {
-      _reviewing = true;
-      _changed();
-    }
+    _reviewing = true;
+    _changed();
     try {
       await reviewOnce(peerUid, pub);
     } catch (_) {
       if (!_disposed) {
-        {
-          _contactError = 'Could not finish the security review. Check this contact’s security code before continuing. Try again.';
-          _changed();
-        }
+        _contactError = 'Could not finish the security review. Check this contact’s security code before continuing. Try again.';
+        _changed();
       }
     } finally {
       if (!_disposed) {

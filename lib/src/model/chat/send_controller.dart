@@ -87,10 +87,8 @@ class SendController extends ChangeNotifier {
 
   Future<void> send() async {
     if (messageTooLong(draft())) {
-      {
-        _sendError = messageLimitError;
-        _changed();
-      }
+      _sendError = messageLimitError;
+      _changed();
       return;
     }
     final body = draft().trim();
@@ -103,11 +101,9 @@ class SendController extends ChangeNotifier {
       return;
     }
     final draftRevision = this.draftRevision();
-    {
-      _sending = true;
-      _sendError = null;
-      _changed();
-    }
+    _sending = true;
+    _sendError = null;
+    _changed();
     try {
       await service.sendText(chatId(), body);
       if (_disposed) return;
@@ -119,10 +115,8 @@ class SendController extends ChangeNotifier {
       if (_disposed) return;
       if (!e.persisted) {
         pendingSends().add(e, ownerUid: uid!);
-        {
-          _memoryPending[e.messageId] = MemoryPending(e);
-          _changed();
-        }
+        _memoryPending[e.messageId] = MemoryPending(e);
+        _changed();
       }
       // Edits made while the send was in flight survive: only an untouched draft is cleared.
       if (this.draftRevision() == draftRevision) clearDraft();
@@ -136,10 +130,8 @@ class SendController extends ChangeNotifier {
       }
     } catch (_) {
       if (!_disposed) {
-        {
-          _sendError = 'We could not confirm this send. It may have reached them. Check your history before sending again.';
-          _changed();
-        }
+        _sendError = 'We could not confirm this send. It may have reached them. Check your history before sending again.';
+        _changed();
       }
     } finally {
       if (!_disposed) {
@@ -159,11 +151,9 @@ class SendController extends ChangeNotifier {
     final service = chat();
     final uid = ownerUid();
     if (service == null || _messageActions.containsKey(messageId)) return;
-    {
-      _messageActions[messageId] = MessageRecoveryAction.checking;
-      _checkNote.remove(messageId);
-      _changed();
-    }
+    _messageActions[messageId] = MessageRecoveryAction.checking;
+    _checkNote.remove(messageId);
+    _changed();
     try {
       final outcome = await service.checkSendStatus(chatId(), messageId);
       if (_disposed) return;
@@ -186,19 +176,15 @@ class SendController extends ChangeNotifier {
         }
         notice('Message confirmed: it reached the server.');
       } else {
-        {
-          _checkNote[messageId] =
-              'Still not sure. It may or may not have been delivered.';
-          _changed();
-        }
+        _checkNote[messageId] =
+            'Still not sure. It may or may not have been delivered.';
+        _changed();
       }
     } catch (_) {
       if (!_disposed) {
-        {
-          _checkNote[messageId] =
-              'Could not check yet. Nothing was sent again. Try later.';
-          _changed();
-        }
+        _checkNote[messageId] =
+            'Could not check yet. Nothing was sent again. Try later.';
+        _changed();
       }
     } finally {
       if (!_disposed) {
@@ -213,10 +199,8 @@ class SendController extends ChangeNotifier {
     final service = chat();
     final uid = ownerUid();
     if (service == null || _messageActions.containsKey(messageId)) return;
-    {
-      _messageActions[messageId] = MessageRecoveryAction.resending;
-      _changed();
-    }
+    _messageActions[messageId] = MessageRecoveryAction.resending;
+    _changed();
     try {
       final go = await confirmSendAnotherCopy();
       if (go != true || _disposed) return;
@@ -232,10 +216,8 @@ class SendController extends ChangeNotifier {
     } on SendNotConfirmedException catch (e) {
       if (!_disposed && !e.persisted) {
         pendingSends().add(e, ownerUid: uid!);
-        {
-          _memoryPending[e.messageId] = MemoryPending(e);
-          _changed();
-        }
+        _memoryPending[e.messageId] = MemoryPending(e);
+        _changed();
       }
     } on ChatException catch (e) {
       if (!_disposed) {
@@ -244,10 +226,8 @@ class SendController extends ChangeNotifier {
       }
     } catch (_) {
       if (!_disposed) {
-        {
-          _checkNote[messageId] = 'The new copy is not confirmed. It may have reached them. Do not send another copy without checking.';
-          _changed();
-        }
+        _checkNote[messageId] = 'The new copy is not confirmed. It may have reached them. Do not send another copy without checking.';
+        _changed();
       }
     } finally {
       if (!_disposed) {
@@ -261,10 +241,8 @@ class SendController extends ChangeNotifier {
   Future<void> saveOnDevice(MemoryPending mem) async {
     final service = chat();
     if (service == null || _messageActions.containsKey(mem.messageId)) return;
-    {
-      _messageActions[mem.messageId] = MessageRecoveryAction.saving;
-      _changed();
-    }
+    _messageActions[mem.messageId] = MessageRecoveryAction.saving;
+    _changed();
     try {
       await service.saveSentLocally(
         chatId: chatId(),
@@ -278,10 +256,8 @@ class SendController extends ChangeNotifier {
       }
     } catch (_) {
       if (!_disposed) {
-        {
-          _checkNote[mem.messageId] = 'Could not save on this device yet. Your message was sent: do not send it again.';
-          _changed();
-        }
+        _checkNote[mem.messageId] = 'Could not save on this device yet. Your message was sent: do not send it again.';
+        _changed();
       }
     } finally {
       if (!_disposed) {
