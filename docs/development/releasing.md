@@ -4,9 +4,10 @@ GitHub releases identify the commit used for a store build and hold release note
 and automatic source archives. No APK or AAB is attached. Builds and uploads stay
 on the owner's machine in this phase; CI gets no signing key or passwords.
 
-1. Bump `pubspec.yaml` to `version: X.Y.Z+N`. **N must increase for every upload
-   to either store**, including a rebuilt beta. Commit it and merge the reviewed
-   change to `main`; wait for green CI, including the Android permission check.
+1. Bump `pubspec.yaml` to `version: X.Y.Z+N` (see *Version numbers* below). **N must
+   increase for every upload to either store**, including a rebuilt beta. Commit it
+   and merge the reviewed change to `main`; wait for green CI, including the Android
+   permission check.
 2. In GitHub Actions, choose **Release**, **Run workflow**, branch **main** and
    version `vX.Y.Z`. It must match the version before `+` in `pubspec.yaml`.
    Existing tags or releases are refused. The workflow builds nothing: it
@@ -37,6 +38,18 @@ when the store offers a compatible update. App Check's Play Integrity supports
 Play installations after owner registration; see the
 [App Check setup](app-check.md), [Play App Signing guide](https://developer.android.com/studio/publish/app-signing)
 and [TestFlight overview](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/).
+
+## Version numbers
+
+The project stays on `0.x` versions until it is ready to call 1.0, with small,
+frequent releases tagged `v0.1.0`, `v0.1.1`, `v0.2.0` and so on (semantic versioning:
+patch for fixes, minor for features, major for 1.0 and breaking changes).
+The build number after the `+` is derived from the version, so it rises by itself:
+major, minor and patch as two digits each, zero-padded, for example
+`0.1.0+000100`, `0.1.1+000101`, `0.2.0+000200`, `1.0.0+010000`.
+Both stores only need the number to go up. If a build has to be uploaded again for
+the same version (a store rejected it, or a fix is needed), bump the patch number
+and publish a new version rather than reusing one: tags cannot be moved or deleted.
 
 ## Dry run and limits
 
