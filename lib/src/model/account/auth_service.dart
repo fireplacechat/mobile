@@ -101,13 +101,32 @@ class AuthService {
       });
       await batch.commit();
     } on FirebaseException catch (e) {
-      // Invite invalid/used, or name already claimed: undo the auth account.
-      await user.delete();
-      throw AuthException(
-        e.code == 'permission-denied' || e.code == 'not-found'
-            ? 'That invite code is invalid or already used.'
-            : 'Sign-up failed: ${e.message}',
-      );
+      // Invite invalid/used, or name already claimed. The profile batch is
+      // atomic, so no partial profile is written; only the auth account created
+      // above (which reserves the username) has to be undone.
+      final reason = e.code == 'permission-denied' || e.code == 'not-found'
+          ? 'That invite code is invalid or already used.'
+          : 'Could not finish sign-up.';
+      try {
+        await user.delete();
+      } catch (_) {
+        // Deleting the half-created account failed; left as-is it would stay
+        // signed in and keep holding the username. End the local session, but
+        // do not promise a deadline: sign-out cannot remove the server account.
+        try {
+          await signOut();
+        } catch (_) {
+          throw AuthException(
+            'Could not clean up the unfinished sign-up or sign out. '
+            'Restart the app and contact support if the username stays unavailable.',
+          );
+        }
+        throw AuthException(
+          '$reason The unfinished sign-in account could not be removed. '
+          'The username may remain unavailable; contact support.',
+        );
+      }
+      throw AuthException(reason);
     }
     return user;
   }

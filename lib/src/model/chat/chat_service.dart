@@ -118,6 +118,7 @@ class ChatService {
     sess: _sess,
     journal: _journal,
     recovery: _recovery,
+    peerOf: peerOf,
   );
 
   final AsyncMutex _lock = AsyncMutex(); // serializes all session-state changes
@@ -155,8 +156,11 @@ class ChatService {
 
   Future<String?> usernameOf(String peerUid) => _directory.usernameOf(peerUid);
 
-  Stream<List<LocalMessage>> watchMessages(String chatId) =>
-      _messages.watch(chatId);
+  Stream<List<LocalMessage>> watchMessages(String chatId) => _messages
+      .watch(chatId)
+      .map(
+        (messages) => [for (final message in messages) message.forAccount(uid)],
+      );
 
   // ----------------------------------------------------------------- sessions
 

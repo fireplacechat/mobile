@@ -154,8 +154,11 @@ void main() {
     final all = await bob.messages.watch(chatId).first;
     expect(
       all.where((m) => m.status == MessageStatus.undecryptable),
-      hasLength(4),
+      hasLength(2),
     );
+    expect(all.map((m) => m.id), isNot(contains('bad1')));
+    expect(all.map((m) => m.id), isNot(contains('bad2')));
+    expect(all.map((m) => m.id), containsAll(['bad3', 'bad4']));
     await bob.stopSync();
   });
 

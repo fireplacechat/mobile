@@ -16,7 +16,7 @@ class _FlakyStore extends MemoryMessageStore {
   }
 }
 
-const chat = 'chat1';
+const chat = 'me_peer';
 
 class _Rig {
   _Rig(this.db, this.secrets, this.service, this.store, this.deviceId);

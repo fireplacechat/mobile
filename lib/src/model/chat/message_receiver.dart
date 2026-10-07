@@ -17,6 +17,7 @@ import 'package:fireplace/src/model/chat/identity_alerts.dart';
 import 'package:fireplace/src/model/chat/work_tracker.dart';
 import 'package:fireplace/src/model/chat/deferred_queue.dart';
 import 'package:fireplace/src/model/chat/chat_tuning.dart';
+import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 
 class MessageReceiver {
   MessageReceiver({
@@ -35,6 +36,7 @@ class MessageReceiver {
     required SessionStore sess,
     required ReceiveJournal journal,
     required SendRecovery recovery,
+    required String Function(String chatId) peerOf,
   }) : this._(
          db,
          keys,
@@ -51,6 +53,7 @@ class MessageReceiver {
          sess,
          journal,
          recovery,
+         peerOf,
        );
 
   MessageReceiver._(
@@ -69,6 +72,7 @@ class MessageReceiver {
     this._sess,
     this._journal,
     this._recovery,
+    this._peerOf,
   );
 
   final FirebaseFirestore _db;
@@ -86,6 +90,7 @@ class MessageReceiver {
   final SessionStore _sess;
   final ReceiveJournal _journal;
   final SendRecovery _recovery;
+  final String Function(String chatId) _peerOf;
 
   /// Test hooks: how many query pages each chat's sync has opened, and which documents each
   /// snapshot delivered. Used to assert that paging makes progress and does not re-read.
@@ -279,6 +284,17 @@ class MessageReceiver {
     String msgId,
     Map<String, dynamic> data,
   ) async {
+    // Authorize before journal replay, pending-send confirmation or placeholders.
+    // A sender must be this account or the peer encoded in a valid chat ID.
+    final su = data['senderUid'];
+    final sd = data['senderDevice'];
+    final String peer;
+    try {
+      peer = _peerOf(chatId);
+    } on ChatException {
+      return;
+    }
+    if (su is! String || (su != uid && su != peer)) return;
     await _journal.recoverJournals(); // finish anything a crash left half applied, in order
     if (data['senderUid'] == uid &&
         data['senderDevice'] == device.keys.deviceId) {
@@ -288,8 +304,6 @@ class MessageReceiver {
       return;
     }
     if (await _messages.has(chatId, msgId)) return;
-    final su = data['senderUid'];
-    final sd = data['senderDevice'];
     final sentAt = data['ts'] is Timestamp
         ? (data['ts'] as Timestamp).toDate()
         : DateTime.now();
@@ -298,7 +312,7 @@ class MessageReceiver {
       LocalMessage(
         id: msgId,
         chatId: chatId,
-        senderUid: su is String ? su : '',
+        senderUid: su,
         senderDevice: sd is String ? sd : '',
         outgoing: false,
         sentAt: sentAt,
@@ -307,7 +321,7 @@ class MessageReceiver {
       ),
     );
 
-    if (su is! String || sd is! String) {
+    if (sd is! String) {
       await store('Malformed message.', MessageStatus.undecryptable);
       return;
     }
