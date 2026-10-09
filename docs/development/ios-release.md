@@ -65,12 +65,18 @@ pull request. The check job needs no secrets and creates no environment.
    tester (an App Store Connect user). Install Apple's **TestFlight** app on the
    iPhone and accept the invitation. Processing can take time after upload; CI
    intentionally does not wait for it. See [internal testers](https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers/).
-9. The **owner decides** the encryption/export-compliance answer. Under
-   **TestFlight → the build**, use **Manage** beside **Missing Compliance** to
-   answer Apple's questions before testing. Once decided, the answer can be
-   recorded through `ITSAppUsesNonExemptEncryption` in `ios/Runner/Info.plist` in
-   a separately reviewed change. This setup supplies no answer and changes no
-   plist. See [beta export compliance](https://developer.apple.com/help/app-store-connect/test-a-beta-version/provide-export-compliance-information-for-beta-builds/).
+9. The **owner decides** the encryption/export-compliance answer. The current
+   `ITSAppUsesNonExemptEncryption = false` declaration records the owner's
+   questionnaire result: standard encryption implemented in addition to Apple's
+   operating-system encryption, no distribution in France, and no documents
+   required by App Store Connect. It does not mean the app has no encryption.
+   No `ITSEncryptionExportComplianceCode` is supplied. See
+   [Apple's definition of the declaration](https://developer.apple.com/documentation/bundleresources/information-property-list/itsappusesnonexemptencryption).
+   The owner must keep distribution settings consistent with these answers;
+   this plist does not restrict availability in France. Reassess the declaration
+   before changing encryption or enabling distribution in France. If a build
+   shows **Missing Compliance**, use **TestFlight → the build → Manage** to
+   answer Apple's questions. See [beta export compliance](https://developer.apple.com/help/app-store-connect/test-a-beta-version/provide-export-compliance-information-for-beta-builds/).
 10. First-build limits: push is off. App Attest is not enabled yet; App Check may
     show iOS as unverified until its entitlement is added in a later step. Keep
     App Check in monitoring mode; do not enable enforcement for this build.

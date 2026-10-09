@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
-	<true/>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>fireplace. uses the camera to scan a friend's QR code and verify their security code.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
