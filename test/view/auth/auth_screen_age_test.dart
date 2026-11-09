@@ -113,7 +113,7 @@ void main() {
       final auth = await pumpAuth(t);
       await toSignUp(t);
       await fill(t);
-      await t.showKeyboard(find.byKey(const Key('password')));
+      await t.showKeyboard(find.byKey(const Key('invite')));
       await t.testTextInput.receiveAction(TextInputAction.done);
       await t.pump();
       expect(auth.signUps, isEmpty, reason: 'zero Auth writes while unchecked');
@@ -131,7 +131,7 @@ void main() {
       final auth = await pumpAuth(t);
       await toSignUp(t);
       await fill(t);
-      await t.showKeyboard(find.byKey(const Key('password')));
+      await t.showKeyboard(find.byKey(const Key('invite')));
       await t.testTextInput.receiveAction(TextInputAction.done);
       await t.pump();
       expect(find.byKey(const Key('age16Error')), findsOneWidget);

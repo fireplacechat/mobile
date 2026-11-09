@@ -248,6 +248,8 @@ void main() {
         300,
         scrollable: find.byType(Scrollable).last,
       );
+      await t.ensureVisible(find.byKey(const Key('notificationPreviews')));
+      await t.pumpAndSettle();
       await t.tap(find.byKey(const Key('notificationPreviews')));
       await settleUi(t);
       expect(container(t).read(chatActivityProvider).previewText, isFalse);

@@ -19,6 +19,7 @@ import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/status.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
 import 'package:fireplace/src/view/settings/push_tile.dart';
+import 'package:fireplace/src/view/settings/theme_mode_tile.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -139,6 +140,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 UiSettingsSection(
                   title: 'Appearance',
                   children: [
+                    const ThemeModeTile(),
                     ListTile(
                       key: const Key('chatColors'),
                       leading: const Icon(Icons.palette_outlined),

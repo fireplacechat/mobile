@@ -575,6 +575,15 @@ void main() {
       VerifyScreen(peerUid: 'fred', peerName: 'fred'),
     ),
     const CatalogCase('settings', SettingsScreen()),
+    CatalogCase(
+      'theme-picker',
+      const SettingsScreen(),
+      act: (t, f) async {
+        await t.ensureVisible(find.byKey(const Key('themeMode')));
+        await t.tap(find.byKey(const Key('themeMode')));
+        await t.pumpAndSettle();
+      },
+    ),
     const CatalogCase('devices', DevicesScreen()),
     const CatalogCase('recovery', RecoveryKeyScreen()),
     const CatalogCase('link-device', LinkNewDeviceScreen()),

@@ -120,30 +120,33 @@ class ChatComposer extends StatelessWidget {
                   ),
                 ),
                 SizedBox(width: 8),
-                IconButton.filled(
-                  key: Key('send'),
-                  style: IconButton.styleFrom(
-                    minimumSize: const Size(48, 48),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                // Sending is part of editing; keep the keyboard ready to reply.
+                TextFieldTapRegion(
+                  child: IconButton.filled(
+                    key: Key('send'),
+                    style: IconButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     ),
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    onPressed:
+                        send.sending || text.text.trim().isEmpty || !hasSession
+                        ? null
+                        : send.send,
+                    tooltip: send.sending ? 'Sending message' : 'Send message',
+                    icon: send.sending
+                        ? SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          )
+                        : Icon(Icons.arrow_upward_rounded),
                   ),
-                  onPressed:
-                      send.sending || text.text.trim().isEmpty || !hasSession
-                      ? null
-                      : send.send,
-                  tooltip: send.sending ? 'Sending message' : 'Send message',
-                  icon: send.sending
-                      ? SizedBox.square(
-                          dimension: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                        )
-                      : Icon(Icons.arrow_upward_rounded),
                 ),
               ],
             ),
