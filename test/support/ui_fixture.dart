@@ -82,11 +82,13 @@ class UiFixture {
     FixtureChat? chat,
     FixtureKeys? keys,
     FixtureSafety? safety,
+    MemorySecretStore? secrets,
     LocalChatPreferences? chatPreferences,
     this.overrideAuth = true,
   }) : chat = chat ?? FixtureChat(),
        keys = keys ?? FixtureKeys(),
-       safety = safety ?? FixtureSafety() {
+       safety = safety ?? FixtureSafety(),
+       secrets = secrets ?? MemorySecretStore() {
     final device = LocalDevice(
       _Identity(),
       _Device(),
@@ -123,8 +125,10 @@ class UiFixture {
   Future<Set<String>>? hiddenFuture;
   final names = <String, Future<String>>{};
   late final AppSession session;
+  final MemorySecretStore secrets;
   List<Override> get overrides => [
     appSessionProvider.overrideWithValue(AsyncData(session)),
+    secretStoreProvider.overrideWithValue(secrets),
     peerUsernameProvider.overrideWith(
       (ref, peer) => names[peer] ?? Future.value(peer),
     ),

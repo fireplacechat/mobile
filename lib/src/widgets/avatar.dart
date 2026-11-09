@@ -17,7 +17,7 @@ class PersonAvatar extends StatelessWidget {
         decoration: BoxDecoration(
           color: t.selectedRow,
           border: Border.all(color: t.separator),
-          borderRadius: BorderRadius.circular(size * .36),
+          shape: BoxShape.circle,
         ),
         child: Text(
           value.isEmpty ? '?' : value.characters.first.toUpperCase(),

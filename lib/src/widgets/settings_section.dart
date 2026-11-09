@@ -19,9 +19,27 @@ class UiSettingsSection extends StatelessWidget {
           child: Text(title, style: Theme.of(context).textTheme.titleSmall),
         ),
         Card(
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: Theme.of(context).colorScheme.outline,
+              width: 1.25,
+            ),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: children,
+            children: [
+              for (var i = 0; i < children.length; i++) ...[
+                if (i > 0)
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                children[i],
+              ],
+            ],
           ),
         ),
       ],

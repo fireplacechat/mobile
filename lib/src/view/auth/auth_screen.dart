@@ -19,6 +19,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _username = TextEditingController();
   final _password = TextEditingController();
   final _invite = TextEditingController();
+  final _inviteFocus = FocusNode();
   bool _signUp = false;
   bool _busy = false;
   bool _legalOpen = false;
@@ -33,6 +34,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     _username.dispose();
     _password.dispose();
     _invite.dispose();
+    _inviteFocus.dispose();
     super.dispose();
   }
 
@@ -147,7 +149,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             ? AutofillHints.newPassword
                             : AutofillHints.password,
                       ],
-                      onFieldSubmitted: (_) => _submit(),
+                      textInputAction: _signUp
+                          ? TextInputAction.next
+                          : TextInputAction.done,
+                      onEditingComplete: _signUp
+                          ? _inviteFocus.requestFocus
+                          : null,
+                      onFieldSubmitted: _signUp ? null : (_) => _submit(),
                       decoration: InputDecoration(
                         labelText: 'Password',
                         prefixIcon: Icon(Icons.lock_outline),
@@ -173,6 +181,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       TextFormField(
                         key: Key('invite'),
                         controller: _invite,
+                        focusNode: _inviteFocus,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _submit(),
                         readOnly:
                             _busy, // frozen while busy; retain focus for retry
                         autocorrect: false,

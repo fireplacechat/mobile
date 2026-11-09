@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/app/theme_preference.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/auth/auth_screen.dart';
@@ -16,13 +17,13 @@ import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
 
-class FireplaceApp extends StatefulWidget {
+class FireplaceApp extends ConsumerStatefulWidget {
   const FireplaceApp({super.key});
   @override
-  State<FireplaceApp> createState() => _FireplaceAppState();
+  ConsumerState<FireplaceApp> createState() => _FireplaceAppState();
 }
 
-class _FireplaceAppState extends State<FireplaceApp> {
+class _FireplaceAppState extends ConsumerState<FireplaceApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
@@ -30,11 +31,23 @@ class _FireplaceAppState extends State<FireplaceApp> {
     title: 'fireplace.',
     navigatorKey: _navigatorKey,
     navigatorObservers: [chatRouteObserver],
-    builder: (context, child) =>
-        InAppNoticeHost(navigatorKey: _navigatorKey, child: child!),
+    builder: (context, child) => Actions(
+      actions: {
+        // Mobile touch events otherwise keep text fields focused on outside taps.
+        EditableTextTapOutsideIntent:
+            CallbackAction<EditableTextTapOutsideIntent>(
+              onInvoke: (intent) {
+                intent.focusNode.unfocus();
+                return null;
+              },
+            ),
+      },
+      child: InAppNoticeHost(navigatorKey: _navigatorKey, child: child!),
+    ),
     debugShowCheckedModeBanner: false,
     theme: fireplaceTheme(Brightness.light),
     darkTheme: fireplaceTheme(Brightness.dark),
+    themeMode: ref.watch(themeModeProvider).value ?? ThemeMode.system,
     home: AuthGate(),
   );
 }

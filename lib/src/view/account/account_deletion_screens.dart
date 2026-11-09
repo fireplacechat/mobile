@@ -168,6 +168,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               child: TextField(
                 key: Key('confirmUsername'),
                 controller: _username,
+                textInputAction: TextInputAction.next,
                 enabled: !_busy,
                 autocorrect: false,
                 onChanged: (_) => setState(() {}),

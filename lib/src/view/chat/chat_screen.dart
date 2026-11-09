@@ -28,6 +28,8 @@ import 'package:fireplace/src/view/chat/chat_details_screen.dart';
 import 'package:fireplace/src/model/chat/chat_visibility.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
+import 'package:fireplace/src/model/chat/chat_drafts.dart';
+import 'package:fireplace/src/view/chat/composer/chat_draft_controller.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key, required this.chatId, this.initialMessageId});
@@ -41,16 +43,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _ownerUid;
   late final RouteVisibility _routeVisibility;
   bool _showAll = false;
-  final _text = TextEditingController();
+  late final ChatDraftController _text;
   late final SendController _sendController;
   late final TimelineScroll _timeline;
-  int _draftRevision = 0;
-  String _lastDraftText = '';
 
   late final ContactController _contactController;
   @override
   void initState() {
     super.initState();
+    _text = ChatDraftController(
+      drafts: ref.read(chatDraftsProvider.notifier),
+      chatId: widget.chatId,
+      ownerUid: ref.read(appSessionProvider).value?.uid,
+    );
     _contactController =
         ContactController(
           reviewOnce: (peerUid, pub) async {
@@ -69,7 +74,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ownerUid: () => ref.read(appSessionProvider).value?.uid,
           pendingSends: () => ref.read(pendingLocalSendsProvider.notifier),
           draft: () => _text.text,
-          draftRevision: () => _draftRevision,
+          draftRevision: () => _text.revision,
           clearDraft: () => _text.clear(),
           notice: _snack,
           showNewest: () => _timeline.showNewestAfterOwnSend(_latest),
@@ -78,6 +83,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           identityAlerts: () => ref.read(identityAlertsProvider).value ?? {},
           confirmSendAnotherCopy: _confirmSendAnotherCopy,
         )..addListener(() {
+          _text.sendingChanged(_sendController.sending);
           if (mounted) setState(() {});
         });
     _routeVisibility = RouteVisibility(
@@ -139,9 +145,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _onDraftChanged() {
-    if (_text.text == _lastDraftText) return;
-    _lastDraftText = _text.text;
-    _draftRevision++;
     if (mounted) setState(() {});
   }
 
