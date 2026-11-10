@@ -2,11 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/db/message_quote.dart';
 
 import '../../support/ui_fixture.dart';
 import 'long_press_menu_test.dart' show openChat, bubble, action;
 
 void main() {
+  testWidgets(
+    'quote navigation locates a lazy row without hiding newer messages',
+    (t) async {
+      final f = UiFixture();
+      await f.seed();
+      addTearDown(f.session.close);
+      for (var i = 0; i < 150; i++) {
+        await f.chat.store.add(
+          message(
+            id: 'extra-$i',
+            body: 'Fictional message $i',
+            at: fixtureTime.add(Duration(minutes: i + 1)),
+          ),
+        );
+      }
+      await f.chat.store.add(
+        message(
+          id: 'last-reply',
+          body: 'My reply',
+          at: fixtureTime.add(const Duration(days: 1)),
+        ).copyWith(
+          quote: const MessageQuote(
+            targetId: 'extra-30',
+            senderUid: 'fred',
+            body: 'Fictional message 30',
+          ),
+        ),
+      );
+      await openChat(t, f);
+      await t.tap(find.byKey(const ValueKey('messageQuote-last-reply')));
+      await t.pumpAndSettle();
+      expect(bubble('extra-30'), findsOneWidget);
+      expect(find.byKey(const Key('searchLocation')), findsNothing);
+      expect(find.textContaining('Could not locate'), findsNothing);
+    },
+  );
   testWidgets('reply preview cancels without changing the ordinary draft', (
     t,
   ) async {
@@ -53,7 +90,7 @@ void main() {
       await t.tap(quote);
       await t.pumpAndSettle();
       expect(bubble('5'), findsOneWidget);
-      expect(bubble('reply-1'), findsNothing);
+      expect(find.byKey(const Key('searchLocation')), findsNothing);
     },
   );
   testWidgets(

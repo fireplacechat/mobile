@@ -208,6 +208,16 @@ class ChatService {
     ),
   );
 
+  Future<void> editMessage(String chatId, String targetId, String body) =>
+      _sender.sendControl(
+        chatId,
+        MessageMutation(
+          kind: MessageMutationKind.edit,
+          targetId: targetId,
+          body: body,
+        ),
+      );
+
   Future<void> react(String chatId, String targetId, String emoji) =>
       _sender.sendControl(
         chatId,

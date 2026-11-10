@@ -34,6 +34,7 @@ void main() {
           'Hello',
           [
             'reply',
+            'edit',
             'copy',
             'forward',
             'selectText',
@@ -142,6 +143,7 @@ void main() {
       expect(actions!.map((a) => a.id).toList(), expected);
       const labels = {
         'reply': 'Reply',
+        'edit': 'Edit',
         'copy': 'Copy',
         'forward': 'Forward',
         'selectText': 'Select text',

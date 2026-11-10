@@ -86,6 +86,51 @@ class TimelineScroll extends ChangeNotifier {
     _anchors.removeWhere((id, _) => !visibleIds.contains(id));
   }
 
+  /// Locate a lazily built row without walking an unbounded history one screen
+  /// at a time. Built row indices bracket the next scroll offset.
+  Future<bool> locate(
+    String id,
+    List<String> orderedIds, {
+    required bool reduceMotion,
+  }) async {
+    final indices = {for (final (index, key) in orderedIds.indexed) key: index};
+    final target = indices[id];
+    if (target == null) return false;
+    double lower = 0;
+    double? upper;
+    for (var attempt = 0; attempt < 24; attempt++) {
+      if (_disposed || !isMounted() || !controller.hasClients) return false;
+      final context = _anchors[id]?.currentContext;
+      if (context != null && context.mounted) {
+        await Scrollable.ensureVisible(
+          context,
+          alignment: .5,
+          duration: reduceMotion
+              ? Duration.zero
+              : const Duration(milliseconds: 180),
+        );
+        return true;
+      }
+      final built = [
+        for (final entry in _anchors.entries)
+          if (entry.value.currentContext != null &&
+              indices.containsKey(entry.key))
+            indices[entry.key]!,
+      ];
+      if (built.isEmpty) return false;
+      final oldest = built.reduce((a, b) => a < b ? a : b);
+      if (target < oldest) {
+        lower = controller.offset;
+      } else {
+        upper = controller.offset;
+      }
+      final next = (lower + (upper ?? controller.position.maxScrollExtent)) / 2;
+      controller.jumpTo(next.clamp(0, controller.position.maxScrollExtent));
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    return false;
+  }
+
   GlobalKey anchorFor(String messageId) =>
       _anchors.putIfAbsent(messageId, GlobalKey.new);
 

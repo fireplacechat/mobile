@@ -1,3 +1,4 @@
+import 'package:fireplace/src/db/message_edit.dart';
 import 'package:fireplace/src/db/message_quote.dart';
 
 import 'dart:async';
@@ -29,9 +30,13 @@ class LocalMessage {
     this.remotelyDeleted = false,
     this.mutation,
     this.quote,
+    this.originalBody,
+    this.editClock = 0,
+    Map<int, MessageEdit> edits = const {},
     Map<String, MessageReaction> reactions = const {},
     Map<String, int> reactionClocks = const {},
-  }) : reactions = Map.unmodifiable(reactions),
+  }) : edits = Map.unmodifiable(edits),
+       reactions = Map.unmodifiable(reactions),
        reactionClocks = Map.unmodifiable(reactionClocks);
 
   final String id;
@@ -46,6 +51,9 @@ class LocalMessage {
   final bool remotelyDeleted;
   final MessageMutation? mutation;
   final MessageQuote? quote;
+  final String? originalBody;
+  final int editClock;
+  final Map<int, MessageEdit> edits;
   final Map<String, MessageReaction> reactions;
   final Map<String, int> reactionClocks;
   bool get visible => !locallyDeleted && mutation == null;
@@ -53,6 +61,9 @@ class LocalMessage {
   LocalMessage copyWith({
     String? body,
     MessageQuote? quote,
+    String? originalBody,
+    int? editClock,
+    Map<int, MessageEdit>? edits,
     bool? outgoing,
     MessageStatus? status,
     bool? remotelyDeleted,
@@ -71,6 +82,9 @@ class LocalMessage {
     remotelyDeleted: remotelyDeleted ?? this.remotelyDeleted,
     mutation: mutation,
     quote: quote ?? this.quote,
+    originalBody: originalBody ?? this.originalBody,
+    editClock: editClock ?? this.editClock,
+    edits: edits ?? this.edits,
     reactions: reactions ?? this.reactions,
     reactionClocks: reactionClocks ?? this.reactionClocks,
   );
@@ -107,6 +121,12 @@ class LocalMessage {
     if (remotelyDeleted) 'remotelyDeleted': true,
     if (mutation != null) 'mutation': mutation!.toJson(),
     if (quote != null) 'quote': quote!.toJson(),
+    if (originalBody != null) 'originalBody': originalBody,
+    if (editClock != 0) 'editClock': editClock,
+    if (edits.isNotEmpty)
+      'edits': {
+        for (final e in edits.entries) e.key.toString(): e.value.toJson(),
+      },
     if (reactions.isNotEmpty)
       'reactions': {for (final e in reactions.entries) e.key: e.value.toJson()},
     if (reactionClocks.isNotEmpty) 'reactionClocks': reactionClocks,
@@ -120,6 +140,14 @@ class LocalMessage {
     outgoing: j['outgoing'],
     sentAt: DateTime.fromMillisecondsSinceEpoch(j['sentAt']),
     body: j['body'],
+    originalBody: j['originalBody'],
+    editClock: j['editClock'] ?? 0,
+    edits: {
+      for (final e in (j['edits'] as Map? ?? {}).entries)
+        int.parse(e.key): MessageEdit.fromJson(
+          Map<String, dynamic>.from(e.value),
+        ),
+    },
     quote: j['quote'] == null
         ? null
         : MessageQuote.fromJson(Map<String, dynamic>.from(j['quote'])),

@@ -1,3 +1,4 @@
+import 'package:fireplace/src/view/chat/quote_navigation.dart';
 import 'package:fireplace/src/view/chat/composer/message_composer_context.dart';
 import 'package:fireplace/src/model/chat/message_compose_target.dart';
 import 'package:fireplace/src/view/chat/chat_unavailable.dart';
@@ -46,8 +47,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _ownerUid;
   late final RouteVisibility _routeVisibility;
   bool _showAll = false;
-  String? _locatedMessageId;
-  String? get _location => _locatedMessageId ?? widget.initialMessageId;
+  String? get _location => widget.initialMessageId;
   late final ChatDraftController _text;
   late final SendController _sendController;
   late final TimelineScroll _timeline;
@@ -453,40 +453,32 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
                 onRetryHistory: () =>
                     ref.invalidate(messagesProvider(widget.chatId)),
-                onQuote: (id) {
-                  if (!allMessages.any(
-                    (m) =>
-                        m.id == id &&
-                        !m.remotelyDeleted &&
-                        m.status == MessageStatus.ok,
-                  )) {
-                    _snack(
-                      'The original message is no longer available on this device.',
-                    );
-                    return;
-                  }
-                  setState(() {
-                    _locatedMessageId = id;
-                    _showAll = false;
-                  });
-                  _timeline.showNewestAfterOwnSend(
-                    () => _timeline.scrollToLatest(reduceMotion: true),
-                  );
-                },
+                onQuote: (id) => locateQuotedMessage(
+                  context,
+                  _timeline,
+                  allMessages,
+                  id,
+                  revealAll: () => setState(() => _showAll = true),
+                  notice: _snack,
+                ),
                 onLatest: _latest,
               ),
             ),
             MessageComposerContext(
               chatId: widget.chatId,
               name: name,
-              builder: (context, focus, bar) => ChatComposer(
-                focusNode: focus,
-                contextBar: bar,
+              builder: (context, composer) => ChatComposer(
+                focusNode: composer.focus,
+                contextBar: composer.bar,
+                submit: composer.submit,
+                editing: composer.editText != null,
+                editingBusy: composer.busy,
+                canSubmit: composer.canSubmit,
                 onInteraction: () => ref
                     .read(messageSelectionProvider(widget.chatId).notifier)
                     .clear(),
                 keyboardInset: keyboardInset,
-                text: _text,
+                text: composer.editText ?? _text,
                 name: name,
                 blocked: blocked,
                 incomingRequest: incomingRequest,

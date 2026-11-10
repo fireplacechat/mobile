@@ -442,8 +442,10 @@ class MessageReceiver {
         body = payload['body'] as String;
         status = MessageStatus.ok;
       } else if (payload is Map &&
-          payload['v'] == 2 &&
-          (payload['type'] == 'reaction' || payload['type'] == 'delete')) {
+          ((payload['v'] == 2 &&
+                  (payload['type'] == 'reaction' ||
+                      payload['type'] == 'delete')) ||
+              (payload['v'] == 3 && payload['type'] == 'edit'))) {
         mutation = MessageMutation.fromJson(Map<String, dynamic>.from(payload));
         body = '';
         status = MessageStatus.ok;

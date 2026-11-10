@@ -25,8 +25,14 @@ class ChatComposer extends StatelessWidget {
     this.onInteraction,
     this.contextBar,
     this.focusNode,
+    this.submit,
+    this.editing = false,
+    this.editingBusy = false,
+    this.canSubmit = true,
   });
   final Widget? contextBar;
+  final Future<void> Function()? submit;
+  final bool editing, editingBusy, canSubmit;
   final FocusNode? focusNode;
   final double keyboardInset;
   final TextEditingController text;
@@ -72,9 +78,9 @@ class ChatComposer extends StatelessWidget {
         child: CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.enter, control: true):
-                send.send,
+                submit ?? send.send,
             const SingleActivator(LogicalKeyboardKey.enter, meta: true):
-                send.send,
+                submit ?? send.send,
           },
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
@@ -100,6 +106,7 @@ class ChatComposer extends StatelessWidget {
                         child: TextField(
                           key: Key('composer'),
                           controller: text,
+                          enabled: !editingBusy,
                           focusNode: focusNode,
                           onTap: onInteraction,
                           inputFormatters: [MessageInputFormatter()],
@@ -164,15 +171,18 @@ class ChatComposer extends StatelessWidget {
                               .onPrimary,
                         ),
                         onPressed:
-                            send.sending ||
+                            !canSubmit ||
+                                (editing ? editingBusy : send.sending) ||
                                 text.text.trim().isEmpty ||
                                 !hasSession
                             ? null
-                            : send.send,
-                        tooltip: send.sending
+                            : submit ?? send.send,
+                        tooltip: editing
+                            ? 'Save edit'
+                            : send.sending
                             ? 'Sending message'
                             : 'Send message',
-                        icon: send.sending
+                        icon: (editing ? editingBusy : send.sending)
                             ? SizedBox.square(
                                 dimension: 20,
                                 child: CircularProgressIndicator(
@@ -182,7 +192,11 @@ class ChatComposer extends StatelessWidget {
                                       .onPrimary,
                                 ),
                               )
-                            : Icon(Icons.arrow_upward_rounded),
+                            : Icon(
+                                editing
+                                    ? Icons.check_rounded
+                                    : Icons.arrow_upward_rounded,
+                              ),
                       ),
                     ),
                   ],

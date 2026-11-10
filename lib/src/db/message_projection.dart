@@ -1,3 +1,4 @@
+import 'package:fireplace/src/db/message_edit.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
 
@@ -8,6 +9,8 @@ Map<String, LocalMessage> projectMessageRecords(
 ) {
   final next = {...records};
   final deleted = <String>{};
+  final edits = <String, Map<int, MessageEdit>>{};
+  final editClocks = <String, int>{};
   final reactions = <String, Map<String, MessageReaction>>{};
   final clocks = <String, Map<String, int>>{};
   for (final event in records.values) {
@@ -21,6 +24,31 @@ Map<String, LocalMessage> projectMessageRecords(
     }
     if (target.locallyDeleted) {
       next[event.id] = LocalMessage.tombstone(event.chatId, event.id);
+      continue;
+    }
+    if (change.kind == MessageMutationKind.edit) {
+      if (target.senderUid != event.senderUid ||
+          target.status != MessageStatus.ok ||
+          target.remotelyDeleted ||
+          change.revision < 1 ||
+          change.revision > 10) {
+        continue;
+      }
+      final clock = editClocks[target.id] ?? target.editClock;
+      if (change.revision > clock) editClocks[target.id] = change.revision;
+      if (event.status != MessageStatus.ok) continue;
+      final versions = edits.putIfAbsent(target.id, () => {...target.edits});
+      final revision = MessageEdit(
+        revision: change.revision,
+        body: change.body,
+        deviceId: event.senderDevice,
+        eventId: event.id,
+        sentAt: event.sentAt,
+      );
+      final old = versions[change.revision];
+      if (old == null || revision.newerThan(old)) {
+        versions[change.revision] = revision;
+      }
       continue;
     }
     if (change.kind == MessageMutationKind.reaction) {
@@ -58,6 +86,9 @@ Map<String, LocalMessage> projectMessageRecords(
     if (target.remotelyDeleted || deleted.contains(target.id)) {
       next[target.id] = target.copyWith(
         body: '',
+        originalBody: '',
+        edits: const {},
+        editClock: 0,
         remotelyDeleted: true,
         reactions: const {},
         reactionClocks: const {},
@@ -70,10 +101,27 @@ Map<String, LocalMessage> projectMessageRecords(
       );
     }
   }
+  for (final entry in editClocks.entries) {
+    final target = next[entry.key]!;
+    if (!target.remotelyDeleted) {
+      next[entry.key] = target.copyWith(editClock: entry.value);
+    }
+  }
+  for (final entry in edits.entries) {
+    final target = next[entry.key]!;
+    if (target.remotelyDeleted) continue;
+    final last = entry.value.keys.reduce((a, b) => a > b ? a : b);
+    next[entry.key] = target.copyWith(
+      originalBody: target.originalBody ?? target.body,
+      edits: entry.value,
+      body: entry.value[last]!.body,
+    );
+  }
   // A deleted target must not leave reaction content in hidden control records.
   for (final event in records.values) {
     final change = event.mutation;
-    if (change?.kind == MessageMutationKind.reaction &&
+    if ((change?.kind == MessageMutationKind.reaction ||
+            change?.kind == MessageMutationKind.edit) &&
         next[change!.targetId]?.remotelyDeleted == true) {
       next[event.id] = LocalMessage.tombstone(event.chatId, event.id);
     }
