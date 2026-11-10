@@ -52,7 +52,7 @@ Where a common habit conflicts with privacy, privacy wins, and the app explains 
 | Multi-device | yes | linked devices exist | have it |
 | Backup | yes | recovery key restores identity, not old messages | by design; explain clearly |
 | Block and report | yes | built | have it |
-| Wallpaper and bubble colours | yes | bubble colours built (temporary) | persist locally later |
+| Wallpaper and bubble colours | yes | bubble colours built, kept on the device; your colour is the app's accent | wallpaper later |
 | Large text, screen readers | yes | built, needs phone testing | keep testing |
 
 ## Suggested next slice for "feels familiar"

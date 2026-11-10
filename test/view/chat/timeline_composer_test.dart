@@ -175,6 +175,15 @@ void main() {
       await settleUi(t);
       expect(t.getTopLeft(anchorFinder).dy, closeTo(anchorY, .5));
       expect(find.byKey(const Key('latestMessages')), findsOneWidget);
+      // A black hairline sets the button apart from the bubbles under it.
+      expect(
+        t
+            .widget<FilledButton>(find.byKey(const Key('latestMessages')))
+            .style!
+            .side!
+            .resolve({}),
+        const BorderSide(color: Colors.black, width: .5),
+      );
       f.chat.sendHold = Completer<void>();
       await t.enterText(
         find.byKey(const Key('composer')),

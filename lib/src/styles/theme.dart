@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 
 class FP {
@@ -14,9 +15,19 @@ class FP {
   static const coal = Color(0xFF2A1B16);
 }
 
-ThemeData fireplaceTheme(Brightness brightness) {
+/// [accent] is the colour chosen under Chat colors for one's own messages.
+/// It is the app's primary colour: avatars, buttons, counts and the outline
+/// of a focused text box all follow it.
+ThemeData fireplaceTheme(
+  Brightness brightness, {
+  ChatBubbleColor accent = ChatBubbleColor.ember,
+}) {
   final dark = brightness == Brightness.dark;
-  final t = dark ? FireplaceUiTokens.dark : FireplaceUiTokens.light;
+  final t = (dark ? FireplaceUiTokens.dark : FireplaceUiTokens.light).copyWith(
+    accent: accent.outgoing,
+    accentText: accent.accentText(brightness),
+    outgoingBubble: accent.outgoing,
+  );
   final fontFamily = ThemeData(brightness: brightness)
       .textTheme
       .bodyMedium!

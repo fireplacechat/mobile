@@ -122,6 +122,8 @@ final referenceCases = <CatalogCase>[
     size: referenceSize,
     padding: referencePadding,
     pixelRatio: 3,
+    // The reference phone uses the largest ordinary text size.
+    textScale: 1.35,
     prepare: seedReferenceChats,
     act: (t, f) async {
       // Everything except the first conversation has been read.

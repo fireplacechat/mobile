@@ -49,7 +49,8 @@ void main() {
     await f.seed();
     await pumpList(t, f);
     final tile = t.getRect(row('alice_fred'));
-    expect(tile.height, 104);
+    // 8 + 19.2 + 2 x 19.95 + 10 at the default text size.
+    expect(tile.height, closeTo(77.1, .2));
     final avatar = t.getRect(
       find.descendant(
         of: row('alice_fred'),
@@ -63,10 +64,10 @@ void main() {
       find.descendant(of: row('alice_fred'), matching: find.text('fred')),
     );
     expect(name.left, 86);
-    expect(name.top - tile.top, 10.5);
+    expect(name.top - tile.top, 8);
     // The date ends sixteen points from the edge.
     final date = t.getRect(
-      find.descendant(of: row('alice_fred'), matching: find.text('12:00 PM')),
+      find.descendant(of: row('alice_fred'), matching: find.text('12:00 pm')),
     );
     expect(date.right, 375 - 16);
     final divider = t.widget<Divider>(find.byType(Divider).first);
@@ -143,10 +144,11 @@ void main() {
       final tile = t.getRect(row('alice_fred'));
       final badge = t.getRect(unread('alice_fred'));
       // A circle for one digit (the test font's digits are extra wide).
-      expect(badge.height, 26);
-      expect(badge.width, closeTo(26, .5));
+      expect(badge.height, 20);
+      expect(badge.width, closeTo(20, .5));
       expect(badge.right, 375 - 16);
-      expect(badge.center.dy - tile.top, closeTo(76.5, .6));
+      // Level with the middle of the second preview line.
+      expect(badge.center.dy - tile.top, closeTo(8 + 19.2 + 19.95 * 1.5, .1));
       final fill =
           t
                   .widget<Container>(
@@ -203,8 +205,8 @@ void main() {
     final semantics = t.ensureSemantics();
     await pumpList(t, f);
     final badge = t.getRect(unread('alice_fred'));
-    expect(badge.height, 26);
-    expect(badge.width, greaterThan(26));
+    expect(badge.height, 20);
+    expect(badge.width, greaterThan(20));
     expect(find.text('99+'), findsOneWidget);
     expect(
       find.bySemanticsLabel(RegExp('123 unread messages')),
@@ -265,13 +267,30 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('the largest ordinary text size gives the reference row', (
+    t,
+  ) async {
+    // The reference screenshot was taken at this setting: a 104 point row
+    // with 21 and 20 point text. The sizes in code are the unscaled ones.
+    final f = UiFixture();
+    await f.seed();
+    await pumpList(t, f, textScale: 1.35);
+    expect(t.getRect(row('alice_fred')).height, closeTo(104, .5));
+    final name = t.widget<Text>(
+      find.descendant(of: row('alice_fred'), matching: find.text('fred')),
+    );
+    expect(name.style!.fontSize! * 1.35, closeTo(21, .7));
+    expect(t.getRect(unread('alice_fred')).height, closeTo(27, .01));
+    expect(t.takeException(), isNull);
+  });
+
   testWidgets('enlarged text grows the row instead of overflowing', (t) async {
     final f = UiFixture();
     await f.seed();
     await pumpList(t, f, textScale: 2);
     expect(t.takeException(), isNull);
     expect(t.getRect(row('alice_fred')).height, greaterThan(150));
-    expect(t.getRect(unread('alice_fred')).height, 52);
+    expect(t.getRect(unread('alice_fred')).height, 40);
   });
 
   testWidgets('a conversation without messages keeps the row height', (
@@ -284,7 +303,7 @@ void main() {
       ChatSummary('alice_nora', 'nora', fixtureTime),
     ];
     await pumpList(t, f);
-    expect(t.getRect(row('alice_nora')).height, 104);
+    expect(t.getRect(row('alice_nora')).height, closeTo(77.1, .2));
     expect(
       find.descendant(
         of: row('alice_nora'),
@@ -298,8 +317,9 @@ void main() {
     const localizations = DefaultMaterialLocalizations();
     final now = DateTime(2026, 10, 4, 12);
     String stamp(DateTime at) => chatListStamp(at, now, localizations);
-    test('shows a time today', () {
-      expect(stamp(DateTime(2026, 10, 4, 9, 5)), '9:05 AM');
+    test('shows a lower-case time today', () {
+      expect(stamp(DateTime(2026, 10, 4, 9, 5)), '9:05 am');
+      expect(stamp(DateTime(2026, 10, 4, 11, 30)), '11:30 am');
     });
     test('shows a weekday within the last week', () {
       expect(stamp(DateTime(2026, 10, 3, 23, 59)), 'Sat');
@@ -312,7 +332,7 @@ void main() {
       expect(stamp(DateTime(2025, 12, 31)), '12/31/2025');
     });
     test('treats a clock set back as today', () {
-      expect(stamp(DateTime(2026, 10, 5, 8)), '8:00 AM');
+      expect(stamp(DateTime(2026, 10, 5, 8)), '8:00 am');
     });
   });
 }

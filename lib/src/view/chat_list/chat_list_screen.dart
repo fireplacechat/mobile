@@ -11,6 +11,7 @@ import 'package:fireplace/src/view/search/message_search_results.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/chat_list/start_chat_dialog.dart';
+import 'package:fireplace/src/view/chat_list/widgets/chat_search_field.dart';
 import 'package:fireplace/src/view/chat_list/widgets/chat_tile.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
@@ -80,24 +81,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           children: [
             Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: TextField(
-                key: Key('chatSearch'),
+              child: ChatSearchField(
                 controller: _search,
-                decoration: InputDecoration(
-                  hintText: 'Search people and messages',
-                  prefixIcon: Icon(Icons.search),
-                  suffixIcon: _query.isEmpty
-                      ? null
-                      : IconButton(
-                          key: const Key('clearChatSearch'),
-                          tooltip: 'Clear search',
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            _search.clear();
-                            setState(() => _query = '');
-                          },
-                        ),
-                ),
                 onChanged: (value) =>
                     setState(() => _query = value.trim().toLowerCase()),
               ),

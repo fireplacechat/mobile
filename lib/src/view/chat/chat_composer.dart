@@ -133,7 +133,9 @@ class ChatComposer extends StatelessWidget {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(22),
-                              borderSide: BorderSide.none,
+                              borderSide: BorderSide(
+                                color: FireplaceUiTokens.of(context).accent,
+                              ),
                             ),
                             counter:
                                 messageCharacters(text.text) >=

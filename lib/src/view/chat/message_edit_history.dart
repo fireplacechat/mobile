@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fireplace/src/widgets/clock_time.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
@@ -60,9 +61,7 @@ class MessageEditHistory extends ConsumerWidget {
                   const SizedBox(height: 4),
                   SelectableText(displayMessage(edit.body).plain),
                   Text(
-                    MaterialLocalizations.of(context).formatTimeOfDay(
-                      TimeOfDay.fromDateTime(edit.sentAt.toLocal()),
-                    ),
+                    clockTime(edit.sentAt, MaterialLocalizations.of(context)),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const Divider(height: 24),

@@ -1,12 +1,13 @@
 import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:flutter/material.dart';
+import 'package:fireplace/src/widgets/clock_time.dart';
 import 'package:fireplace/src/view/chat/message_edit_history.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/styles/design_tokens.dart';
-import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
@@ -147,8 +148,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     final mine = message.outgoing;
     final bad = message.status == MessageStatus.undecryptable;
     final fg = mine ? t.outgoingText : t.incomingText;
-    final time = MaterialLocalizations.of(context)
-        .formatTimeOfDay(TimeOfDay.fromDateTime(message.sentAt.toLocal()));
+    final time = clockTime(message.sentAt, MaterialLocalizations.of(context));
     // A message over the limit can only come from another client: plain text, clipped until asked.
     final oversize = !bad && messageTooLong(message.body);
     final body = message.remotelyDeleted
