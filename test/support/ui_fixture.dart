@@ -71,6 +71,10 @@ class FixtureChat extends Fake implements ChatService {
   }
 
   @override
+  Future<void> deleteMessageLocally(String chatId, String messageId) =>
+      store.remove(chatId, messageId);
+
+  @override
   Future<String> startChat(String username) async {
     starts.add(username);
     return startHold?.future ?? Future.value('alice_$username');

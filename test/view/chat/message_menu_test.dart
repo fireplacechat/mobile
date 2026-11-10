@@ -22,7 +22,7 @@ void main() {
           false,
           MessageStatus.ok,
           '**Hello**',
-          ['copy', 'forward', 'selectText', 'report'],
+          ['copy', 'forward', 'selectText', 'select', 'report'],
         ),
         (
           'sent',
@@ -32,7 +32,7 @@ void main() {
           true,
           MessageStatus.ok,
           'Hello',
-          ['copy', 'forward', 'selectText'],
+          ['copy', 'forward', 'selectText', 'select'],
         ),
         (
           'blocked',
@@ -72,7 +72,7 @@ void main() {
           false,
           MessageStatus.undecryptable,
           'Hello',
-          ['report'],
+          ['select', 'report'],
         ),
         (
           'unconfirmed',
@@ -82,7 +82,7 @@ void main() {
           true,
           MessageStatus.unconfirmed,
           'Hello',
-          ['copy', 'selectText'],
+          ['copy', 'selectText', 'select'],
         ),
         (
           'oversized',
@@ -92,7 +92,7 @@ void main() {
           false,
           MessageStatus.ok,
           'x' * (maxMessageCharacters + 1),
-          ['copy', 'selectText', 'report'],
+          ['copy', 'selectText', 'select', 'report'],
         ),
       ]) {
     testWidgets('message menu keeps exact $label action order and labels', (
@@ -137,6 +137,7 @@ void main() {
         'copy': 'Copy',
         'forward': 'Forward',
         'selectText': 'Select text',
+        'select': 'Select',
         'report': 'Report',
       };
       expect(

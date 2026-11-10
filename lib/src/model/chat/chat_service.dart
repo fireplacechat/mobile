@@ -164,6 +164,10 @@ class ChatService {
 
   // ----------------------------------------------------------------- sessions
 
+  /// Device-only deletion. No Firebase access or ratchet work.
+  Future<void> deleteMessageLocally(String chatId, String messageId) =>
+      _messages.remove(chatId, messageId);
+
   // -------------------------------------------------------------------- send
 
   Future<void> sendText(String chatId, String text) =>

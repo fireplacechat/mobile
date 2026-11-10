@@ -9,8 +9,9 @@ import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
+import 'package:fireplace/src/model/chat/message_selection.dart';
 
-/// The long-press menu for one message. Add reply/delete/react here later.
+/// Shared touch, keyboard and screen-reader actions for one message.
 List<MessageAction> messageMenuActions(
   LocalMessage message, {
   required WidgetRef ref,
@@ -83,6 +84,17 @@ List<MessageAction> messageMenuActions(
               },
             ),
           ),
+        ),
+      ),
+    if (!incomingRequest && !identityHeld && !blocked)
+      MessageAction(
+        id: 'select',
+        label: 'Select',
+        icon: Icons.check_circle_outline,
+        onSelected: () => run(
+          () => ref
+              .read(messageSelectionProvider(chatId()).notifier)
+              .toggle(message.id),
         ),
       ),
     // Only another person's message can be reported.

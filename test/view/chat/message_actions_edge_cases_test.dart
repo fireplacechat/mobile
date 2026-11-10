@@ -153,7 +153,7 @@ void main() {
     final ids = node.getSemanticsData().customSemanticsActionIds!;
     expect(
       ids.map((id) => CustomSemanticsAction.getAction(id)!.label).toSet(),
-      {'Copy', 'Forward', 'Select text', 'Report'},
+      {'Copy', 'Forward', 'Select text', 'Select', 'Report'},
     );
     final select = ids.singleWhere(
       (id) => CustomSemanticsAction.getAction(id)!.label == 'Select text',
