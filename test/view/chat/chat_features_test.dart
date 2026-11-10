@@ -298,7 +298,7 @@ void main() {
       await t.pump();
       chat.sendHold = Completer<void>();
       final send = t
-          .widget<FilledButton>(find.byKey(const Key('forwardSend')))
+          .widget<IconButton>(find.byKey(const Key('forwardSend')))
           .onPressed!;
       send();
       send();
@@ -309,7 +309,7 @@ void main() {
       expect(chat.targets, ['alice_bob', 'alice_jeff']);
       expect(chat.sends, ['**Keep** this', '**Keep** this']);
       expect(
-        t.widget<FilledButton>(find.byKey(const Key('forwardSend'))).onPressed,
+        t.widget<IconButton>(find.byKey(const Key('forwardSend'))).onPressed,
         isNull,
       );
     },
@@ -344,7 +344,7 @@ void main() {
     expect(chat.targets, ['alice_bob']);
     expect(find.textContaining('Not confirmed'), findsOneWidget);
     expect(
-      t.widget<FilledButton>(find.byKey(const Key('forwardSend'))).onPressed,
+      t.widget<IconButton>(find.byKey(const Key('forwardSend'))).onPressed,
       isNull,
     );
   });

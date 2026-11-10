@@ -65,6 +65,11 @@ void main() {
       await drain();
       expect(c.read(chatActivityProvider).unread['alice_fred'], 3);
       expect(c.read(chatActivityProvider).arrivals, isEmpty);
+      await f.chat.store.add(
+        message(id: 'removed', body: 'gone').copyWith(remotelyDeleted: true),
+      );
+      await drain();
+      expect(c.read(chatActivityProvider).unread['alice_fred'], 3);
       await c
           .read(chatActivityProvider.notifier)
           .seen(

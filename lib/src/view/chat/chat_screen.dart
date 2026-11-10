@@ -4,7 +4,9 @@ import 'package:fireplace/src/model/chat/message_compose_target.dart';
 import 'package:fireplace/src/view/chat/chat_unavailable.dart';
 import 'package:fireplace/src/view/chat/message_selection_surface.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
+import 'package:fireplace/src/model/chat/pinned_messages.dart';
 import 'package:fireplace/src/view/chat/chat_timeline.dart';
+import 'package:fireplace/src/view/chat/pinned_bar.dart';
 import 'package:fireplace/src/view/chat/chat_app_bar_parts.dart';
 import 'package:fireplace/src/view/chat/chat_safety_notices.dart';
 import 'package:fireplace/src/view/chat/review_chat_identity.dart';
@@ -268,16 +270,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           final byTime = a.sentAt.compareTo(b.sentAt);
           return byTime != 0 ? byTime : a.id.compareTo(b.id);
         });
+    final history = [
+      for (final message in allMessages)
+        if (!message.remotelyDeleted) message,
+    ];
     final target = !_showAll && _location != null
-        ? allMessages.indexWhere((m) => m.id == _location)
+        ? history.indexWhere((m) => m.id == _location)
         : -1;
     final outgoing = {
       for (final send in ref.watch(outgoingSendsProvider))
         if (send.chatId == widget.chatId) send.id: send,
     };
     final msgs = target < 0
-        ? [...allMessages, ...outgoingBubbles(outgoing.values, stored, session)]
-        : allMessages.take(target + 1).toList();
+        ? [...history, ...outgoingBubbles(outgoing.values, stored, session)]
+        : history.take(target + 1).toList();
     reviewIdentityOnFailedSend(
       ref,
       widget.chatId,
@@ -329,8 +335,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         peerUid != null &&
         ref.watch(peerVerifiedProvider(peerUid)).value == true;
 
+    final selecting = ref.watch(
+      messageSelectionProvider(widget.chatId)
+          .select((selection) => selection.active),
+    );
+    final pinnedIds =
+        ref.watch(pinnedMessagesProvider)[widget.chatId] ?? const <String>[];
+    final pinned = [
+      for (final id in pinnedIds)
+        ?history.where((message) => message.id == id).firstOrNull,
+    ];
+    ChatTitle chatTitle() => ChatTitle(
+      name: name,
+      peerUid: peerUid,
+      hasSession: session != null,
+      onOpenDetails: (partContext) => Navigator.of(partContext).push(
+        MaterialPageRoute(
+          builder: (_) => ChatDetailsScreen(
+            peerUid: peerUid!,
+            chatId: widget.chatId,
+            name: name,
+            onBlock: () => _blockPeer(session!, peerUid, name),
+            onUnblock: () => session!.safety.unblock(peerUid),
+          ),
+        ),
+      ),
+    );
     return MessageSelectionSurface(
       chatId: widget.chatId,
+      selectionTitle: chatTitle(),
       onDeleted: (ids) {
         for (final id in ids) {
           _sendController.forgetPending(id);
@@ -341,22 +374,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         context: context,
         toolbarHeight: 64,
         leading: ChatBackButton(otherUnread: otherUnread),
-        title: ChatTitle(
-          name: name,
-          peerUid: peerUid,
-          hasSession: session != null,
-          onOpenDetails: (partContext) => Navigator.of(partContext).push(
-            MaterialPageRoute(
-              builder: (_) => ChatDetailsScreen(
-                peerUid: peerUid!,
-                chatId: widget.chatId,
-                name: name,
-                onBlock: () => _blockPeer(session!, peerUid, name),
-                onUnblock: () => session!.safety.unblock(peerUid),
-              ),
-            ),
-          ),
-        ),
+        title: chatTitle(),
         actions: [
           if (peerUid != null)
             ChatVerifyButton(
@@ -433,6 +451,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 );
               }),
             ),
+            if (pinned.isNotEmpty)
+              PinnedBar(
+                messages: pinned,
+                onOpen: (id) {
+                  final anchor = _timeline.anchorFor(id).currentContext;
+                  if (anchor != null) {
+                    Scrollable.ensureVisible(
+                      anchor,
+                      alignment: 0.3,
+                      duration: const Duration(milliseconds: 200),
+                    );
+                  }
+                },
+              ),
             Expanded(
               child: ChatTimeline(
                 chatId: widget.chatId,
@@ -473,7 +505,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 onQuote: (id) => locateQuotedMessage(
                   context,
                   _timeline,
-                  allMessages,
+                  history,
                   id,
                   revealAll: () => setState(() => _showAll = true),
                   notice: _snack,
@@ -481,34 +513,35 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 onLatest: _latest,
               ),
             ),
-            MessageComposerContext(
-              chatId: widget.chatId,
-              name: name,
-              builder: (context, composer) => ChatComposer(
-                focusNode: composer.focus,
-                contextBar: composer.bar,
-                submit: composer.submit,
-                editing: composer.editText != null,
-                editingBusy: composer.busy,
-                canSubmit: composer.canSubmit,
-                onInteraction: () => ref
-                    .read(messageSelectionProvider(widget.chatId).notifier)
-                    .clear(),
-                keyboardInset: keyboardInset,
-                text: composer.editText ?? _text,
+            if (!selecting)
+              MessageComposerContext(
+                chatId: widget.chatId,
                 name: name,
-                blocked: blocked,
-                incomingRequest: incomingRequest,
-                waiting: waiting,
-                identityHeld: identityHeld,
-                hasSession: session != null,
-                contactBusy: _contactController.busy,
-                send: _sendController,
-                onUnblock: () => _contactController.contactAction(
-                  () => session!.safety.unblock(peerUid!),
+                builder: (context, composer) => ChatComposer(
+                  focusNode: composer.focus,
+                  contextBar: composer.bar,
+                  submit: composer.submit,
+                  editing: composer.editText != null,
+                  editingBusy: composer.busy,
+                  canSubmit: composer.canSubmit,
+                  onInteraction: () => ref
+                      .read(messageSelectionProvider(widget.chatId).notifier)
+                      .clear(),
+                  keyboardInset: keyboardInset,
+                  text: composer.editText ?? _text,
+                  name: name,
+                  blocked: blocked,
+                  incomingRequest: incomingRequest,
+                  waiting: waiting,
+                  identityHeld: identityHeld,
+                  hasSession: session != null,
+                  contactBusy: _contactController.busy,
+                  send: _sendController,
+                  onUnblock: () => _contactController.contactAction(
+                    () => session!.safety.unblock(peerUid!),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

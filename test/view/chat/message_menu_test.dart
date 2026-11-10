@@ -22,7 +22,7 @@ void main() {
           false,
           MessageStatus.ok,
           '**Hello**',
-          ['reply', 'forward', 'copy', 'selectText', 'select', 'report'],
+          ['reply', 'forward', 'copy', 'select', 'info', 'pin', 'delete'],
         ),
         (
           'sent',
@@ -37,9 +37,10 @@ void main() {
             'edit',
             'forward',
             'copy',
-            'selectText',
             'select',
-            'deleteEveryone',
+            'info',
+            'pin',
+            'delete',
           ],
         ),
         (
@@ -80,7 +81,7 @@ void main() {
           false,
           MessageStatus.undecryptable,
           'Hello',
-          ['select', 'report'],
+          ['select', 'delete'],
         ),
         (
           'unconfirmed',
@@ -90,7 +91,7 @@ void main() {
           true,
           MessageStatus.unconfirmed,
           'Hello',
-          ['copy', 'selectText', 'select'],
+          ['copy', 'select', 'info', 'pin', 'delete'],
         ),
         (
           'oversized',
@@ -100,7 +101,7 @@ void main() {
           false,
           MessageStatus.ok,
           'x' * (maxMessageCharacters + 1),
-          ['reply', 'copy', 'selectText', 'select', 'report'],
+          ['reply', 'copy', 'select', 'info', 'pin', 'delete'],
         ),
       ]) {
     testWidgets('message menu keeps exact $label action order and labels', (
@@ -146,10 +147,10 @@ void main() {
         'edit': 'Edit',
         'copy': 'Copy',
         'forward': 'Forward',
-        'selectText': 'Select text',
         'select': 'Select',
-        'deleteEveryone': 'Delete for everyone',
-        'report': 'Report',
+        'info': 'Info',
+        'pin': 'Pin',
+        'delete': 'Delete',
       };
       expect(
         actions!.map((a) => a.label).toList(),

@@ -41,41 +41,40 @@ void main() {
     await t.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await t.pumpAndSettle();
     expect(action('copy'), findsOneWidget);
-    expect(action('report'), findsOneWidget);
+    expect(action('delete'), findsOneWidget);
+    expect(action('report'), findsNothing);
   });
 
-  testWidgets('cancelled message report sends nothing', (t) async {
+  testWidgets('cancelled delete leaves the message', (t) async {
     final f = await fixture(t);
     await mount(t, f, const ChatScreen(chatId: 'alice_fred'));
     await t.longPress(bubble('target'));
     await t.pumpAndSettle();
-    await t.tap(action('report'));
+    await t.tap(action('delete'));
     await t.pumpAndSettle();
-    await t.ensureVisible(find.text('Cancel'));
-    await t.tap(find.text('Cancel'));
+    await t.tap(find.byKey(const Key('cancelMessageDelete')));
     await t.pumpAndSettle();
-    expect(find.byKey(const Key('sendReport')), findsNothing);
-    expect((f.safety as Safety).reports, isEmpty);
+    expect(await f.chat.store.get('alice_fred', 'target'), isNotNull);
+    expect(f.chat.remoteDeletes, isEmpty);
   });
 
   testWidgets(
-    'undecryptable message offers Report without sharing its placeholder',
+    'undecryptable message can be deleted locally and has no report',
     (t) async {
       final f = await fixture(t, status: MessageStatus.undecryptable);
       await mount(t, f, const ChatScreen(chatId: 'alice_fred'));
       await t.longPress(bubble('target'));
       await t.pumpAndSettle();
-      for (final id in ['copy', 'forward', 'selectText']) {
+      for (final id in ['copy', 'forward', 'info', 'report']) {
         expect(action(id), findsNothing);
       }
-      await t.tap(action('report'));
+      await t.tap(action('delete'));
       await t.pumpAndSettle();
-      await t.ensureVisible(find.byKey(const Key('reportInclude')));
-      await t.tap(find.byKey(const Key('reportInclude')));
-      await t.ensureVisible(find.byKey(const Key('sendReport')));
-      await t.tap(find.byKey(const Key('sendReport')));
-      await settleUi(t);
-      expect((f.safety as Safety).reports.single.$3, isEmpty);
+      expect(find.text('Delete for Everyone'), findsNothing);
+      await t.tap(find.byKey(const Key('confirmDeleteForMe')));
+      await t.pumpAndSettle();
+      expect(bubble('target'), findsNothing);
+      expect(f.chat.remoteDeletes, isEmpty);
     },
   );
 
@@ -87,7 +86,7 @@ void main() {
     await mount(t, f, const ChatScreen(chatId: 'alice_fred'));
     await t.longPress(bubble('target'));
     await t.pumpAndSettle();
-    for (final id in ['copy', 'forward', 'selectText', 'report']) {
+    for (final id in ['copy', 'forward', 'delete', 'report']) {
       expect(action(id), findsNothing);
     }
   });
@@ -125,23 +124,24 @@ void main() {
     expect(find.text('Conversation hidden'), findsOneWidget);
   });
 
-  testWidgets('selection sheet revokes plaintext when the contact is blocked', (
-    t,
-  ) async {
-    final f = await fixture(t);
-    await mount(t, f, const ChatScreen(chatId: 'alice_fred'));
-    final c = container(t);
-    await t.longPress(bubble('target'));
-    await t.pumpAndSettle();
-    await t.tap(action('selectText'));
-    await t.pumpAndSettle();
-    expect(find.byKey(const Key('selectableMessageText')), findsOneWidget);
-    f.blocked = {'fred'};
-    c.invalidate(blockedUidsProvider);
-    await settleUi(t);
-    expect(find.byKey(const Key('selectableMessageText')), findsNothing);
-    expect(find.textContaining('Close this sheet'), findsOneWidget);
-  });
+  testWidgets(
+    'a delete already open does nothing after the contact is blocked',
+    (t) async {
+      final f = await fixture(t);
+      await mount(t, f, const ChatScreen(chatId: 'alice_fred'));
+      final c = container(t);
+      await t.longPress(bubble('target'));
+      await t.pumpAndSettle();
+      await t.tap(action('delete'));
+      await t.pumpAndSettle();
+      f.blocked = {'fred'};
+      c.invalidate(blockedUidsProvider);
+      await settleUi(t);
+      await t.tap(find.byKey(const Key('confirmDeleteForMe')));
+      await t.pumpAndSettle();
+      expect(await f.chat.store.get('alice_fred', 'target'), isNotNull);
+    },
+  );
 
   testWidgets('screen-reader custom Select text action opens the sheet', (
     t,
@@ -157,9 +157,10 @@ void main() {
         'Reply',
         'Copy',
         'Forward',
-        'Select text',
         'Select',
-        'Report',
+        'Info',
+        'Pin',
+        'Delete',
         'React with ❤️',
         'React with 👍',
         'React with 👎',
@@ -170,7 +171,7 @@ void main() {
       },
     );
     final select = ids.singleWhere(
-      (id) => CustomSemanticsAction.getAction(id)!.label == 'Select text',
+      (id) => CustomSemanticsAction.getAction(id)!.label == 'Info',
     );
     t.binding.renderViews.single.owner!.semanticsOwner!.performAction(
       node.id,
@@ -178,14 +179,8 @@ void main() {
       select,
     );
     await t.pumpAndSettle();
-    expect(
-      t
-          .widget<SelectableText>(
-            find.byKey(const Key('selectableMessageText')),
-          )
-          .data,
-      'Only this message',
-    );
+    expect(find.text('Info'), findsWidgets);
+    expect(find.text('Received'), findsOneWidget);
     handle.dispose();
   });
 
@@ -242,26 +237,25 @@ void main() {
     },
   );
 
-  testWidgets(
-    'Select text remains usable with keyboard insets and enlarged text',
-    (t) async {
-      t.view.physicalSize = const Size(320, 640);
-      t.view.devicePixelRatio = 1;
-      addTearDown(t.view.resetPhysicalSize);
-      addTearDown(t.view.resetDevicePixelRatio);
-      final f = await fixture(t);
-      await pumpChat(t, f, scale: 2, keyboard: 220);
-      await t.longPress(bubble('target'));
-      await t.pumpAndSettle();
-      await t.ensureVisible(action('selectText'));
-      await t.tap(action('selectText'));
-      await t.pumpAndSettle();
-      expect(find.byKey(const Key('selectableMessageText')), findsOneWidget);
-      expect(
-        t.getRect(find.byKey(const Key('selectableMessageText'))).bottom,
-        lessThanOrEqualTo(420),
-      );
-      expect(t.takeException(), isNull);
-    },
-  );
+  testWidgets('Delete remains usable with keyboard insets and enlarged text', (
+    t,
+  ) async {
+    t.view.physicalSize = const Size(320, 640);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.resetPhysicalSize);
+    addTearDown(t.view.resetDevicePixelRatio);
+    final f = await fixture(t);
+    await pumpChat(t, f, scale: 2, keyboard: 220);
+    await t.longPress(bubble('target'));
+    await t.pumpAndSettle();
+    await t.ensureVisible(action('delete'));
+    await t.tap(action('delete'));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('confirmDeleteForMe')), findsOneWidget);
+    expect(
+      t.getRect(find.byKey(const Key('confirmDeleteForMe'))).bottom,
+      lessThanOrEqualTo(420),
+    );
+    expect(t.takeException(), isNull);
+  });
 }

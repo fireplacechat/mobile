@@ -65,6 +65,36 @@ void main() {
       await repaired.close();
     },
   );
+  test('pins store message ids only and reset clears them', () async {
+    final dir = await Directory.systemTemp.createTemp('fireplace-prefs-');
+    addTearDown(() => dir.delete(recursive: true));
+    final secrets = MemorySecretStore();
+    final p = await LocalChatPreferences.open(
+      dir: dir,
+      secrets: secrets,
+      uid: 'alice',
+    );
+    await p.togglePin('chat-sensitive-name', 'pinned-message-id');
+    await p.togglePin('chat-sensitive-name', 'newer-pin');
+    final bytes = await File('${dir.path}/chat-ui.enc').readAsBytes();
+    final raw = String.fromCharCodes(bytes);
+    expect(raw, isNot(contains('pinned-message-id')));
+    expect(raw, isNot(contains('newer-pin')));
+    expect(raw, isNot(contains('chat-sensitive-name')));
+    await p.close();
+    final reopened = await LocalChatPreferences.open(
+      dir: dir,
+      secrets: secrets,
+      uid: 'alice',
+    );
+    expect(reopened.pinned['chat-sensitive-name'], [
+      'newer-pin',
+      'pinned-message-id',
+    ]);
+    await reopened.reset();
+    expect(reopened.pinned, isEmpty);
+    await reopened.close();
+  });
   test('account binding prevents opening another account data', () async {
     final dir = await Directory.systemTemp.createTemp('fireplace-prefs-');
     addTearDown(() => dir.delete(recursive: true));

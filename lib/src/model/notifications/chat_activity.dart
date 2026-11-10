@@ -142,6 +142,7 @@ class ChatActivity extends Notifier<ChatActivityState> {
               if (chat != null && eligible(chat)) {
                 for (final m in messages) {
                   if (!m.outgoing &&
+                      !m.remotelyDeleted &&
                       m.status == MessageStatus.ok &&
                       !known.contains(m.id)) {
                     _arrivals.add(m);
@@ -206,6 +207,7 @@ class ChatActivity extends Notifier<ChatActivityState> {
                 .where(
                   (m) =>
                       !m.outgoing &&
+                      !m.remotelyDeleted &&
                       !(prefs?.seen[e.key]?.contains(m.id) ?? false),
                 )
                 .length,

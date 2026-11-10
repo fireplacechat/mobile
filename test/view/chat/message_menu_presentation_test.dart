@@ -44,8 +44,8 @@ void main() {
         find.text('Looking forward to it. What time works for you?'),
         findsNothing,
       );
-      await t.tap(action('copy'));
-      await t.pumpAndSettle();
+      expect(bubble('4'), findsNothing);
+      expect(action('copy'), findsNothing);
       expect(copied, isNull);
     },
   );
@@ -68,7 +68,8 @@ void main() {
         closeTo(id == '4' ? held.right : held.left, 1),
       );
       expect(panel.bottom, lessThanOrEqualTo(844 - 12));
-      expect(find.byType(BackdropFilter), findsNWidgets(2));
+      // The chat behind the focus is blurred. The menu panel is solid.
+      expect(find.byType(BackdropFilter), findsOneWidget);
       await t.tapAt(const Offset(380, 30));
       await t.pumpAndSettle();
       expect(action('copy'), findsNothing);

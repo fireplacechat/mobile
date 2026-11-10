@@ -51,7 +51,9 @@ void main() {
       await settleUi(t);
       await t.tap(find.byKey(const ValueKey('forwardRecipient-alice_bob')));
       await t.tap(find.byKey(const ValueKey('forwardRecipient-alice_jeff')));
-      await t.pump();
+      // The route is still sliding in after settleUi's short pumps. The send
+      // control sits on the right edge and is not hittable until it arrives.
+      await t.pump(const Duration(milliseconds: 400));
       f.chat.sendHold = Completer<void>();
       f.chat.sendError = SendNotConfirmedException(
         outcome: SendOutcome.publishUnknown,

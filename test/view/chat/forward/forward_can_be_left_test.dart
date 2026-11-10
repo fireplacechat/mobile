@@ -51,7 +51,7 @@ void main() {
     final f = await open(t);
     f.chat.sendHold = Completer<void>(); // offline: the commit never returns
     await t.tap(find.byKey(const ValueKey('forwardRecipient-alice_bob')));
-    await t.pump();
+    await t.pump(const Duration(milliseconds: 400));
     await t.ensureVisible(find.byKey(const Key('forwardSend')));
     await t.tap(find.byKey(const Key('forwardSend')));
     await t.pump(const Duration(milliseconds: 300));

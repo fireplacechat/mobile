@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fireplace/src/view/chat/message_actions_overlay.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
-import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/view/chat/message_selection_mark.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
@@ -130,66 +130,56 @@ class ChatTimeline extends ConsumerWidget {
                         onTap: selection.active
                             ? () => controller.toggle(message.id)
                             : null,
-                        child: ColoredBox(
-                          color: selection.ids.contains(message.id)
-                              ? FireplaceUiTokens.of(context).selectedRow
-                              : Colors.transparent,
-                          child: Stack(
-                            children: [
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  bottom:
-                                      message.reactions.values.any(
-                                        (reaction) => reaction.emoji != null,
-                                      )
-                                      ? 32
-                                      : 0,
-                                ),
-                                child: Row(
-                                  children: [
-                                    if (selection.active)
-                                      Checkbox(
-                                        value: selection.ids.contains(
-                                          message.id,
-                                        ),
-                                        onChanged: selection.deleting
-                                            ? null
-                                            : (_) =>
-                                                  controller.toggle(message.id),
-                                        semanticLabel: 'Select message',
-                                      ),
-                                    Expanded(
-                                      child: MessageBubble(
-                                        key: anchorFor(message.id),
-                                        message: message,
-                                        senderName: name,
-                                        selecting: selection.active,
-                                        selected: selection.ids.contains(
-                                          message.id,
-                                        ),
-                                        onToggleSelection: () =>
-                                            controller.toggle(message.id),
-                                        actions: actionsFor(message),
-                                        onQuote: onQuote,
+                        child: Stack(
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom:
+                                    message.reactions.values.any(
+                                      (reaction) => reaction.emoji != null,
+                                    )
+                                    ? 32
+                                    : 0,
+                              ),
+                              child: Row(
+                                children: [
+                                  if (selection.active)
+                                    MessageSelectionMark(
+                                      selected: selection.ids.contains(
+                                        message.id,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  Expanded(
+                                    child: MessageBubble(
+                                      key: anchorFor(message.id),
+                                      message: message,
+                                      senderName: name,
+                                      selecting: selection.active,
+                                      selected: selection.ids.contains(
+                                        message.id,
+                                      ),
+                                      onToggleSelection: () =>
+                                          controller.toggle(message.id),
+                                      actions: actionsFor(message),
+                                      onQuote: onQuote,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              Positioned(
-                                bottom: 0,
-                                left: selection.active ? 48 : 0,
-                                right: 0,
-                                child: MessageReactions(
-                                  message: message,
-                                  peerName: name,
-                                  onSelect: selection.active
-                                      ? () => controller.toggle(message.id)
-                                      : null,
-                                ),
+                            ),
+                            Positioned(
+                              bottom: 0,
+                              left: selection.active ? 36 : 0,
+                              right: 0,
+                              child: MessageReactions(
+                                message: message,
+                                peerName: name,
+                                onSelect: selection.active
+                                    ? () => controller.toggle(message.id)
+                                    : null,
                               ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
                       ),
                       if (!selection.active &&

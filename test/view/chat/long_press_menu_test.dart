@@ -67,7 +67,7 @@ void main() {
   });
 
   testWidgets(
-    'press and hold opens Copy, Forward, Select text and Report on their message',
+    'press and hold opens Copy, Forward, Info, Pin and Delete on their message',
     (t) async {
       final f = UiFixture(safety: Safety());
       await f.seed();
@@ -82,9 +82,11 @@ void main() {
       await openChat(t, f);
       await t.longPress(bubble('theirs'));
       await t.pumpAndSettle();
-      for (final id in ['copy', 'forward', 'selectText', 'report']) {
+      for (final id in ['copy', 'forward', 'info', 'pin', 'delete']) {
         expect(action(id), findsOneWidget, reason: id);
       }
+      expect(action('report'), findsNothing);
+      expect(action('selectText'), findsNothing);
     },
   );
 
@@ -106,6 +108,7 @@ void main() {
     expect(action('copy'), findsOneWidget);
     expect(action('forward'), findsOneWidget);
     expect(action('report'), findsNothing);
+    expect(action('delete'), findsOneWidget);
   });
 
   testWidgets('right click opens the same menu on desktop', (t) async {
@@ -125,7 +128,7 @@ void main() {
     expect(action('copy'), findsOneWidget);
   });
 
-  testWidgets('Select text opens a sheet with the plain text selectable', (
+  testWidgets('Info shows when the message arrived and no delivery state', (
     t,
   ) async {
     final f = UiFixture(safety: Safety());
@@ -141,58 +144,18 @@ void main() {
     await openChat(t, f);
     await t.longPress(bubble('fmt'));
     await t.pumpAndSettle();
-    await t.tap(action('selectText'));
+    await t.tap(action('info'));
     await t.pumpAndSettle();
-    expect(
-      t
-          .widget<SelectableText>(
-            find.byKey(const Key('selectableMessageText')),
-          )
-          .data,
-      'bold words',
-    );
+    expect(find.text('Info'), findsOneWidget);
+    expect(find.text('Received'), findsOneWidget);
+    expect(find.textContaining('Delivered'), findsNothing);
+    expect(find.textContaining('Read'), findsNothing);
   });
 
-  testWidgets(
-    'Report from a message offers just that message, off by default',
-    (t) async {
-      final safety = Safety();
-      final f = UiFixture(safety: safety);
-      await f.seed();
-      addTearDown(f.session.close);
-      await f.chat.store.add(
-        message(
-          id: 'bad',
-          body: 'the offending text',
-          at: fixtureTime.add(const Duration(minutes: 1)),
-        ),
-      );
-      await openChat(t, f);
-      await t.longPress(bubble('bad'));
-      await t.pumpAndSettle();
-      await t.tap(action('report'));
-      await t.pumpAndSettle();
-      expect(find.text('Include this message'), findsOneWidget);
-      expect(
-        t
-            .widget<CheckboxListTile>(find.byKey(const Key('reportInclude')))
-            .value,
-        isFalse,
-      );
-      await t.ensureVisible(find.byKey(const Key('reportInclude')));
-      await t.tap(find.byKey(const Key('reportInclude')));
-      await t.pumpAndSettle();
-      await t.ensureVisible(find.byKey(const Key('sendReport')));
-      await t.tap(find.byKey(const Key('sendReport')));
-      await t.pumpAndSettle();
-      expect(safety.reports, hasLength(1));
-      expect(safety.reports.single.$3, ['reported: the offending text']);
-    },
-  );
-
-  testWidgets('Report without ticking shares no message text', (t) async {
-    final safety = Safety();
-    final f = UiFixture(safety: safety);
+  testWidgets('deleting their message removes it on this device only', (
+    t,
+  ) async {
+    final f = UiFixture(safety: Safety());
     await f.seed();
     addTearDown(f.session.close);
     await f.chat.store.add(
@@ -205,13 +168,22 @@ void main() {
     await openChat(t, f);
     await t.longPress(bubble('bad'));
     await t.pumpAndSettle();
-    await t.tap(action('report'));
+    expect(action('report'), findsNothing);
+    await t.tap(action('delete'));
     await t.pumpAndSettle();
-    await t.ensureVisible(find.byKey(const Key('sendReport')));
-    await t.ensureVisible(find.byKey(const Key('sendReport')));
-    await t.tap(find.byKey(const Key('sendReport')));
+    expect(find.text('Delete for Everyone'), findsNothing);
+    await t.tap(find.text('Cancel'));
     await t.pumpAndSettle();
-    expect(safety.reports.single.$3, isEmpty);
+    expect(await f.chat.store.get('alice_fred', 'bad'), isNotNull);
+    await t.longPress(bubble('bad'));
+    await t.pumpAndSettle();
+    await t.tap(action('delete'));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('confirmDeleteForMe')));
+    await t.pumpAndSettle();
+    expect(await f.chat.store.get('alice_fred', 'bad'), isNull);
+    expect(bubble('bad'), findsNothing);
+    expect(f.chat.remoteDeletes, isEmpty);
   });
 
   testWidgets('the actions are also offered to screen readers', (t) async {
@@ -308,7 +280,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      t.widget<FilledButton>(find.byKey(const Key('forwardSend'))).onPressed,
+      t.widget<IconButton>(find.byKey(const Key('forwardSend'))).onPressed,
       isNull,
     );
   });

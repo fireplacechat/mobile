@@ -4,6 +4,8 @@ import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/model/chat/message_content.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
+import 'package:fireplace/src/db/message_quote.dart';
+import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 
 import 'chat_service_test.dart' show Dev, addUser, eventually;
 
@@ -119,4 +121,45 @@ void main() {
       await prepare('ok', '😀' * 16384);
     },
   );
+
+  test('an older message you sent can still be deleted for everyone', () async {
+    final store = MemoryMessageStore();
+    await store.add(
+      LocalMessage(
+        id: 'old',
+        chatId: 'alice_bob',
+        senderUid: 'alice',
+        senderDevice: 'a',
+        outgoing: true,
+        sentAt: DateTime.now().subtract(const Duration(days: 30)),
+        body: 'Original',
+      ),
+    );
+    await store.add(
+      LocalMessage(
+        id: 'theirs',
+        chatId: 'alice_bob',
+        senderUid: 'bob',
+        senderDevice: 'b',
+        outgoing: false,
+        sentAt: DateTime.now(),
+        body: 'From Bob',
+      ),
+    );
+    Future<Object> prepare(String id) => prepareMessageContent(
+      messages: store,
+      uid: 'alice',
+      chatId: 'alice_bob',
+      text: '',
+      mutation: MessageMutation(kind: MessageMutationKind.delete, targetId: id),
+    );
+    final own = await prepare('old');
+    expect(
+      (own as ({MessageQuote? quote, MessageMutation? mutation}))
+          .mutation
+          ?.kind,
+      MessageMutationKind.delete,
+    );
+    await expectLater(prepare('theirs'), throwsA(isA<ChatException>()));
+  });
 }
