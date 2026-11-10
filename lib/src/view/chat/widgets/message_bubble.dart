@@ -34,8 +34,9 @@ class MessageBubble extends ConsumerStatefulWidget {
   });
   final LocalMessage message;
 
-  /// Set for a message that is being sent or was not sent. Its footer says
-  /// so instead of a time, and a failed one opens its choices when tapped.
+  /// Set for a message that is on its way or was not sent. On the way it
+  /// shows its time, like a message that has been sent. A failed one says so
+  /// and opens its choices when tapped.
   final OutgoingSend? outgoingSend;
   final VoidCallback? onFailedTap;
   final ValueChanged<String>? onQuote;
@@ -453,12 +454,10 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                                   const SizedBox(width: 4),
                                 ],
                                 Text(
-                                  switch (widget.outgoingSend?.state) {
-                                    null => time,
-                                    OutgoingState.sending => 'Sending…',
-                                    OutgoingState.failed =>
-                                      'Not sent. Tap for options.',
-                                  },
+                                  widget.outgoingSend?.state ==
+                                          OutgoingState.failed
+                                      ? 'Not sent. Tap for options.'
+                                      : time,
                                   key: widget.outgoingSend == null
                                       ? null
                                       : ValueKey('sendState-${message.id}'),

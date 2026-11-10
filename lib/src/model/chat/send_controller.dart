@@ -88,9 +88,9 @@ class SendController extends ChangeNotifier {
   }
 
   /// Takes the draft out of the composer at once and hands it to the outgoing
-  /// queue. From here the message shows in the conversation, first as being
-  /// sent and, if that fails, as not sent with the choice to send it again:
-  /// it never goes back into the composer.
+  /// queue. The row shows in the conversation immediately, with its time, as
+  /// if it had already been sent. If the send fails, that row says so and
+  /// offers the choice to send it again. It never goes back into the composer.
   Future<void> send() async {
     if (_disposed) return;
     if (messageTooLong(draft())) {

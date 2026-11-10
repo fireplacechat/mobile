@@ -50,9 +50,20 @@ void main() {
     expect(f.chat.reactions, [('5', '❤️')]);
     expect(find.byKey(const ValueKey('reaction-5-❤️')), findsOneWidget);
     final chip = t.getRect(find.byKey(const ValueKey('reaction-5-❤️')));
+    final glyph = t.getRect(
+      find.descendant(
+        of: find.byKey(const ValueKey('reaction-5-❤️')),
+        matching: find.text('❤️'),
+      ),
+    );
     final message = t.getRect(bubble('5'));
     expect(chip.top, lessThan(message.bottom));
     expect(chip.bottom, greaterThan(message.bottom));
+    // The pill is the emoji's square plus the same padding on both sides.
+    expect(chip.height, closeTo(26, 0.5));
+    expect(chip.width, closeTo(31, 0.5));
+    expect(glyph.center.dx, closeTo(chip.center.dx, 0.5));
+    expect(glyph.center.dy, closeTo(chip.center.dy, 2));
     await t.longPress(bubble('5'));
     await t.pumpAndSettle();
     await t.tap(action('react-👍'));

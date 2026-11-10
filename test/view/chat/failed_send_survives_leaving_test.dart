@@ -61,7 +61,8 @@ void main() {
       await t.tap(find.byKey(const Key('send')));
       await t.pump();
       expect(composer(t), isEmpty);
-      expect(find.text('Sending…'), findsOneWidget);
+      expect(find.text('Sending…'), findsNothing);
+      expect(find.text('A long message I do not want to lose'), findsOneWidget);
 
       // Leave while it is still on its way, then it is refused.
       await t.tap(find.byKey(const Key('chatBack')));

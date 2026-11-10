@@ -55,8 +55,18 @@ final outgoingSendCases = <CatalogCase>[
         );
         expect(
           find.text(failed ? 'Not sent. Tap for options.' : 'Sending…'),
-          findsOneWidget,
+          failed ? findsOneWidget : findsNothing,
         );
+        if (!failed) {
+          expect(
+            t
+                .widget<Text>(
+                  find.byKey(const ValueKey('sendState-outgoing-0')),
+                )
+                .data,
+            '12:00 pm',
+          );
+        }
         if (state == 'sending-next' || state == 'queued') {
           await t.enterText(
             find.byKey(const Key('composer')),
@@ -70,7 +80,15 @@ final outgoingSendCases = <CatalogCase>[
           if (state == 'queued') {
             await t.tap(find.byKey(const Key('send')));
             await settleUi(t);
-            expect(find.text('Sending…'), findsNWidgets(2));
+            expect(find.text('Sending…'), findsNothing);
+            expect(
+              find.byKey(const ValueKey('sendState-outgoing-0')),
+              findsOneWidget,
+            );
+            expect(
+              find.byKey(const ValueKey('sendState-outgoing-1')),
+              findsOneWidget,
+            );
             expect(f.chat.sends, hasLength(1));
           }
         }

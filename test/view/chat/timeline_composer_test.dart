@@ -91,7 +91,18 @@ void main() {
       await t.pump();
       expect(draft(t), isEmpty);
       expect(find.text('hello'), findsOneWidget);
-      expect(find.text('Sending…'), findsOneWidget);
+      expect(find.text('Sending…'), findsNothing);
+      expect(
+        t.widget<Text>(find.byKey(const ValueKey('sendState-outgoing-0'))).data,
+        '12:00 pm',
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('send')),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsNothing,
+      );
       // Text typed during the send is the next message and is left alone.
       await t.enterText(find.byKey(const Key('composer')), 'typed meanwhile');
       await t.pump();

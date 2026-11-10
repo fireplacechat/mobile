@@ -8,6 +8,18 @@ import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 
 const quickReactions = ['❤️', '👍', '👎', '😂', '😮', '😢'];
+
+/// The reaction pill on a message. [reserve] is the space under that message
+/// so the pill's center sits on the bubble's bottom edge.
+abstract final class ReactionChipLayout {
+  static const double height = 26;
+  static const double side = 7;
+  static const double emoji = 17;
+  static const double hang = 13;
+  static const double tail = 3;
+  static const double reserve = hang + tail;
+}
+
 Future<void> confirmRemoteDelete(
   BuildContext context,
   WidgetRef ref,
@@ -67,30 +79,25 @@ class MessageReactions extends ConsumerWidget {
       if (emoji != null) groups[emoji] = (groups[emoji] ?? 0) + 1;
     }
     if (groups.isEmpty) return const SizedBox.shrink();
-    final t = FireplaceUiTokens.of(context);
     return Align(
       alignment: message.outgoing
           ? Alignment.centerRight
           : Alignment.centerLeft,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
+        padding: EdgeInsets.only(
+          bottom:
+              ReactionChipLayout.tail *
+              MediaQuery.textScalerOf(context).scale(1),
+        ),
         child: Wrap(
           spacing: 4,
           children: [
             for (final group in groups.entries)
-              OutlinedButton(
-                key: ValueKey('reaction-${message.id}-${group.key}'),
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: t.panel,
-                  minimumSize: const Size(44, 32),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  side: BorderSide(
-                    color: message.reactions[uid]?.emoji == group.key
-                        ? t.accent
-                        : t.separator,
-                  ),
-                  shape: const StadiumBorder(),
-                ),
+              _ReactionChip(
+                messageId: message.id,
+                emoji: group.key,
+                count: group.value,
+                mine: message.reactions[uid]?.emoji == group.key,
                 onPressed:
                     onSelect ??
                     () => showModalBottomSheet<void>(
@@ -165,14 +172,99 @@ class MessageReactions extends ConsumerWidget {
                         },
                       ),
                     ),
-                child: Text(
-                  '${group.key}${group.value > 1 ? ' ${group.value}' : ''}',
-                  semanticsLabel:
-                      '${group.key}, ${group.value} ${group.value == 1 ? 'reaction' : 'reactions'}',
-                  style: const TextStyle(fontSize: 18),
-                ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A reaction count. The emoji sits in a fixed square with the same padding
+/// on both sides, so the pill's outline is even around it. Height, side
+/// padding and the emoji square follow Signal's reaction pill.
+class _ReactionChip extends StatelessWidget {
+  const _ReactionChip({
+    required this.messageId,
+    required this.emoji,
+    required this.count,
+    required this.mine,
+    required this.onPressed,
+  });
+
+  final String messageId;
+  final String emoji;
+  final int count;
+  final bool mine;
+  final VoidCallback onPressed;
+
+  static const double _height = ReactionChipLayout.height;
+  static const double _side = ReactionChipLayout.side;
+  static const double _emoji = ReactionChipLayout.emoji;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = FireplaceUiTokens.of(context);
+    final scale = MediaQuery.textScalerOf(context).scale(1);
+    final label = '$emoji, $count ${count == 1 ? 'reaction' : 'reactions'}';
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        key: ValueKey('reaction-$messageId-$emoji'),
+        color: t.panel,
+        shape: StadiumBorder(
+          side: BorderSide(color: mine ? t.accent : t.separator),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          customBorder: const StadiumBorder(),
+          onTap: onPressed,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: _side * scale),
+            child: SizedBox(
+              height: _height * scale,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: _emoji * scale,
+                    height: _emoji * scale,
+                    child: Transform.translate(
+                      // Emoji fonts draw the glyph low in the em square.
+                      offset: Offset(0, -1.5 * scale),
+                      child: FittedBox(
+                        fit: BoxFit.contain,
+                        alignment: Alignment.center,
+                        child: Text(
+                          emoji,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: _emoji,
+                            height: 1,
+                            leadingDistribution: TextLeadingDistribution.even,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (count > 1) ...[
+                    SizedBox(width: 4 * scale),
+                    Text(
+                      '$count',
+                      style: TextStyle(
+                        color: t.text,
+                        fontSize: 12 * scale,
+                        height: 1,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

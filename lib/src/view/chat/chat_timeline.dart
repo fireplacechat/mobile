@@ -138,7 +138,9 @@ class ChatTimeline extends ConsumerWidget {
                                     message.reactions.values.any(
                                       (reaction) => reaction.emoji != null,
                                     )
-                                    ? 32
+                                    ? ReactionChipLayout.reserve *
+                                          MediaQuery.textScalerOf(context)
+                                              .scale(1)
                                     : 0,
                               ),
                               child: Row(

@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
@@ -123,6 +124,22 @@ class OutgoingSends extends Notifier<List<OutgoingSend>> {
     _remove(id);
   }
 
+  /// Waits for a frame that is already due. Does nothing when no Flutter
+  /// binding is up, or when no frame is scheduled.
+  Future<void> _showBeforeSending() async {
+    final SchedulerBinding scheduler;
+    try {
+      scheduler = SchedulerBinding.instance;
+    } catch (_) {
+      return;
+    }
+    final frameDue =
+        scheduler.schedulerPhase != SchedulerPhase.idle ||
+        scheduler.hasScheduledFrame;
+    if (!frameDue) return;
+    await scheduler.endOfFrame;
+  }
+
   OutgoingSend? _find(String id) => state.where((s) => s.id == id).firstOrNull;
   void _replace(OutgoingSend next) => state = [
     for (final s in state)
@@ -156,6 +173,11 @@ class OutgoingSends extends Notifier<List<OutgoingSend>> {
           _replace(send._failed(signedOutText));
           continue;
         }
+        // Encryption runs on this isolate. Let the row and the empty
+        // composer paint first. A unit test has no binding or no frame, and
+        // endOfFrame would stall it, so that case sends immediately.
+        await _showBeforeSending();
+        if (!current()) return;
         try {
           if (send.replyTarget == null) {
             await service.sendText(chatId, send.body);
