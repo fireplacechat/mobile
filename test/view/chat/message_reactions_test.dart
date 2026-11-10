@@ -17,8 +17,18 @@ void main() {
       final gesture = await t.startGesture(t.getCenter(bubble('5')));
       await t.pump(kLongPressTimeout + const Duration(milliseconds: 1));
       await t.pumpAndSettle();
+      final emoji = find.descendant(
+        of: action('react-❤️'),
+        matching: find.text('❤️'),
+      );
+      final resting = t.getRect(emoji);
       await gesture.moveTo(t.getCenter(action('react-❤️')));
+      // The grow starts on the frame that first lands on the emoji.
       await t.pump();
+      await t.pump(const Duration(milliseconds: 200));
+      final focused = t.getRect(emoji);
+      expect(resting.center.dy - focused.center.dy, closeTo(36, 1.5));
+      expect(focused.height / resting.height, closeTo(1.5, 0.05));
       await gesture.up();
       await t.pumpAndSettle();
       expect(f.chat.reactions, [('5', '❤️')]);

@@ -38,6 +38,34 @@ class MessageAction {
 /// Forward its drag/release so holding and sliding to an action also works.
 class MessageMenuGesture {
   final highlighted = ValueNotifier<MessageAction?>(null);
+
+  /// Where the finger was when the menu opened.
+  Offset? origin;
+
+  /// The finger has travelled far enough that releasing can choose a control.
+  bool armed = false;
+
+  /// A press and the control under it can both observe the same release.
+  bool handled = false;
+
+  /// A control that appears under a stationary finger must not be selected.
+  static const deadZone = 40.0;
+
+  void choose(VoidCallback action) {
+    if (handled) return;
+    handled = true;
+    action();
+  }
+
+  bool allowsHighlight(Offset point) {
+    if (armed) return true;
+    final start = origin;
+    if (start == null) return true;
+    if ((point - start).distance < deadZone) return false;
+    armed = true;
+    return true;
+  }
+
   void Function(Offset)? onMove;
   VoidCallback? onEnd, onCancel;
   void dispose() {
@@ -95,6 +123,7 @@ Future<void> showMessageActionsMenu(
   );
   ModalRoute.of(context)?.addLocalHistoryEntry(history);
   Navigator.of(context).overlay!.insert(entry);
+  gesture?.origin = globalPosition;
   if (gesture != null) gesture.onCancel = dismiss;
   final (chosen, emoji) = await result.future;
   if (previousFocus?.context != null) previousFocus!.requestFocus();
