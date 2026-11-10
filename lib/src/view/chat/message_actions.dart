@@ -16,6 +16,8 @@ class MessageAction {
     this.reaction = false,
     this.emoji,
     this.selected = false,
+    this.onEmoji,
+    this.recentEmoji = const [],
   });
   final String id, label;
   final IconData icon;
@@ -23,6 +25,13 @@ class MessageAction {
   final bool destructive;
   final bool reaction, selected;
   final String? emoji;
+
+  /// Set on the action that opens the full emoji picker inside the menu:
+  /// receives the emoji chosen there. [onSelected] is then not called.
+  final ValueChanged<String>? onEmoji;
+
+  /// Emoji to offer first in that picker, newest first.
+  final List<String> recentEmoji;
 }
 
 /// The original long-press recognizer keeps the pointer while the overlay opens.
@@ -58,7 +67,7 @@ Future<void> showMessageActionsMenu(
           .shift(-origin);
   final previousFocus = FocusManager.instance.primaryFocus;
   final reducedMotion = MediaQuery.disableAnimationsOf(context);
-  final result = Completer<MessageAction?>();
+  final result = Completer<(MessageAction?, String?)>();
   final hostKey = GlobalKey<MessageActionsHostState>();
   late final OverlayEntry entry;
   late final LocalHistoryEntry history;
@@ -73,11 +82,11 @@ Future<void> showMessageActionsMenu(
       gesture: gesture,
       reducedMotion: reducedMotion,
       onDisposed: () {
-        if (!result.isCompleted) result.complete(null);
+        if (!result.isCompleted) result.complete((null, null));
       },
-      onClosed: (chosen) {
+      onClosed: (chosen, emoji) {
         if (result.isCompleted) return;
-        result.complete(chosen);
+        result.complete((chosen, emoji));
         history.remove();
         entry.remove();
         entry.dispose();
@@ -87,9 +96,14 @@ Future<void> showMessageActionsMenu(
   ModalRoute.of(context)?.addLocalHistoryEntry(history);
   Navigator.of(context).overlay!.insert(entry);
   if (gesture != null) gesture.onCancel = dismiss;
-  final chosen = await result.future;
+  final (chosen, emoji) = await result.future;
   if (previousFocus?.context != null) previousFocus!.requestFocus();
-  if (context.mounted) chosen?.onSelected();
+  if (!context.mounted || chosen == null) return;
+  if (emoji != null) {
+    chosen.onEmoji?.call(emoji);
+  } else {
+    chosen.onSelected();
+  }
 }
 
 /// Selection lives in its own sheet so it cannot compete with long-press actions.

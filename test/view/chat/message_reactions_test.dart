@@ -64,8 +64,8 @@ void main() {
     await t.pumpAndSettle();
     final bar = t.getRect(find.byKey(const Key('messageReactionBar')));
     final more = t.getRect(action('moreReactions'));
-    expect(bar.contains(more.topLeft), isTrue);
-    expect(bar.contains(more.bottomRight), isTrue);
+    // The button fills the bar's height, so compare with shared edges.
+    expect(bar.expandToInclude(more), bar);
     await t.tap(action('moreReactions'));
     await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('pickReaction-🥰')));
