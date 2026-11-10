@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fireplace/src/view/chat/message_actions_overlay.dart';
 
 /// One extensible message action, shared by touch, desktop and accessibility.
 class MessageAction {
@@ -19,6 +20,8 @@ class MessageAction {
 Future<void> showMessageActionsMenu(
   BuildContext context, {
   required Offset globalPosition,
+  Rect? bubbleRect,
+  Widget? preview,
   required List<MessageAction> actions,
 }) async {
   if (actions.isEmpty || !context.mounted) return;
@@ -26,33 +29,30 @@ Future<void> showMessageActionsMenu(
   HapticFeedback.selectionClick().catchError((Object _) {});
   final overlay =
       Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
-  final local = overlay.globalToLocal(globalPosition);
-  final error = Theme.of(context).colorScheme.error;
-  final chosen = await showMenu<MessageAction>(
+  final origin = overlay.localToGlobal(Offset.zero);
+  final anchor =
+      (bubbleRect ?? Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0))
+          .shift(-origin);
+  final reducedMotion = MediaQuery.disableAnimationsOf(context);
+  final chosen = await showGeneralDialog<MessageAction>(
     context: context,
-    position: RelativeRect.fromRect(
-      Rect.fromLTWH(local.dx, local.dy, 0, 0),
-      Offset.zero & overlay.size,
+    useRootNavigator: false,
+    barrierDismissible: true,
+    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    barrierColor: Colors.transparent,
+    transitionDuration: reducedMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 400),
+    pageBuilder: (ctx, animation, secondary) => MessageActionsOverlay(
+      anchor: anchor,
+      preview: preview,
+      actions: actions,
+      animation: animation,
     ),
-    items: [
-      for (final a in actions)
-        PopupMenuItem<MessageAction>(
-          key: ValueKey('messageAction-${a.id}'),
-          value: a,
-          child: Row(
-            children: [
-              Icon(a.icon, size: 20, color: a.destructive ? error : null),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  a.label,
-                  style: a.destructive ? TextStyle(color: error) : null,
-                ),
-              ),
-            ],
-          ),
-        ),
-    ],
+    transitionBuilder: (ctx, animation, secondary, child) => FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+      child: child,
+    ),
   );
   if (context.mounted) chosen?.onSelected();
 }
