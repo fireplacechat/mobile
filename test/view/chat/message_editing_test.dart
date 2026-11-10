@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
@@ -16,6 +19,48 @@ Future<void> edit(WidgetTester t) async {
 }
 
 void main() {
+  testWidgets(
+    'a finishing send clears its own draft without cancelling an edit',
+    (t) async {
+      final f = UiFixture();
+      await f.seed();
+      addTearDown(f.session.close);
+      await openChat(t, f);
+      f.chat.sendHold = Completer<void>();
+      await t.enterText(
+        find.byKey(const Key('composer')),
+        'Sending ordinary text',
+      );
+      await t.pump();
+      await t.tap(find.byKey(const Key('send')));
+      await t.pump();
+      // The pending send spinner is deliberately still animating.
+      await t.longPress(bubble('4'));
+      for (var frame = 0; frame < 6; frame++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
+      await t.ensureVisible(action('edit'));
+      await t.tap(action('edit'));
+      for (var frame = 0; frame < 6; frame++) {
+        await t.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.byKey(const Key('editComposerPreview')), findsOneWidget);
+      await t.enterText(
+        find.byKey(const Key('composer')),
+        'An independent correction',
+      );
+      f.chat.sendHold!.complete();
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('editComposerPreview')), findsOneWidget);
+      expect(find.text('An independent correction'), findsOneWidget);
+      await t.tap(find.byKey(const Key('cancelEdit')));
+      await t.pumpAndSettle();
+      expect(
+        t.widget<TextField>(find.byKey(const Key('composer'))).controller!.text,
+        isEmpty,
+      );
+    },
+  );
   testWidgets(
     'editing has a separate draft and cancel restores ordinary composition',
     (t) async {

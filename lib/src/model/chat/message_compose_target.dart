@@ -8,6 +8,8 @@ class MessageComposeTarget {
   const MessageComposeTarget(this.action, this.message);
   final MessageComposeAction action;
   final LocalMessage message;
+  String? get replyId =>
+      action == MessageComposeAction.reply ? message.id : null;
 }
 
 class MessageCompose extends Notifier<MessageComposeTarget?> {
@@ -27,6 +29,9 @@ class MessageCompose extends Notifier<MessageComposeTarget?> {
   void edit(LocalMessage message) =>
       state = MessageComposeTarget(MessageComposeAction.edit, message);
   void clear() => state = null;
+  void clearReply() {
+    if (state?.action == MessageComposeAction.reply) state = null;
+  }
 }
 
 final messageComposeProvider = NotifierProvider.autoDispose

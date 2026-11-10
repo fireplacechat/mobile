@@ -88,11 +88,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           draft: () => _text.text,
           draftRevision: () => _text.revision,
           replyTarget: () =>
-              ref.read(messageComposeProvider(widget.chatId))?.message.id,
-          clearDraft: () {
-            _text.clear();
-            ref.read(messageComposeProvider(widget.chatId).notifier).clear();
-          },
+              ref.read(messageComposeProvider(widget.chatId))?.replyId,
+          clearDraft: _text.clear,
+          clearReply: () => ref
+              .read(messageComposeProvider(widget.chatId).notifier)
+              .clearReply(),
           notice: _snack,
           showNewest: () => _timeline.showNewestAfterOwnSend(_latest),
           reviewIdentity: (peerUid, pub) =>

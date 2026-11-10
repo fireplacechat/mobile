@@ -18,6 +18,7 @@ class SendController extends ChangeNotifier {
     required this.draftRevision,
     required this.clearDraft,
     this.replyTarget,
+    this.clearReply,
     required void Function(String) notice,
     required this.showNewest,
     required this.reviewIdentity,
@@ -34,6 +35,7 @@ class SendController extends ChangeNotifier {
   final int Function() draftRevision;
   final void Function() clearDraft;
   final String? Function()? replyTarget;
+  final void Function()? clearReply;
   late final void Function(String) _notice;
   final void Function() showNewest;
   final Future<void> Function(String, List<int>) reviewIdentity;
@@ -114,9 +116,9 @@ class SendController extends ChangeNotifier {
         await service.sendReply(chatId(), body, reply);
       }
       if (_disposed) return;
-      if (this.draftRevision() == draftRevision &&
-          replyTarget?.call() == reply) {
+      if (this.draftRevision() == draftRevision) {
         clearDraft();
+        if (replyTarget?.call() == reply) clearReply?.call();
       }
       showNewest();
     } on SendNotConfirmedException catch (e) {
@@ -129,9 +131,9 @@ class SendController extends ChangeNotifier {
         _changed();
       }
       // Edits made while the send was in flight survive: only an untouched draft is cleared.
-      if (this.draftRevision() == draftRevision &&
-          replyTarget?.call() == reply) {
+      if (this.draftRevision() == draftRevision) {
         clearDraft();
+        if (replyTarget?.call() == reply) clearReply?.call();
       }
       showNewest();
     } on IdentityChangedException catch (e) {
