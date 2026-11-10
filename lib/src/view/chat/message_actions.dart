@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:fireplace/src/view/chat/message_actions_overlay.dart';
+
+import 'dart:async';
+
+import 'package:fireplace/src/view/chat/message_actions_host.dart';
 
 /// One extensible message action, shared by touch, desktop and accessibility.
 class MessageAction {
@@ -22,12 +25,27 @@ class MessageAction {
   final String? emoji;
 }
 
+/// The original long-press recognizer keeps the pointer while the overlay opens.
+/// Forward its drag/release so holding and sliding to an action also works.
+class MessageMenuGesture {
+  final highlighted = ValueNotifier<MessageAction?>(null);
+  void Function(Offset)? onMove;
+  VoidCallback? onEnd, onCancel;
+  void dispose() {
+    onMove = null;
+    onEnd = null;
+    onCancel = null;
+    highlighted.dispose();
+  }
+}
+
 Future<void> showMessageActionsMenu(
   BuildContext context, {
   required Offset globalPosition,
   Rect? bubbleRect,
   Widget? preview,
   required List<MessageAction> actions,
+  MessageMenuGesture? gesture,
 }) async {
   if (actions.isEmpty || !context.mounted) return;
   // Haptics are an enhancement; platform failures must not prevent the menu.
@@ -38,28 +56,39 @@ Future<void> showMessageActionsMenu(
   final anchor =
       (bubbleRect ?? Rect.fromLTWH(globalPosition.dx, globalPosition.dy, 0, 0))
           .shift(-origin);
+  final previousFocus = FocusManager.instance.primaryFocus;
   final reducedMotion = MediaQuery.disableAnimationsOf(context);
-  final chosen = await showGeneralDialog<MessageAction>(
-    context: context,
-    useRootNavigator: false,
-    barrierDismissible: true,
-    barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
-    barrierColor: Colors.transparent,
-    transitionDuration: reducedMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 400),
-    pageBuilder: (ctx, animation, secondary) => MessageActionsOverlay(
+  final result = Completer<MessageAction?>();
+  final hostKey = GlobalKey<MessageActionsHostState>();
+  late final OverlayEntry entry;
+  late final LocalHistoryEntry history;
+  void dismiss() => hostKey.currentState?.dismiss(null);
+  history = LocalHistoryEntry(onRemove: dismiss, impliesAppBarDismissal: false);
+  entry = OverlayEntry(
+    builder: (ctx) => MessageActionsHost(
+      key: hostKey,
       anchor: anchor,
       preview: preview,
-      actions: actions.where((a) => !a.reaction).toList(),
-      reactions: actions.where((a) => a.reaction).toList(),
-      animation: animation,
-    ),
-    transitionBuilder: (ctx, animation, secondary, child) => FadeTransition(
-      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-      child: child,
+      actions: actions,
+      gesture: gesture,
+      reducedMotion: reducedMotion,
+      onDisposed: () {
+        if (!result.isCompleted) result.complete(null);
+      },
+      onClosed: (chosen) {
+        if (result.isCompleted) return;
+        result.complete(chosen);
+        history.remove();
+        entry.remove();
+        entry.dispose();
+      },
     ),
   );
+  ModalRoute.of(context)?.addLocalHistoryEntry(history);
+  Navigator.of(context).overlay!.insert(entry);
+  if (gesture != null) gesture.onCancel = dismiss;
+  final chosen = await result.future;
+  if (previousFocus?.context != null) previousFocus!.requestFocus();
   if (context.mounted) chosen?.onSelected();
 }
 

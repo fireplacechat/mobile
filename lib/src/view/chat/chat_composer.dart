@@ -22,6 +22,7 @@ class ChatComposer extends StatelessWidget {
     required this.contactBusy,
     required this.send,
     required this.onUnblock,
+    this.onInteraction,
   });
   final double keyboardInset;
   final TextEditingController text;
@@ -34,6 +35,7 @@ class ChatComposer extends StatelessWidget {
       contactBusy;
   final SendController send;
   final Future<void> Function() onUnblock;
+  final VoidCallback? onInteraction;
   @override
   Widget build(BuildContext context) {
     if (blocked) {
@@ -71,14 +73,12 @@ class ChatComposer extends StatelessWidget {
                 send.send,
           },
           child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
             decoration: BoxDecoration(
               color: FireplaceUiTokens.of(context).panel,
-              border: Border(
-                top: BorderSide(color: FireplaceUiTokens.of(context).separator),
-              ),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
                   child: ConstrainedBox(
@@ -91,6 +91,7 @@ class ChatComposer extends StatelessWidget {
                     child: TextField(
                       key: Key('composer'),
                       controller: text,
+                      onTap: onInteraction,
                       inputFormatters: [MessageInputFormatter()],
                       minLines: 1,
                       maxLines:
@@ -99,7 +100,22 @@ class ChatComposer extends StatelessWidget {
                           ? 3
                           : 6,
                       textCapitalization: TextCapitalization.sentences,
+                      style: const TextStyle(fontSize: 17, height: 1.3),
                       decoration: InputDecoration(
+                        filled: true,
+                        fillColor: FireplaceUiTokens.of(context).incomingBubble,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(22),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(22),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(22),
+                          borderSide: BorderSide.none,
+                        ),
                         counter:
                             messageCharacters(text.text) >=
                                 (maxMessageCharacters * .9).floor()
@@ -112,24 +128,23 @@ class ChatComposer extends StatelessWidget {
                         hintText: 'Message',
                         contentPadding: EdgeInsets.symmetric(
                           horizontal: 16,
-                          vertical: 10,
+                          vertical: 11,
                         ),
                       ),
                       textInputAction: TextInputAction.newline,
                     ),
                   ),
                 ),
-                SizedBox(width: 8),
+                SizedBox(width: 4),
                 // Sending is part of editing; keep the keyboard ready to reply.
                 TextFieldTapRegion(
                   child: IconButton.filled(
                     key: Key('send'),
                     style: IconButton.styleFrom(
-                      minimumSize: const Size(48, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      minimumSize: const Size(40, 40),
+                      fixedSize: const Size(40, 40),
+                      shape: const CircleBorder(),
+                      backgroundColor: FireplaceUiTokens.of(context).accent,
                       foregroundColor: Theme.of(context).colorScheme.onPrimary,
                     ),
                     onPressed:

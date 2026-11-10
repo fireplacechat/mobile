@@ -119,8 +119,10 @@ class _ReactionPickerState extends State<ReactionPicker> {
                       child: TextButton(
                         key: ValueKey('pickReaction-$emoji'),
                         onPressed: () => Navigator.pop(context, emoji),
+                        style: TextButton.styleFrom(padding: EdgeInsets.zero),
                         child: Text(
                           emoji,
+                          textScaler: TextScaler.noScaling,
                           style: const TextStyle(fontSize: 26),
                         ),
                       ),

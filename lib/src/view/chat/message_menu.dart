@@ -11,6 +11,7 @@ import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
 import 'package:fireplace/src/model/chat/message_controls.dart';
+import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
 
 /// Shared touch, keyboard and screen-reader actions for one message.
@@ -33,7 +34,25 @@ List<MessageAction> messageMenuActions(
   bool available() {
     if (!isMounted() || owner == null) return false;
     final summary = ref.read(chatSummaryProvider(chatId()));
+    final live = ref
+        .read(messagesProvider(chatId()))
+        .value
+        ?.where((m) => m.id == message.id)
+        .firstOrNull;
+    final pending = ref
+        .read(pendingLocalSendsProvider)
+        .values
+        .any(
+          (m) =>
+              m.chatId == chatId() &&
+              m.messageId == message.id &&
+              m.body == message.body,
+        );
     return identical(ref.read(appSessionProvider).value, owner) &&
+        ((live != null &&
+                live.body == message.body &&
+                live.remotelyDeleted == message.remotelyDeleted) ||
+            pending) &&
         summary != null &&
         ref.read(chatActivityProvider.notifier).eligible(summary);
   }
@@ -105,6 +124,7 @@ List<MessageAction> messageMenuActions(
                 sheetRef.watch(blockedUidsProvider);
                 sheetRef.watch(hiddenChatsProvider);
                 sheetRef.watch(identityAlertsProvider);
+                sheetRef.watch(messagesProvider(chatId()));
                 return available()
                     ? child
                     : const Text(

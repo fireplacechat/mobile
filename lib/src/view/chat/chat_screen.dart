@@ -1,9 +1,10 @@
 import 'package:fireplace/src/view/chat/chat_unavailable.dart';
 import 'package:fireplace/src/view/chat/message_selection_surface.dart';
+import 'package:fireplace/src/model/chat/message_selection.dart';
 import 'package:fireplace/src/view/chat/chat_timeline.dart';
 import 'package:fireplace/src/view/chat/chat_app_bar_parts.dart';
 import 'package:fireplace/src/view/chat/chat_safety_notices.dart';
-import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/view/chat/review_chat_identity.dart';
 import 'package:fireplace/src/view/chat/chat_composer.dart';
 import 'package:fireplace/src/view/chat/message_menu.dart';
 import 'package:fireplace/src/view/chat/route_visibility.dart';
@@ -16,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/crypto/fingerprint.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
@@ -204,56 +204,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     AppSession session,
     String peerUid,
     List<int> newIdentityPub,
-  ) async {
-    final newFp = await identityFingerprint(newIdentityPub);
-    final oldPin = await session.keys.pinnedIdentity(peerUid);
-    final oldFp = oldPin == null ? null : await identityFingerprint(oldPin);
-    if (!mounted) return;
-    final trust = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => UiDialog(
-        icon: Icon(
-          Icons.warning_amber_rounded,
-          color: FireplaceUiTokens.of(context).danger,
-          size: 40,
-        ),
-        title: Text('Security code changed'),
-        content: SingleChildScrollView(
-          child: Text(
-            "This contact's identity key is different from the one you saw "
-            'before. That can happen if they reinstalled the app or lost '
-            'their phone, but it can also mean someone is interfering. '
-            'Messages to and from them are on hold.\n\n'
-            '${oldFp == null ? '' : 'Previous key:\n$oldFp\n\n'}'
-            'New key:\n$newFp\n\n'
-            'Ask them (in person or over a call you trust) to read you the '
-            'fingerprint under Settings, and only trust the new key if it '
-            'matches.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            key: Key('keepBlocked'),
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Keep on hold'),
-          ),
-          TextButton(
-            key: Key('trustNew'),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Trust new key',
-              style: TextStyle(color: FireplaceUiTokens.of(context).danger),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (trust == true) {
-      await session.keys.acceptIdentityChange(peerUid, newIdentityPub);
-      await session.chat.retryDeferred(); // delivers what was held back
-      _snack('New key trusted.');
-    }
-  }
+  ) => reviewChatIdentity(
+    context,
+    session,
+    peerUid,
+    newIdentityPub,
+    isMounted: () => mounted,
+    notice: _snack,
+  );
 
   Future<void> _blockPeer(
     AppSession session,
@@ -522,6 +480,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ),
             ),
             ChatComposer(
+              onInteraction: () => ref
+                  .read(messageSelectionProvider(widget.chatId).notifier)
+                  .clear(),
               keyboardInset: keyboardInset,
               text: _text,
               name: name,

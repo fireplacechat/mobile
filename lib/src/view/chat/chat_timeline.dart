@@ -102,33 +102,65 @@ class ChatTimeline extends ConsumerWidget {
                           color: selection.ids.contains(message.id)
                               ? FireplaceUiTokens.of(context).selectedRow
                               : Colors.transparent,
-                          child: Row(
+                          child: Stack(
                             children: [
-                              if (selection.active)
-                                Checkbox(
-                                  value: selection.ids.contains(message.id),
-                                  onChanged: selection.deleting
-                                      ? null
-                                      : (_) => controller.toggle(message.id),
-                                  semanticLabel: 'Select message',
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  bottom:
+                                      message.reactions.values.any(
+                                        (reaction) => reaction.emoji != null,
+                                      )
+                                      ? 32
+                                      : 0,
                                 ),
-                              Expanded(
-                                child: MessageBubble(
-                                  key: anchorFor(message.id),
+                                child: Row(
+                                  children: [
+                                    if (selection.active)
+                                      Checkbox(
+                                        value: selection.ids.contains(
+                                          message.id,
+                                        ),
+                                        onChanged: selection.deleting
+                                            ? null
+                                            : (_) =>
+                                                  controller.toggle(message.id),
+                                        semanticLabel: 'Select message',
+                                      ),
+                                    Expanded(
+                                      child: MessageBubble(
+                                        key: anchorFor(message.id),
+                                        message: message,
+                                        senderName: name,
+                                        selecting: selection.active,
+                                        selected: selection.ids.contains(
+                                          message.id,
+                                        ),
+                                        onToggleSelection: () =>
+                                            controller.toggle(message.id),
+                                        actions: actionsFor(message),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                left: selection.active ? 48 : 0,
+                                right: 0,
+                                child: MessageReactions(
                                   message: message,
-                                  senderName: name,
-                                  selecting: selection.active,
-                                  selected: selection.ids.contains(message.id),
-                                  onToggleSelection: () =>
-                                      controller.toggle(message.id),
-                                  actions: actionsFor(message),
+                                  peerName: name,
+                                  onSelect: selection.active
+                                      ? () => controller.toggle(message.id)
+                                      : null,
                                 ),
                               ),
                             ],
                           ),
                         ),
                       ),
-                      if (message.outgoing &&
+                      if (!selection.active &&
+                          message.outgoing &&
                           !message.remotelyDeleted &&
                           (message.status == MessageStatus.unconfirmed ||
                               send.memoryPending[message.id]?.outcome ==
@@ -150,13 +182,6 @@ class ChatTimeline extends ConsumerWidget {
                             }
                           },
                         ),
-                      MessageReactions(
-                        message: message,
-                        peerName: name,
-                        onSelect: selection.active
-                            ? () => controller.toggle(message.id)
-                            : null,
-                      ),
                     ],
                   );
                 },
