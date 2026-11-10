@@ -75,7 +75,7 @@ void main() {
     await f.seed();
     await pumpList(t, f);
     final tile = find.byKey(const ValueKey('conversation-alice_fred'));
-    final callback = t.widget<ListTile>(tile).onTap!;
+    final callback = t.widget<InkWell>(tile).onTap!;
     callback();
     callback();
     await t.pumpAndSettle();

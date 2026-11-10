@@ -251,7 +251,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         sorted.length +
                         requestOffset +
                         (sorted.isEmpty ? 1 : 0),
-                    separatorBuilder: (_, _) => Divider(height: 1, indent: 72),
+                    // A hairline from the text edge to the row's end.
+                    separatorBuilder: (_, _) => const Divider(
+                      height: 1 / 3,
+                      thickness: 1 / 3,
+                      indent: ChatTile.textInset,
+                      endIndent: ChatTile.edge,
+                    ),
                     itemBuilder: (_, i) {
                       if (requests.isNotEmpty && i == 0) {
                         return ListTile(

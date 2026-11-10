@@ -142,7 +142,8 @@ void main() {
     addTearDown(f.session.close);
     await mount(t, f, const ChatListScreen());
     final c = container(t);
-    await t.tap(find.byKey(const ValueKey('conversationMenu-alice_fred')));
+    // The row itself carries the actions now; there is no menu button.
+    await t.longPress(find.byKey(const ValueKey('conversation-alice_fred')));
     await t.pumpAndSettle();
     await t.tap(find.text('Mute chat'));
     await t.pumpAndSettle();
