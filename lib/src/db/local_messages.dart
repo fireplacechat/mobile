@@ -20,6 +20,7 @@ class LocalMessage {
     required this.sentAt,
     required this.body,
     this.status = MessageStatus.ok,
+    this.locallyDeleted = false,
   });
 
   final String id;
@@ -30,6 +31,18 @@ class LocalMessage {
   final DateTime sentAt;
   final String body; // plaintext, or a short reason when undecryptable
   final MessageStatus status;
+  final bool locallyDeleted;
+
+  factory LocalMessage.tombstone(String chatId, String id) => LocalMessage(
+    id: id,
+    chatId: chatId,
+    senderUid: '',
+    senderDevice: '',
+    outgoing: false,
+    sentAt: DateTime.fromMillisecondsSinceEpoch(0),
+    body: '',
+    locallyDeleted: true,
+  );
 
   /// Account-relative direction for presentation. Stored `outgoing` records
   /// device-level send/receive bookkeeping, including linked-device copies.
@@ -45,6 +58,7 @@ class LocalMessage {
       sentAt: sentAt,
       body: body,
       status: status,
+      locallyDeleted: locallyDeleted,
     );
   }
 
@@ -57,6 +71,7 @@ class LocalMessage {
     'sentAt': sentAt.millisecondsSinceEpoch,
     'body': body,
     'status': status.name,
+    if (locallyDeleted) 'locallyDeleted': true,
   };
 
   factory LocalMessage.fromJson(Map<String, dynamic> j) => LocalMessage(
@@ -68,6 +83,7 @@ class LocalMessage {
     sentAt: DateTime.fromMillisecondsSinceEpoch(j['sentAt']),
     body: j['body'],
     status: MessageStatus.values.byName(j['status']),
+    locallyDeleted: j['locallyDeleted'] == true,
   );
 }
 
@@ -75,13 +91,14 @@ class LocalMessage {
 /// can be decrypted only once; the result MUST be persisted here.
 /// The disk-backed, encrypted implementation arrives with the UI (Phase 4).
 abstract class LocalMessageStore {
+  /// Includes hidden deletion tombstones, which suppress ciphertext replay.
   Future<bool> has(String chatId, String messageId);
   Future<void> add(LocalMessage m);
 
   /// One stored message, or null.
   Future<LocalMessage?> get(String chatId, String messageId);
 
-  /// Removes one message (used to clear an unconfirmed warning). No-op if absent.
+  /// Erases content and retains a hidden replay tombstone on this device.
   Future<void> remove(String chatId, String messageId);
   Stream<List<LocalMessage>> watch(String chatId);
 
@@ -94,7 +111,8 @@ class MemoryMessageStore implements LocalMessageStore {
   final Map<String, StreamController<List<LocalMessage>>> _ctrls = {};
 
   List<LocalMessage> _sorted(String chatId) =>
-      (_chats[chatId]?.values.toList() ?? <LocalMessage>[])
+      (_chats[chatId]?.values.where((m) => !m.locallyDeleted).toList() ??
+            <LocalMessage>[])
         ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
 
   @override
@@ -103,19 +121,24 @@ class MemoryMessageStore implements LocalMessageStore {
 
   @override
   Future<void> add(LocalMessage m) async {
+    if (_chats[m.chatId]?[m.id]?.locallyDeleted == true) return;
     (_chats[m.chatId] ??= {})[m.id] = m;
     _ctrls[m.chatId]?.add(_sorted(m.chatId));
   }
 
   @override
-  Future<LocalMessage?> get(String chatId, String messageId) async =>
-      _chats[chatId]?[messageId];
+  Future<LocalMessage?> get(String chatId, String messageId) async {
+    final m = _chats[chatId]?[messageId];
+    return m?.locallyDeleted == true ? null : m;
+  }
 
   @override
   Future<void> remove(String chatId, String messageId) async {
-    if (_chats[chatId]?.remove(messageId) != null) {
-      _ctrls[chatId]?.add(_sorted(chatId));
-    }
+    (_chats[chatId] ??= {})[messageId] = LocalMessage.tombstone(
+      chatId,
+      messageId,
+    );
+    _ctrls[chatId]?.add(_sorted(chatId));
   }
 
   @override

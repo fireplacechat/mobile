@@ -19,9 +19,14 @@ class MessageBubble extends ConsumerStatefulWidget {
     this.senderName,
     this.actions = const [],
     this.preview = false,
+    this.selecting = false,
+    this.selected = false,
+    this.onToggleSelection,
   });
   final LocalMessage message;
   final bool preview;
+  final bool selecting, selected;
+  final VoidCallback? onToggleSelection;
 
   /// Who the other person is, so a screen reader can say who sent a message. Outgoing messages are
   /// announced as "You".
@@ -48,6 +53,10 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
   }
 
   Future<void> _openMenu(Offset at) async {
+    if (widget.selecting) {
+      widget.onToggleSelection?.call();
+      return;
+    }
     if (widget.actions.isEmpty || _held) return;
     setState(() => _held = true);
     try {
@@ -141,6 +150,10 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
           actions: {
             ActivateIntent: CallbackAction<ActivateIntent>(
               onInvoke: (_) {
+                if (widget.selecting) {
+                  widget.onToggleSelection?.call();
+                  return null;
+                }
                 final anchor = _actionAnchor.currentContext?.findRenderObject();
                 if (anchor is RenderBox) {
                   _openMenu(
@@ -153,6 +166,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
           },
           child: GestureDetector(
             key: _actionAnchor,
+            onTap: widget.selecting ? widget.onToggleSelection : null,
             // Touch: press and hold. Desktop: right click.
             onLongPressStart: widget.actions.isEmpty
                 ? null
@@ -188,8 +202,10 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
               // custom actions, because a long press is hard to perform with TalkBack or VoiceOver.
               child: Semantics(
                 label: who,
+                selected: widget.selecting ? widget.selected : null,
                 customSemanticsActions: {
-                  for (final a in widget.actions)
+                  for (final a
+                      in widget.selecting ? <MessageAction>[] : widget.actions)
                     CustomSemanticsAction(label: a.label): a.onSelected,
                 },
                 child: Column(
@@ -234,7 +250,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                     if (oversize)
                       TextButton(
                         key: ValueKey('showAll-${message.id}'),
-                        onPressed: () => setState(() => _showAll = !_showAll),
+                        onPressed: widget.selecting
+                            ? widget.onToggleSelection
+                            : () => setState(() => _showAll = !_showAll),
                         child: Text(
                           _showAll ? 'Show less' : 'Show all',
                           style: TextStyle(

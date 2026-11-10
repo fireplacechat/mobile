@@ -1,4 +1,5 @@
 import 'package:fireplace/src/view/chat/chat_unavailable.dart';
+import 'package:fireplace/src/view/chat/message_selection_surface.dart';
 import 'package:fireplace/src/view/chat/chat_timeline.dart';
 import 'package:fireplace/src/view/chat/chat_app_bar_parts.dart';
 import 'package:fireplace/src/view/chat/chat_safety_notices.dart';
@@ -383,7 +384,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         peerUid != null &&
         ref.watch(peerVerifiedProvider(peerUid)).value == true;
 
-    return Scaffold(
+    return MessageSelectionSurface(
+      chatId: widget.chatId,
+      onDeleted: (ids) {
+        for (final id in ids) {
+          _sendController.forgetPending(id);
+        }
+        if (mounted) setState(() {});
+      },
       appBar: UiAppBar(
         context: context,
         toolbarHeight: 64,
@@ -482,6 +490,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             Expanded(
               child: ChatTimeline(
+                chatId: widget.chatId,
                 blocked: blocked,
                 historyFailed: messageState.hasError,
                 loading: messageState.isLoading,

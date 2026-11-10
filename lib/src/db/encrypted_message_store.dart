@@ -70,7 +70,8 @@ class EncryptedFileMessageStore implements LocalMessageStore {
   }
 
   List<LocalMessage> _sorted(Map<String, LocalMessage> m) =>
-      m.values.toList()..sort((a, b) => a.sentAt.compareTo(b.sentAt));
+      m.values.where((m) => !m.locallyDeleted).toList()
+        ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
 
   @override
   Future<bool> has(String chatId, String messageId) async =>
@@ -80,7 +81,9 @@ class EncryptedFileMessageStore implements LocalMessageStore {
   Future<void> add(LocalMessage m) {
     final done = _writes.then((_) async {
       // Readers and journal replay must only observe durably committed history.
-      final map = {...await _load(m.chatId), m.id: m};
+      final current = await _load(m.chatId);
+      if (current[m.id]?.locallyDeleted == true) return;
+      final map = {...current, m.id: m};
       final box = await _aead.encrypt(
         utf8Bytes(jsonEncode([for (final x in map.values) x.toJson()])),
         secretKey: _key,
@@ -101,32 +104,28 @@ class EncryptedFileMessageStore implements LocalMessageStore {
   }
 
   @override
-  Future<LocalMessage?> get(String chatId, String messageId) async =>
-      (await _load(chatId))[messageId];
+  Future<LocalMessage?> get(String chatId, String messageId) async {
+    final m = (await _load(chatId))[messageId];
+    return m?.locallyDeleted == true ? null : m;
+  }
 
   @override
   Future<void> remove(String chatId, String messageId) {
     final done = _writes.then((_) async {
       final map = {...await _load(chatId)};
-      final old = map.remove(messageId);
-      if (old == null) return;
-      try {
-        final box = await _aead.encrypt(
-          utf8Bytes(jsonEncode([for (final x in map.values) x.toJson()])),
-          secretKey: _key,
-          aad: utf8Bytes(chatId),
-        );
-        final f = await _file(chatId);
-        final tmp = File('${f.path}.tmp');
-        await tmp.writeAsBytes(
-          Uint8List.fromList(box.concatenation()),
-          flush: true,
-        );
-        await tmp.rename(f.path);
-      } catch (_) {
-        map[messageId] = old; // the disk still has it; keep memory in step
-        rethrow;
-      }
+      map[messageId] = LocalMessage.tombstone(chatId, messageId);
+      final box = await _aead.encrypt(
+        utf8Bytes(jsonEncode([for (final x in map.values) x.toJson()])),
+        secretKey: _key,
+        aad: utf8Bytes(chatId),
+      );
+      final f = await _file(chatId);
+      final tmp = File('${f.path}.tmp');
+      await tmp.writeAsBytes(
+        Uint8List.fromList(box.concatenation()),
+        flush: true,
+      );
+      await tmp.rename(f.path);
       _cache[chatId] = map;
       _ctrls[chatId]?.add(_sorted(map));
     });
