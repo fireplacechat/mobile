@@ -13,8 +13,10 @@ opaque, full-bleed squares, and iOS applies the actual mask. Physical iPhone
 appearance should be reviewed with the next build.
 
 Only the iOS master image, iOS icon catalogue and its renderer are changed.
-Android assets, the in-app logo, and the website are unchanged. No store build,
-signing, CI dispatch or submission was performed.
+Android assets, the in-app logo, and the website are unchanged. The owner has
+requested a TestFlight update; `pubspec.yaml` is now 0.1.2+000102 so its upload
+has a fresh version/build number. The release workflow must run from reviewed
+main and retains its protected environment approval.
 
 ## Regeneration and checks
 
