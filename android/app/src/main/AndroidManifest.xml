@@ -7,7 +7,7 @@
          and cannot be restored on another phone, so a restored copy of the app's data would
          be unreadable (and would put encrypted history in Google's backups for nothing). -->
     <application
-        android:label="fireplace."
+        android:label="Fireplace"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:allowBackup="false"
