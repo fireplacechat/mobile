@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 
 class ChatBackButton extends StatelessWidget {
@@ -49,7 +50,19 @@ class ChatTitle extends StatelessWidget {
               : () => onOpenDetails(context),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Text(name, overflow: TextOverflow.ellipsis),
+            child: Text(
+              name,
+              overflow: TextOverflow.ellipsis,
+              // Same size as the name on a conversation in the chat list.
+              // The app bar's own title style is larger and must not apply.
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.2,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
+                color: FireplaceUiTokens.of(context).text,
+              ),
+            ),
           ),
         ),
       ),

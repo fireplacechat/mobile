@@ -117,6 +117,12 @@ void main() {
       addTearDown(f.session.close);
       await mount(t, f, const ChatListScreen());
       expect(find.byKey(const ValueKey('unread-alice_fred')), findsOneWidget);
+      final listName = t.widget<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('conversation-alice_fred')),
+          matching: find.text('fred'),
+        ),
+      );
       final c = container(t);
       await t.tap(find.byKey(const ValueKey('conversation-alice_bob')));
       await t.pumpAndSettle();
@@ -131,6 +137,14 @@ void main() {
       await t.tap(find.byKey(const ValueKey('conversation-alice_fred')));
       await t.pumpAndSettle();
       await settleUi(t);
+      final title = t.widget<Text>(
+        find.descendant(
+          of: find.byKey(const Key('chatDetails')),
+          matching: find.text('fred'),
+        ),
+      );
+      expect(title.style!.fontSize, listName.style!.fontSize);
+      expect(title.style!.fontWeight, listName.style!.fontWeight);
       expect(c.read(chatActivityProvider).unread['alice_fred'], 0);
     },
   );

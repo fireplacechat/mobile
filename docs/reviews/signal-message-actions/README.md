@@ -25,7 +25,8 @@ Decision 0023 records the deletion change.
 Pressing send clears the composer and shows the message in the conversation
 at once, with its time. Encryption still runs afterwards. The send button
 stays the arrow. A failure still says it was not sent. A reaction sits in a
-pill with the same space on both sides of the emoji.
+pill with the same space on both sides of the emoji. The name at the top of
+a chat is the same size as the name in the chat list.
 
 ## Screenshots
 
