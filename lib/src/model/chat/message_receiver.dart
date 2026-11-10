@@ -1,3 +1,5 @@
+import 'package:fireplace/src/db/message_quote.dart';
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -426,11 +428,17 @@ class MessageReceiver {
     var body = 'Malformed message.';
     var status = MessageStatus.undecryptable;
     MessageMutation? mutation;
+    MessageQuote? quote;
     try {
       final payload = jsonDecode(utf8.decode(plain));
       if (payload is Map &&
           payload['type'] == 'text' &&
           payload['body'] is String) {
+        if (payload['v'] == 3 && payload['quote'] != null) {
+          quote = MessageQuote.fromJson(
+            Map<String, dynamic>.from(payload['quote']),
+          );
+        }
         body = payload['body'] as String;
         status = MessageStatus.ok;
       } else if (payload is Map &&
@@ -456,6 +464,7 @@ class MessageReceiver {
       'body': body,
       'status': status.name,
       if (mutation != null) 'mutation': mutation.toJson(),
+      if (quote != null) 'quote': quote.toJson(),
       'sessions': jsonEncode([for (final x in sessions) x.toJson()]),
       'opk': acceptedWith,
     };

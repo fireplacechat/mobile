@@ -1,3 +1,4 @@
+import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
@@ -23,8 +24,10 @@ class MessageBubble extends ConsumerStatefulWidget {
     this.selecting = false,
     this.selected = false,
     this.onToggleSelection,
+    this.onQuote,
   });
   final LocalMessage message;
+  final ValueChanged<String>? onQuote;
   final bool preview;
   final bool selecting, selected;
   final VoidCallback? onToggleSelection;
@@ -40,6 +43,7 @@ class MessageBubble extends ConsumerStatefulWidget {
 }
 
 class _MessageBubbleState extends ConsumerState<MessageBubble> {
+  double _replyDrag = 0;
   bool _held = false; // highlighted while its menu is open
   bool _showAll = false;
   bool _focused = false;
@@ -134,6 +138,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
   @override
   Widget build(BuildContext context) {
     final message = widget.message;
+    final reply = widget.selecting || widget.preview
+        ? null
+        : widget.actions.where((a) => a.id == 'reply').firstOrNull;
     final t = FireplaceUiTokens.of(context);
     final colors = ref.watch(chatBubbleColorsProvider);
     final mine = message.outgoing;
@@ -196,6 +203,18 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
           child: GestureDetector(
             key: _actionAnchor,
             onTap: widget.selecting ? widget.onToggleSelection : null,
+            onHorizontalDragUpdate: reply == null
+                ? null
+                : (d) => setState(
+                    () => _replyDrag = (_replyDrag + d.delta.dx).clamp(0, 72),
+                  ),
+            onHorizontalDragCancel: () => setState(() => _replyDrag = 0),
+            onHorizontalDragEnd: reply == null
+                ? null
+                : (_) {
+                    if (_replyDrag >= 48) reply.onSelected();
+                    setState(() => _replyDrag = 0);
+                  },
             // Touch: press and hold. Desktop: right click.
             onLongPressStart: widget.actions.isEmpty
                 ? null
@@ -208,108 +227,133 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
             onLongPressEnd: (_) => _gesture?.onEnd?.call(),
             child: Opacity(
               opacity: _held ? 0 : 1,
-              child: Container(
-                key: ValueKey(
-                  '${widget.preview ? 'heldMessage' : 'messageBubble'}-${message.id}',
-                ),
-                constraints: BoxConstraints(
-                  maxWidth: (box.maxWidth * (widget.preview ? 1 : .8))
-                      .clamp(0.0, 480.0)
-                      .toDouble(),
-                ),
-                margin: const EdgeInsets.symmetric(vertical: 4),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: _held
-                      ? Color.alphaBlend(const Color(0x22000000), base)
-                      : base,
-                  borderRadius: bubbleRadius,
-                ),
-                // Painted over the bubble, so focus never changes its size.
-                foregroundDecoration: _focused
-                    ? BoxDecoration(
-                        border: Border.all(color: fg, width: 2),
-                        borderRadius: bubbleRadius,
-                      )
-                    : null,
-                // The sender is announced first. The menu actions are also offered to screen readers, as
-                // custom actions, because a long press is hard to perform with TalkBack or VoiceOver.
-                child: Semantics(
-                  label: who,
-                  selected: widget.selecting ? widget.selected : null,
-                  customSemanticsActions: {
-                    for (final a
-                        in widget.selecting
-                            ? <MessageAction>[]
-                            : widget.actions)
-                      CustomSemanticsAction(label: a.label): a.onSelected,
-                  },
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (bad)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 6,
-                            children: [
-                              Icon(Icons.lock_outline, size: 16, color: fg),
-                              Text(
-                                'Unreadable message',
-                                style: TextStyle(
-                                  color: fg,
-                                  fontWeight: FontWeight.w600,
+              child: Transform.translate(
+                offset: Offset(_replyDrag, 0),
+                child: Container(
+                  key: ValueKey(
+                    '${widget.preview ? 'heldMessage' : 'messageBubble'}-${message.id}',
+                  ),
+                  constraints: BoxConstraints(
+                    maxWidth: (box.maxWidth * (widget.preview ? 1 : .8))
+                        .clamp(0.0, 480.0)
+                        .toDouble(),
+                  ),
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _held
+                        ? Color.alphaBlend(const Color(0x22000000), base)
+                        : base,
+                    borderRadius: bubbleRadius,
+                  ),
+                  // Painted over the bubble, so focus never changes its size.
+                  foregroundDecoration: _focused
+                      ? BoxDecoration(
+                          border: Border.all(color: fg, width: 2),
+                          borderRadius: bubbleRadius,
+                        )
+                      : null,
+                  // The sender is announced first. The menu actions are also offered to screen readers, as
+                  // custom actions, because a long press is hard to perform with TalkBack or VoiceOver.
+                  child: Semantics(
+                    label: who,
+                    selected: widget.selecting ? widget.selected : null,
+                    customSemanticsActions: {
+                      for (final a
+                          in widget.selecting
+                              ? <MessageAction>[]
+                              : widget.actions)
+                        CustomSemanticsAction(label: a.label): a.onSelected,
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (message.quote != null && !message.remotelyDeleted)
+                          MessageQuotePreview(
+                            key: ValueKey('messageQuote-${message.id}'),
+                            quote: message.quote!,
+                            foreground: fg,
+                            author:
+                                message.quote!.senderUid ==
+                                    ref.watch(
+                                      appSessionProvider.select(
+                                        (s) => s.value?.uid,
+                                      ),
+                                    )
+                                ? 'You'
+                                : widget.senderName ?? 'Them',
+                            onTap: widget.preview
+                                ? null
+                                : widget.selecting
+                                ? widget.onToggleSelection
+                                : () => widget.onQuote?.call(
+                                    message.quote!.targetId,
+                                  ),
+                          ),
+                        if (bad)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 6,
+                              children: [
+                                Icon(Icons.lock_outline, size: 16, color: fg),
+                                Text(
+                                  'Unreadable message',
+                                  style: TextStyle(
+                                    color: fg,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
+                              ],
+                            ),
+                          ),
+                        Align(
+                          widthFactor: message.quote == null ? 1 : null,
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Text.rich(
+                            formatted.span(
+                              TextStyle(
+                                color: fg,
+                                fontSize: 17,
+                                height: 1.3,
+                                fontStyle: bad || message.remotelyDeleted
+                                    ? FontStyle.italic
+                                    : FontStyle.normal,
                               ),
-                            ],
+                            ),
+                            semanticsLabel: formatted.plain,
                           ),
                         ),
-                      Align(
-                        widthFactor: 1,
-                        alignment: AlignmentDirectional.centerStart,
-                        child: Text.rich(
-                          formatted.span(
-                            TextStyle(
-                              color: fg,
-                              fontSize: 17,
-                              height: 1.3,
-                              fontStyle: bad || message.remotelyDeleted
-                                  ? FontStyle.italic
-                                  : FontStyle.normal,
+                        if (oversize)
+                          TextButton(
+                            key: ValueKey('showAll-${message.id}'),
+                            onPressed: widget.selecting
+                                ? widget.onToggleSelection
+                                : () => setState(() => _showAll = !_showAll),
+                            child: Text(
+                              _showAll ? 'Show less' : 'Show all',
+                              style: TextStyle(
+                                color: fg,
+                                decoration: TextDecoration.underline,
+                              ),
                             ),
                           ),
-                          semanticsLabel: formatted.plain,
-                        ),
-                      ),
-                      if (oversize)
-                        TextButton(
-                          key: ValueKey('showAll-${message.id}'),
-                          onPressed: widget.selecting
-                              ? widget.onToggleSelection
-                              : () => setState(() => _showAll = !_showAll),
-                          child: Text(
-                            _showAll ? 'Show less' : 'Show all',
-                            style: TextStyle(
-                              color: fg,
-                              decoration: TextDecoration.underline,
-                            ),
+                        const SizedBox(height: 2),
+                        Text(
+                          time,
+                          style: TextStyle(
+                            color: mine ? fg : t.secondaryText,
+                            fontSize: 11,
+                            height: 1.3,
                           ),
                         ),
-                      const SizedBox(height: 2),
-                      Text(
-                        time,
-                        style: TextStyle(
-                          color: mine ? fg : t.secondaryText,
-                          fontSize: 11,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

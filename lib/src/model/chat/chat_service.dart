@@ -1,3 +1,4 @@
+import 'package:fireplace/src/db/message_quote.dart';
 // ignore_for_file: prefer_initializing_formals
 
 import 'dart:async';
@@ -75,6 +76,7 @@ class ChatService {
     uid,
     device,
     sendText: sendText,
+    sendQuoted: _sender.sendQuoted,
     peerOf: peerOf,
   );
   late final _journal = ReceiveJournal(
@@ -173,6 +175,38 @@ class ChatService {
 
   Future<void> sendText(String chatId, String text) =>
       _sender.sendText(chatId, text);
+
+  Future<void> sendReply(String chatId, String text, String targetId) =>
+      _sender.sendReply(chatId, text, targetId);
+
+  Future<void> resendQuotedMessage(
+    String chatId,
+    String id,
+    String body,
+    MessageQuote quote,
+  ) async {
+    await _sender.sendQuoted(chatId, body, quote);
+    await _messages.remove(chatId, id);
+  }
+
+  Future<void> saveReplyLocally({
+    required String chatId,
+    required String messageId,
+    required String body,
+    required DateTime sentAt,
+    required MessageQuote quote,
+  }) => _messages.add(
+    LocalMessage(
+      id: messageId,
+      chatId: chatId,
+      senderUid: uid,
+      senderDevice: device.keys.deviceId,
+      outgoing: true,
+      sentAt: sentAt,
+      body: body,
+      quote: quote,
+    ),
+  );
 
   Future<void> react(String chatId, String targetId, String emoji) =>
       _sender.sendControl(

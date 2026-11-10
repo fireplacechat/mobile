@@ -78,5 +78,15 @@ Map<String, LocalMessage> projectMessageRecords(
       next[event.id] = LocalMessage.tombstone(event.chatId, event.id);
     }
   }
+  for (final message in next.values.toList()) {
+    final quote = message.quote;
+    if (quote == null) continue;
+    final original = next[quote.targetId];
+    if (message.remotelyDeleted ||
+        original?.locallyDeleted == true ||
+        original?.remotelyDeleted == true) {
+      next[message.id] = message.copyWith(quote: quote.withoutContent());
+    }
+  }
   return next;
 }

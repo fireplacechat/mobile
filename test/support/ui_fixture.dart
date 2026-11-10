@@ -1,5 +1,9 @@
 // Test/render-only fixtures. No Firebase SDK instance, real keys or platform storage.
 import 'dart:async';
+
+import 'package:fireplace/src/db/message_quote.dart';
+import 'package:fireplace/src/model/chat/message_limits.dart';
+
 import 'dart:typed_data';
 
 import 'package:fireplace/fireplace_services.dart';
@@ -74,6 +78,30 @@ class FixtureChat extends Fake implements ChatService {
     sends.add(body);
     if (sendHold != null) await sendHold!.future;
     if (sendError != null) throw sendError!;
+  }
+
+  final replies = <(String, String)>[];
+  @override
+  Future<void> sendReply(String chatId, String body, String targetId) async {
+    await sendText(chatId, body);
+    replies.add((targetId, body));
+    final target = await store.get(chatId, targetId);
+    await store.add(
+      LocalMessage(
+        id: 'reply-${replies.length}',
+        chatId: chatId,
+        senderUid: 'alice',
+        senderDevice: 'example-device-alice',
+        outgoing: true,
+        sentAt: fixtureTime.add(const Duration(minutes: 1)),
+        body: body,
+        quote: MessageQuote(
+          targetId: targetId,
+          senderUid: target!.senderUid,
+          body: clipMessage(target.body, 1024),
+        ),
+      ),
+    );
   }
 
   @override

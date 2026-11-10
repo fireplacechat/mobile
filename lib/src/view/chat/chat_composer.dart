@@ -23,7 +23,11 @@ class ChatComposer extends StatelessWidget {
     required this.send,
     required this.onUnblock,
     this.onInteraction,
+    this.contextBar,
+    this.focusNode,
   });
+  final Widget? contextBar;
+  final FocusNode? focusNode;
   final double keyboardInset;
   final TextEditingController text;
   final String name;
@@ -77,91 +81,111 @@ class ChatComposer extends StatelessWidget {
             decoration: BoxDecoration(
               color: FireplaceUiTokens.of(context).panel,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight:
-                          ((MediaQuery.sizeOf(context).height - keyboardInset) *
-                                  .35)
-                              .clamp(120, 280),
-                    ),
-                    child: TextField(
-                      key: Key('composer'),
-                      controller: text,
-                      onTap: onInteraction,
-                      inputFormatters: [MessageInputFormatter()],
-                      minLines: 1,
-                      maxLines:
-                          MediaQuery.sizeOf(context).height - keyboardInset <
-                              500
-                          ? 3
-                          : 6,
-                      textCapitalization: TextCapitalization.sentences,
-                      style: const TextStyle(fontSize: 17, height: 1.3),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: FireplaceUiTokens.of(context).incomingBubble,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(22),
-                          borderSide: BorderSide.none,
+                ?contextBar,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              ((MediaQuery.sizeOf(context).height -
+                                          keyboardInset) *
+                                      .35)
+                                  .clamp(120, 280),
                         ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(22),
-                          borderSide: BorderSide.none,
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(22),
-                          borderSide: BorderSide.none,
-                        ),
-                        counter:
-                            messageCharacters(text.text) >=
-                                (maxMessageCharacters * .9).floor()
-                            ? Text(
-                                '${messageCharacters(text.text)} / 16,384',
-                                key: const Key('messageCounter'),
-                                style: Theme.of(context).textTheme.bodySmall,
-                              )
-                            : null,
-                        hintText: 'Message',
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 11,
+                        child: TextField(
+                          key: Key('composer'),
+                          controller: text,
+                          focusNode: focusNode,
+                          onTap: onInteraction,
+                          inputFormatters: [MessageInputFormatter()],
+                          minLines: 1,
+                          maxLines:
+                              MediaQuery.sizeOf(context).height -
+                                      keyboardInset <
+                                  500
+                              ? 3
+                              : 6,
+                          textCapitalization: TextCapitalization.sentences,
+                          style: const TextStyle(fontSize: 17, height: 1.3),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: FireplaceUiTokens.of(context)
+                                .incomingBubble,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(22),
+                              borderSide: BorderSide.none,
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(22),
+                              borderSide: BorderSide.none,
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(22),
+                              borderSide: BorderSide.none,
+                            ),
+                            counter:
+                                messageCharacters(text.text) >=
+                                    (maxMessageCharacters * .9).floor()
+                                ? Text(
+                                    '${messageCharacters(text.text)} / 16,384',
+                                    key: const Key('messageCounter'),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                  )
+                                : null,
+                            hintText: 'Message',
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 11,
+                            ),
+                          ),
+                          textInputAction: TextInputAction.newline,
                         ),
                       ),
-                      textInputAction: TextInputAction.newline,
                     ),
-                  ),
-                ),
-                SizedBox(width: 4),
-                // Sending is part of editing; keep the keyboard ready to reply.
-                TextFieldTapRegion(
-                  child: IconButton.filled(
-                    key: Key('send'),
-                    style: IconButton.styleFrom(
-                      minimumSize: const Size(40, 40),
-                      fixedSize: const Size(40, 40),
-                      shape: const CircleBorder(),
-                      backgroundColor: FireplaceUiTokens.of(context).accent,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    SizedBox(width: 4),
+                    // Sending is part of editing; keep the keyboard ready to reply.
+                    TextFieldTapRegion(
+                      child: IconButton.filled(
+                        key: Key('send'),
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size(40, 40),
+                          fixedSize: const Size(40, 40),
+                          shape: const CircleBorder(),
+                          backgroundColor: FireplaceUiTokens.of(context).accent,
+                          foregroundColor: Theme.of(context)
+                              .colorScheme
+                              .onPrimary,
+                        ),
+                        onPressed:
+                            send.sending ||
+                                text.text.trim().isEmpty ||
+                                !hasSession
+                            ? null
+                            : send.send,
+                        tooltip: send.sending
+                            ? 'Sending message'
+                            : 'Send message',
+                        icon: send.sending
+                            ? SizedBox.square(
+                                dimension: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onPrimary,
+                                ),
+                              )
+                            : Icon(Icons.arrow_upward_rounded),
+                      ),
                     ),
-                    onPressed:
-                        send.sending || text.text.trim().isEmpty || !hasSession
-                        ? null
-                        : send.send,
-                    tooltip: send.sending ? 'Sending message' : 'Send message',
-                    icon: send.sending
-                        ? SizedBox.square(
-                            dimension: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          )
-                        : Icon(Icons.arrow_upward_rounded),
-                  ),
+                  ],
                 ),
               ],
             ),

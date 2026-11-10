@@ -1,3 +1,4 @@
+import 'package:fireplace/src/model/chat/message_compose_target.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -90,6 +91,17 @@ List<MessageAction> messageMenuActions(
         onSelected: () => run(() => showReactionPicker(context, ref, message)),
       ),
     ],
+    if (canShare && message.status == MessageStatus.ok)
+      MessageAction(
+        id: 'reply',
+        label: 'Reply',
+        icon: Icons.reply_rounded,
+        onSelected: () => run(
+          () => ref
+              .read(messageComposeProvider(chatId()).notifier)
+              .reply(message),
+        ),
+      ),
     if (canShare)
       MessageAction(
         id: 'copy',

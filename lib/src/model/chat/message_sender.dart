@@ -1,3 +1,6 @@
+import 'package:fireplace/src/model/chat/message_content.dart';
+import 'package:fireplace/src/db/message_quote.dart';
+
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -98,6 +101,12 @@ class MessageSender {
     return _send(chatId, text);
   }
 
+  Future<void> sendReply(String chatId, String text, String targetId) =>
+      _send(chatId, text, replyTarget: targetId);
+
+  Future<void> sendQuoted(String chatId, String text, MessageQuote quote) =>
+      _send(chatId, text, quote: quote);
+
   Future<void> sendControl(String chatId, MessageMutation mutation) =>
       _send(chatId, '', mutation: mutation);
 
@@ -105,43 +114,25 @@ class MessageSender {
     String chatId,
     String text, {
     MessageMutation? mutation,
+    MessageQuote? quote,
+    String? replyTarget,
   }) => _lock.run(() async {
     // A received message may have left a journal that was not fully applied. It holds a
     // snapshot of the session; replaying it AFTER this send would roll the ratchet back and
     // reuse a counter. So finish it first (if storage is still failing, the send fails
     // safely instead).
     await _journal.recoverJournals();
-    if (mutation != null) {
-      final target = await _messages.get(chatId, mutation!.targetId);
-      if (target == null ||
-          !target.visible ||
-          target.remotelyDeleted ||
-          target.status != MessageStatus.ok) {
-        throw ChatException('This message is no longer available.');
-      }
-      if (mutation!.kind == MessageMutationKind.delete) {
-        final age = DateTime.now().difference(target.sentAt);
-        if (target.senderUid != uid ||
-            age.isNegative ||
-            age > const Duration(hours: 24)) {
-          throw ChatException(
-            'Only your messages from the last 24 hours can be deleted for everyone.',
-          );
-        }
-      } else {
-        final previous = target.reactions[uid];
-        mutation = MessageMutation(
-          kind: MessageMutationKind.reaction,
-          targetId: target.id,
-          emoji: mutation!.emoji,
-          operation: previous?.emoji == mutation!.emoji
-              ? ReactionOperation.clear
-              : ReactionOperation.set,
-          revision: (target.reactionClocks[uid] ?? previous?.revision ?? 0) + 1,
-        );
-      }
-      mutation = MessageMutation.fromJson(mutation!.toJson());
-    }
+    final content = await prepareMessageContent(
+      messages: _messages,
+      uid: uid,
+      chatId: chatId,
+      text: text,
+      quote: quote,
+      mutation: mutation,
+      replyTarget: replyTarget,
+    );
+    quote = content.quote;
+    mutation = content.mutation;
     final peerUid = peerOf(chatId);
     if (_safety?.isBlocked(peerUid) ?? false) {
       throw ChatException('You blocked this person. Unblock them to message.');
@@ -150,7 +141,7 @@ class MessageSender {
     final chatData = (await chatRef.get()).data() ?? const {};
     final initiator = chatData['initiator'] as String?;
     final accepted = (chatData['accepted'] as bool?) ?? true;
-    if (mutation != null && !accepted) {
+    if ((mutation != null || quote != null) && !accepted) {
       throw ChatException(
         'Accept this conversation before reacting or deleting for everyone.',
       );
@@ -182,10 +173,15 @@ class MessageSender {
         .where((d) => d.deviceId != device.keys.deviceId);
     final plain = utf8.encode(
       jsonEncode({
-        'v': mutation == null ? 1 : 2,
+        'v': quote != null
+            ? 3
+            : mutation == null
+            ? 1
+            : 2,
         if (mutation == null) ...{
           'type': 'text',
           'body': text,
+          if (quote != null) 'quote': quote!.toJson(),
         } else
           ...mutation!.toJson(),
         'ts': DateTime.now().millisecondsSinceEpoch,
@@ -343,10 +339,24 @@ class MessageSender {
         throw SendRefusedException(_refusedText(e.code));
       }
       // Anything else (network lost, timeout): the message may exist.
-      throw await _unknownOutcome(chatId, ref.id, text, sentAt, mutation);
+      throw await _unknownOutcome(
+        chatId,
+        ref.id,
+        text,
+        sentAt,
+        mutation,
+        quote,
+      );
     } catch (_) {
       // A non-Firebase failure while publishing (for example a timeout) is ambiguous as well.
-      throw await _unknownOutcome(chatId, ref.id, text, sentAt, mutation);
+      throw await _unknownOutcome(
+        chatId,
+        ref.id,
+        text,
+        sentAt,
+        mutation,
+        quote,
+      );
     }
     // Published. The ratchets were saved before publishing, so record the message.
     var localSaveFailed = false;
@@ -361,6 +371,7 @@ class MessageSender {
           sentAt: sentAt,
           body: text,
           mutation: mutation,
+          quote: quote,
         ),
       );
     } catch (_) {
@@ -384,6 +395,7 @@ class MessageSender {
         attemptedAt: sentAt,
         persisted: false,
         mutation: mutation,
+        quote: quote,
       );
     }
   });
@@ -416,6 +428,7 @@ class MessageSender {
     String body,
     DateTime sentAt,
     MessageMutation? mutation,
+    MessageQuote? quote,
   ) async {
     var persisted = true;
     try {
@@ -430,6 +443,7 @@ class MessageSender {
           body: body,
           status: MessageStatus.unconfirmed,
           mutation: mutation,
+          quote: quote,
         ),
       );
     } catch (_) {
@@ -443,6 +457,7 @@ class MessageSender {
       attemptedAt: sentAt,
       persisted: persisted,
       mutation: mutation,
+      quote: quote,
     );
   }
 }

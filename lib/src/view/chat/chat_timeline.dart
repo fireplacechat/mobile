@@ -18,6 +18,7 @@ class ChatTimeline extends ConsumerWidget {
   ChatTimeline({
     super.key,
     required this.chatId,
+    this.onQuote,
     required this.blocked,
     required this.historyFailed,
     required this.loading,
@@ -37,6 +38,7 @@ class ChatTimeline extends ConsumerWidget {
   final List<LocalMessage> msgs;
   final String name;
   final String chatId;
+  final ValueChanged<String>? onQuote;
   final GlobalKey viewportKey;
   final ScrollController scrollController;
   final GlobalKey Function(String) anchorFor;
@@ -138,6 +140,7 @@ class ChatTimeline extends ConsumerWidget {
                                         onToggleSelection: () =>
                                             controller.toggle(message.id),
                                         actions: actionsFor(message),
+                                        onQuote: onQuote,
                                       ),
                                     ),
                                   ],

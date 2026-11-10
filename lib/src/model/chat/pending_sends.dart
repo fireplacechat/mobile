@@ -33,6 +33,8 @@ class PendingLocalSends
         body: old.body,
         attemptedAt: old.attemptedAt,
         persisted: false,
+        quote: old.quote,
+        mutation: old.mutation,
       ),
       ownerUid: ownerUid,
     );
