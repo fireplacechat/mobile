@@ -63,6 +63,10 @@ void main() {
     await t.pumpAndSettle();
     expect(find.byKey(const Key('selectionCount')), findsNothing);
     expect(await f.chat.store.get('alice_fred', '5'), isNotNull);
+    await select(t, '5');
+    await t.tap(find.byKey(const Key('composer')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('selectionCount')), findsNothing);
   });
 
   testWidgets('selection resets when account or access changes', (t) async {

@@ -153,6 +153,7 @@ void main() {
       (t) async {
         final f = UiFixture();
         await f.seed();
+        await f.chat.store.add(message(id: 'target', body: '**Hello**'));
         addTearDown(f.session.close);
         var mounted = true;
         String? copied;
@@ -185,6 +186,7 @@ void main() {
                   ref.watch(hiddenChatsProvider);
                   ref.watch(identityAlertsProvider);
                   ref.watch(chatActivityProvider);
+                  ref.watch(messagesProvider('alice_fred'));
                   actions = messageMenuActions(
                     message(id: 'target', body: '**Hello**'),
                     ref: ref,

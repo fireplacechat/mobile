@@ -128,7 +128,8 @@ class ChatTimeline extends ConsumerWidget {
                           ),
                         ),
                       ),
-                      if (message.outgoing &&
+                      if (!selection.active &&
+                          message.outgoing &&
                           !message.remotelyDeleted &&
                           (message.status == MessageStatus.unconfirmed ||
                               send.memoryPending[message.id]?.outcome ==

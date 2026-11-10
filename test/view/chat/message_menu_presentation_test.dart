@@ -6,6 +6,47 @@ import '../../support/ui_fixture.dart';
 import 'long_press_menu_test.dart' show openChat, bubble, action;
 
 void main() {
+  testWidgets(
+    'back closes the overlay and a deleted message cannot be copied',
+    (t) async {
+      final f = UiFixture();
+      await f.seed();
+      addTearDown(f.session.close);
+      await openChat(t, f);
+      await t.longPress(bubble('5'));
+      await t.pumpAndSettle();
+      await t.binding.handlePopRoute();
+      await t.pumpAndSettle();
+      expect(action('copy'), findsNothing);
+      String? copied;
+      t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied = (call.arguments as Map)['text'] as String;
+          }
+          return null;
+        },
+      );
+      addTearDown(
+        () => t.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          SystemChannels.platform,
+          null,
+        ),
+      );
+      await t.longPress(bubble('4'));
+      await t.pumpAndSettle();
+      await f.chat.deleteForEveryone('alice_fred', '4');
+      await t.pumpAndSettle();
+      expect(
+        find.text('Looking forward to it. What time works for you?'),
+        findsNothing,
+      );
+      await t.tap(action('copy'));
+      await t.pumpAndSettle();
+      expect(copied, isNull);
+    },
+  );
   for (final id in ['4', '5']) {
     testWidgets('held bubble $id stays aligned with its menu', (t) async {
       t.view.physicalSize = const Size(390, 844);

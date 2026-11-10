@@ -53,6 +53,7 @@ class FixtureChat extends Fake implements ChatService {
   Completer<String>? startHold;
   Object? sendError;
   Object? controlError;
+  int controlAttempts = 0;
   final reactions = <(String, String)>[];
   final remoteDeletes = <String>[];
 
@@ -81,6 +82,7 @@ class FixtureChat extends Fake implements ChatService {
 
   @override
   Future<void> react(String chatId, String targetId, String emoji) async {
+    controlAttempts++;
     if (controlError != null) throw controlError!;
     reactions.add((targetId, emoji));
     final target = await store.get(chatId, targetId);

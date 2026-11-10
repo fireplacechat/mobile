@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 
@@ -6,6 +7,24 @@ import '../../support/ui_fixture.dart';
 import 'long_press_menu_test.dart' show openChat, bubble, action;
 
 void main() {
+  testWidgets(
+    'hold, slide to an emoji and release reacts without another tap',
+    (t) async {
+      final f = UiFixture();
+      await f.seed();
+      addTearDown(f.session.close);
+      await openChat(t, f);
+      final gesture = await t.startGesture(t.getCenter(bubble('5')));
+      await t.pump(kLongPressTimeout + const Duration(milliseconds: 1));
+      await t.pumpAndSettle();
+      await gesture.moveTo(t.getCenter(action('react-❤️')));
+      await t.pump();
+      await gesture.up();
+      await t.pumpAndSettle();
+      expect(f.chat.reactions, [('5', '❤️')]);
+      expect(action('react-❤️'), findsNothing);
+    },
+  );
   testWidgets('quick reaction, replace and remove through reaction details', (
     t,
   ) async {
@@ -101,5 +120,6 @@ void main() {
     expect(find.textContaining('It may have reached them'), findsOneWidget);
     expect(find.text('Check status'), findsOneWidget);
     expect(f.chat.reactions, isEmpty);
+    expect(f.chat.controlAttempts, 1);
   });
 }
