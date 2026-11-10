@@ -1,3 +1,5 @@
+import 'package:fireplace/src/db/message_quote.dart';
+
 import 'dart:async';
 
 import 'package:fireplace/src/db/message_mutation.dart';
@@ -26,6 +28,7 @@ class LocalMessage {
     this.locallyDeleted = false,
     this.remotelyDeleted = false,
     this.mutation,
+    this.quote,
     Map<String, MessageReaction> reactions = const {},
     Map<String, int> reactionClocks = const {},
   }) : reactions = Map.unmodifiable(reactions),
@@ -42,12 +45,14 @@ class LocalMessage {
   final bool locallyDeleted;
   final bool remotelyDeleted;
   final MessageMutation? mutation;
+  final MessageQuote? quote;
   final Map<String, MessageReaction> reactions;
   final Map<String, int> reactionClocks;
   bool get visible => !locallyDeleted && mutation == null;
 
   LocalMessage copyWith({
     String? body,
+    MessageQuote? quote,
     bool? outgoing,
     MessageStatus? status,
     bool? remotelyDeleted,
@@ -65,6 +70,7 @@ class LocalMessage {
     locallyDeleted: locallyDeleted,
     remotelyDeleted: remotelyDeleted ?? this.remotelyDeleted,
     mutation: mutation,
+    quote: quote ?? this.quote,
     reactions: reactions ?? this.reactions,
     reactionClocks: reactionClocks ?? this.reactionClocks,
   );
@@ -100,6 +106,7 @@ class LocalMessage {
     if (locallyDeleted) 'locallyDeleted': true,
     if (remotelyDeleted) 'remotelyDeleted': true,
     if (mutation != null) 'mutation': mutation!.toJson(),
+    if (quote != null) 'quote': quote!.toJson(),
     if (reactions.isNotEmpty)
       'reactions': {for (final e in reactions.entries) e.key: e.value.toJson()},
     if (reactionClocks.isNotEmpty) 'reactionClocks': reactionClocks,
@@ -113,6 +120,9 @@ class LocalMessage {
     outgoing: j['outgoing'],
     sentAt: DateTime.fromMillisecondsSinceEpoch(j['sentAt']),
     body: j['body'],
+    quote: j['quote'] == null
+        ? null
+        : MessageQuote.fromJson(Map<String, dynamic>.from(j['quote'])),
     status: MessageStatus.values.byName(j['status']),
     locallyDeleted: j['locallyDeleted'] == true,
     remotelyDeleted: j['remotelyDeleted'] == true,

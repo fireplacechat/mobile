@@ -1,3 +1,4 @@
+import 'package:fireplace/src/db/message_quote.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
@@ -9,8 +10,10 @@ class MemoryPending {
       body = e.body,
       chatId = e.chatId,
       sentAt = e.attemptedAt,
-      outcome = e.outcome;
+      outcome = e.outcome,
+      quote = e.quote;
   final String messageId;
+  final MessageQuote? quote;
   final String body, chatId;
   final DateTime sentAt;
   SendOutcome outcome;
@@ -23,6 +26,7 @@ class MemoryPending {
     outgoing: true,
     sentAt: sentAt,
     body: body,
+    quote: quote,
     status: outcome == SendOutcome.publishedLocalSaveFailed
         ? MessageStatus.ok
         : MessageStatus.unconfirmed,

@@ -17,6 +17,7 @@ class SendController extends ChangeNotifier {
     required this.draft,
     required this.draftRevision,
     required this.clearDraft,
+    this.replyTarget,
     required void Function(String) notice,
     required this.showNewest,
     required this.reviewIdentity,
@@ -32,6 +33,7 @@ class SendController extends ChangeNotifier {
   final String Function() draft;
   final int Function() draftRevision;
   final void Function() clearDraft;
+  final String? Function()? replyTarget;
   late final void Function(String) _notice;
   final void Function() showNewest;
   final Future<void> Function(String, List<int>) reviewIdentity;
@@ -101,13 +103,21 @@ class SendController extends ChangeNotifier {
       return;
     }
     final draftRevision = this.draftRevision();
+    final reply = replyTarget?.call();
     _sending = true;
     _sendError = null;
     _changed();
     try {
-      await service.sendText(chatId(), body);
+      if (reply == null) {
+        await service.sendText(chatId(), body);
+      } else {
+        await service.sendReply(chatId(), body, reply);
+      }
       if (_disposed) return;
-      if (this.draftRevision() == draftRevision) clearDraft();
+      if (this.draftRevision() == draftRevision &&
+          replyTarget?.call() == reply) {
+        clearDraft();
+      }
       showNewest();
     } on SendNotConfirmedException catch (e) {
       // The message may already have been delivered, so this is NOT a plain failure: the attempted
@@ -119,7 +129,10 @@ class SendController extends ChangeNotifier {
         _changed();
       }
       // Edits made while the send was in flight survive: only an untouched draft is cleared.
-      if (this.draftRevision() == draftRevision) clearDraft();
+      if (this.draftRevision() == draftRevision &&
+          replyTarget?.call() == reply) {
+        clearDraft();
+      }
       showNewest();
     } on IdentityChangedException catch (e) {
       if (!_disposed) await reviewIdentity(e.peerUid, e.newIdentityPub);
@@ -163,12 +176,7 @@ class SendController extends ChangeNotifier {
           mem.outcome = SendOutcome.publishedLocalSaveFailed;
           pendingSends().confirmed(chatId(), messageId, ownerUid: uid!);
           try {
-            await service.saveSentLocally(
-              chatId: chatId(),
-              messageId: messageId,
-              body: mem.body,
-              sentAt: mem.sentAt,
-            );
+            await _savePending(service, mem);
             forgetPending(messageId);
           } catch (_) {
             // Still held in memory; the message is confirmed on the server.
@@ -204,11 +212,16 @@ class SendController extends ChangeNotifier {
     try {
       final go = await confirmSendAnotherCopy();
       if (go != true || _disposed) return;
-      await service.resendUnconfirmed(
-        chatId: chatId(),
-        messageId: messageId,
-        body: body,
-      );
+      final quote = _memoryPending[messageId]?.quote;
+      if (quote != null) {
+        await service.resendQuotedMessage(chatId(), messageId, body, quote);
+      } else {
+        await service.resendUnconfirmed(
+          chatId: chatId(),
+          messageId: messageId,
+          body: body,
+        );
+      }
       if (!_disposed) {
         forgetPending(messageId);
         _changed();
@@ -237,6 +250,22 @@ class SendController extends ChangeNotifier {
     }
   }
 
+  Future<void> _savePending(ChatService service, MemoryPending mem) =>
+      mem.quote == null
+      ? service.saveSentLocally(
+          chatId: chatId(),
+          messageId: mem.messageId,
+          body: mem.body,
+          sentAt: mem.sentAt,
+        )
+      : service.saveReplyLocally(
+          chatId: chatId(),
+          messageId: mem.messageId,
+          body: mem.body,
+          sentAt: mem.sentAt,
+          quote: mem.quote!,
+        );
+
   /// Repairs local history for a message known to be on the server. No publish.
   Future<void> saveOnDevice(MemoryPending mem) async {
     final service = chat();
@@ -244,12 +273,7 @@ class SendController extends ChangeNotifier {
     _messageActions[mem.messageId] = MessageRecoveryAction.saving;
     _changed();
     try {
-      await service.saveSentLocally(
-        chatId: chatId(),
-        messageId: mem.messageId,
-        body: mem.body,
-        sentAt: mem.sentAt,
-      );
+      await _savePending(service, mem);
       if (!_disposed) {
         forgetPending(mem.messageId);
         _changed();

@@ -1,3 +1,4 @@
+import 'package:fireplace/src/db/message_quote.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
@@ -10,6 +11,7 @@ class SendRecovery {
     this.uid,
     this.device, {
     required this.sendText,
+    required this.sendQuoted,
     required this.peerOf,
   });
 
@@ -19,6 +21,7 @@ class SendRecovery {
   final LocalDevice device;
   final Future<void> Function(String chatId, String text) sendText;
   final String Function(String chatId) peerOf;
+  final Future<void> Function(String, String, MessageQuote) sendQuoted;
 
   /// Asks the SERVER whether an unconfirmed message exists. Only server evidence counts: a
   /// missing document, an offline error or a cached answer never proves it was not published.
@@ -89,7 +92,12 @@ class SendRecovery {
     required String messageId,
     required String body,
   }) async {
-    await sendText(chatId, body);
+    final quote = (await _messages.get(chatId, messageId))?.quote;
+    if (quote == null) {
+      await sendText(chatId, body);
+    } else {
+      await sendQuoted(chatId, body, quote);
+    }
     try {
       await _messages.remove(chatId, messageId);
     } catch (_) {

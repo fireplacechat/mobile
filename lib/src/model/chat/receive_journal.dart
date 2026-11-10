@@ -1,3 +1,5 @@
+import 'package:fireplace/src/db/message_quote.dart';
+
 import 'dart:convert';
 
 import 'package:fireplace/src/db/secret_store.dart';
@@ -60,6 +62,9 @@ class ReceiveJournal {
           outgoing: false,
           sentAt: DateTime.fromMillisecondsSinceEpoch(j['sentAt'] as int),
           body: j['body'] as String,
+          quote: j['quote'] == null
+              ? null
+              : MessageQuote.fromJson(Map<String, dynamic>.from(j['quote'])),
           status: MessageStatus.values.byName(j['status'] as String),
           mutation: j['mutation'] == null
               ? null

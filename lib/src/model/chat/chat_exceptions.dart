@@ -1,3 +1,4 @@
+import 'package:fireplace/src/db/message_quote.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart' show ChatService;
 import 'package:fireplace/src/db/message_mutation.dart';
 
@@ -41,6 +42,7 @@ class SendNotConfirmedException implements Exception {
     required this.attemptedAt,
     required this.persisted,
     this.mutation,
+    this.quote,
   });
 
   /// [SendOutcome.publishUnknown] or [SendOutcome.publishedLocalSaveFailed].
@@ -56,6 +58,7 @@ class SendNotConfirmedException implements Exception {
   /// False when even that failed: the caller must keep the warning in memory.
   final bool persisted;
   final MessageMutation? mutation;
+  final MessageQuote? quote;
 
   @override
   String toString() => 'Message not confirmed (${outcome.name})';

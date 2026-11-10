@@ -4,6 +4,7 @@
 import 'dart:async';
 
 import 'catalog_case.dart';
+import 'reply_edit_cases.dart';
 import 'message_surface_cases.dart';
 
 import 'dart:convert';
@@ -110,6 +111,7 @@ void main() {
   });
   final cases = [
     ...messageSurfaceCases,
+    ...replyEditCases,
     for (final mine in [false, true])
       CatalogCase(
         mine ? 'message-actions-outgoing' : 'message-actions-incoming',

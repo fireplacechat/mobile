@@ -22,7 +22,7 @@ void main() {
           false,
           MessageStatus.ok,
           '**Hello**',
-          ['copy', 'forward', 'selectText', 'select', 'report'],
+          ['reply', 'copy', 'forward', 'selectText', 'select', 'report'],
         ),
         (
           'sent',
@@ -32,7 +32,14 @@ void main() {
           true,
           MessageStatus.ok,
           'Hello',
-          ['copy', 'forward', 'selectText', 'select', 'deleteEveryone'],
+          [
+            'reply',
+            'copy',
+            'forward',
+            'selectText',
+            'select',
+            'deleteEveryone',
+          ],
         ),
         (
           'blocked',
@@ -92,7 +99,7 @@ void main() {
           false,
           MessageStatus.ok,
           'x' * (maxMessageCharacters + 1),
-          ['copy', 'selectText', 'select', 'report'],
+          ['reply', 'copy', 'selectText', 'select', 'report'],
         ),
       ]) {
     testWidgets('message menu keeps exact $label action order and labels', (
@@ -134,6 +141,7 @@ void main() {
       );
       expect(actions!.map((a) => a.id).toList(), expected);
       const labels = {
+        'reply': 'Reply',
         'copy': 'Copy',
         'forward': 'Forward',
         'selectText': 'Select text',

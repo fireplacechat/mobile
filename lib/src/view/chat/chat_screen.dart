@@ -1,3 +1,5 @@
+import 'package:fireplace/src/view/chat/composer/message_composer_context.dart';
+import 'package:fireplace/src/model/chat/message_compose_target.dart';
 import 'package:fireplace/src/view/chat/chat_unavailable.dart';
 import 'package:fireplace/src/view/chat/message_selection_surface.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
@@ -22,7 +24,7 @@ import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
 import 'package:fireplace/src/view/safety/report_dialog.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
-import 'package:fireplace/src/widgets/dialog.dart';
+import 'package:fireplace/src/view/chat/confirm_another_copy.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
@@ -44,6 +46,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _ownerUid;
   late final RouteVisibility _routeVisibility;
   bool _showAll = false;
+  String? _locatedMessageId;
+  String? get _location => _locatedMessageId ?? widget.initialMessageId;
   late final ChatDraftController _text;
   late final SendController _sendController;
   late final TimelineScroll _timeline;
@@ -62,7 +66,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           reviewOnce: (peerUid, pub) async {
             final session = ref.read(appSessionProvider).value;
             if (session != null) {
-              await _reviewIdentityOnce(session, peerUid, pub);
+              await reviewChatIdentity(
+                context,
+                session,
+                peerUid,
+                pub,
+                isMounted: () => mounted,
+                notice: _snack,
+              );
             }
           },
         )..addListener(() {
@@ -76,13 +87,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           pendingSends: () => ref.read(pendingLocalSendsProvider.notifier),
           draft: () => _text.text,
           draftRevision: () => _text.revision,
-          clearDraft: () => _text.clear(),
+          replyTarget: () =>
+              ref.read(messageComposeProvider(widget.chatId))?.message.id,
+          clearDraft: () {
+            _text.clear();
+            ref.read(messageComposeProvider(widget.chatId).notifier).clear();
+          },
           notice: _snack,
           showNewest: () => _timeline.showNewestAfterOwnSend(_latest),
           reviewIdentity: (peerUid, pub) =>
               _contactController.reviewIdentity(peerUid, pub),
           identityAlerts: () => ref.read(identityAlertsProvider).value ?? {},
-          confirmSendAnotherCopy: _confirmSendAnotherCopy,
+          confirmSendAnotherCopy: () => confirmAnotherMessageCopy(context),
         )..addListener(() {
           _text.sendingChanged(_sendController.sending);
           if (mounted) setState(() {});
@@ -125,8 +141,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final activity = ref.read(chatActivityProvider.notifier);
     if (summary == null || !activity.eligible(summary)) return;
     final messages = ref.read(messagesProvider(widget.chatId)).value ?? [];
-    final index = !_showAll && widget.initialMessageId != null
-        ? messages.indexWhere((m) => m.id == widget.initialMessageId)
+    final index = !_showAll && _location != null
+        ? messages.indexWhere((m) => m.id == _location)
         : -1;
     activity
         .seen(widget.chatId, index < 0 ? messages : messages.take(index + 1))
@@ -150,7 +166,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _latest() {
-    if (!_showAll && widget.initialMessageId != null) {
+    if (!_showAll && _location != null) {
       setState(() => _showAll = true);
     }
     _timeline.scrollToLatest(
@@ -169,49 +185,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.dispose();
   }
 
-  Future<bool?> _confirmSendAnotherCopy() {
-    return showDialog<bool>(
-      context: context,
-      builder: (ctx) => UiDialog(
-        title: const Text('Send another copy?'),
-        content: const SingleChildScrollView(
-          child: Text(
-            'The original may already have been delivered. This sends a new message.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            key: const Key('cancelResend'),
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            key: const Key('confirmResend'),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Send another copy'),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _snack(String m) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
-
-  Future<void> _reviewIdentityOnce(
-    AppSession session,
-    String peerUid,
-    List<int> newIdentityPub,
-  ) => reviewChatIdentity(
-    context,
-    session,
-    peerUid,
-    newIdentityPub,
-    isMounted: () => mounted,
-    notice: _snack,
-  );
 
   Future<void> _blockPeer(
     AppSession session,
@@ -290,8 +267,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           final byTime = a.sentAt.compareTo(b.sentAt);
           return byTime != 0 ? byTime : a.id.compareTo(b.id);
         });
-    final target = !_showAll && widget.initialMessageId != null
-        ? allMessages.indexWhere((m) => m.id == widget.initialMessageId)
+    final target = !_showAll && _location != null
+        ? allMessages.indexWhere((m) => m.id == _location)
         : -1;
     final msgs = target < 0
         ? allMessages
@@ -408,7 +385,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         anchorBottom: true,
         child: Column(
           children: [
-            if (!_showAll && widget.initialMessageId != null)
+            if (!_showAll && _location != null)
               SearchLocationNotice(
                 target: target,
                 onShowLatest: () {
@@ -476,25 +453,51 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
                 onRetryHistory: () =>
                     ref.invalidate(messagesProvider(widget.chatId)),
+                onQuote: (id) {
+                  if (!allMessages.any(
+                    (m) =>
+                        m.id == id &&
+                        !m.remotelyDeleted &&
+                        m.status == MessageStatus.ok,
+                  )) {
+                    _snack(
+                      'The original message is no longer available on this device.',
+                    );
+                    return;
+                  }
+                  setState(() {
+                    _locatedMessageId = id;
+                    _showAll = false;
+                  });
+                  _timeline.showNewestAfterOwnSend(
+                    () => _timeline.scrollToLatest(reduceMotion: true),
+                  );
+                },
                 onLatest: _latest,
               ),
             ),
-            ChatComposer(
-              onInteraction: () => ref
-                  .read(messageSelectionProvider(widget.chatId).notifier)
-                  .clear(),
-              keyboardInset: keyboardInset,
-              text: _text,
+            MessageComposerContext(
+              chatId: widget.chatId,
               name: name,
-              blocked: blocked,
-              incomingRequest: incomingRequest,
-              waiting: waiting,
-              identityHeld: identityHeld,
-              hasSession: session != null,
-              contactBusy: _contactController.busy,
-              send: _sendController,
-              onUnblock: () => _contactController.contactAction(
-                () => session!.safety.unblock(peerUid!),
+              builder: (context, focus, bar) => ChatComposer(
+                focusNode: focus,
+                contextBar: bar,
+                onInteraction: () => ref
+                    .read(messageSelectionProvider(widget.chatId).notifier)
+                    .clear(),
+                keyboardInset: keyboardInset,
+                text: _text,
+                name: name,
+                blocked: blocked,
+                incomingRequest: incomingRequest,
+                waiting: waiting,
+                identityHeld: identityHeld,
+                hasSession: session != null,
+                contactBusy: _contactController.busy,
+                send: _sendController,
+                onUnblock: () => _contactController.contactAction(
+                  () => session!.safety.unblock(peerUid!),
+                ),
               ),
             ),
           ],
