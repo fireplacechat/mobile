@@ -9,6 +9,8 @@ import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
+import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/model/notifications/chat_activity.dart';
 
 class MessageBubble extends ConsumerStatefulWidget {
   const MessageBubble({
@@ -16,8 +18,10 @@ class MessageBubble extends ConsumerStatefulWidget {
     required this.message,
     this.senderName,
     this.actions = const [],
+    this.preview = false,
   });
   final LocalMessage message;
+  final bool preview;
 
   /// Who the other person is, so a screen reader can say who sent a message. Outgoing messages are
   /// announced as "You".
@@ -47,9 +51,43 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     if (widget.actions.isEmpty || _held) return;
     setState(() => _held = true);
     try {
+      final owner = ref.read(appSessionProvider).value;
+      final anchor = _actionAnchor.currentContext?.findRenderObject();
       await showMessageActionsMenu(
         context,
         globalPosition: at,
+        bubbleRect: anchor is RenderBox
+            ? Rect.fromLTWH(
+                anchor.localToGlobal(Offset.zero).dx,
+                anchor.localToGlobal(Offset.zero).dy + 4,
+                anchor.size.width,
+                anchor.size.height - 8,
+              )
+            : null,
+        preview: Consumer(
+          builder: (context, previewRef, _) {
+            final session = previewRef.watch(appSessionProvider).value;
+            final summary = previewRef.watch(
+              chatSummaryProvider(widget.message.chatId),
+            );
+            previewRef.watch(blockedUidsProvider);
+            previewRef.watch(hiddenChatsProvider);
+            previewRef.watch(identityAlertsProvider);
+            if (!mounted ||
+                !identical(session, owner) ||
+                summary == null ||
+                !previewRef
+                    .read(chatActivityProvider.notifier)
+                    .eligible(summary)) {
+              return const SizedBox.shrink();
+            }
+            return MessageBubble(
+              message: widget.message,
+              senderName: widget.senderName,
+              preview: true,
+            );
+          },
+        ),
         actions: widget.actions,
       );
     } finally {
@@ -123,9 +161,13 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                 ? null
                 : (d) => _openMenu(d.globalPosition),
             child: Container(
-              key: ValueKey('messageBubble-${message.id}'),
+              key: ValueKey(
+                '${widget.preview ? 'heldMessage' : 'messageBubble'}-${message.id}',
+              ),
               constraints: BoxConstraints(
-                maxWidth: (box.maxWidth * .8).clamp(0.0, 480.0).toDouble(),
+                maxWidth: (box.maxWidth * (widget.preview ? 1 : .8))
+                    .clamp(0.0, 480.0)
+                    .toDouble(),
               ),
               margin: const EdgeInsets.symmetric(vertical: 4),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
