@@ -54,6 +54,26 @@ prepareMessageContent({
           'Only your messages from the last 24 hours can be deleted for everyone.',
         );
       }
+    } else if (mutation.kind == MessageMutationKind.edit) {
+      final age = DateTime.now().difference(target.sentAt);
+      if (target.senderUid != uid ||
+          age.isNegative ||
+          age > const Duration(hours: 24) ||
+          target.editClock >= 10) {
+        throw ChatException(
+          'You can edit your messages up to 10 times within 24 hours.',
+        );
+      }
+      if (mutation.body.trim() == target.body) {
+        throw ChatException('Make a change before saving.');
+      }
+      if (messageTooLong(mutation.body)) throw ChatException(messageLimitError);
+      mutation = MessageMutation(
+        kind: MessageMutationKind.edit,
+        targetId: target.id,
+        body: mutation.body.trim(),
+        revision: target.editClock + 1,
+      );
     } else {
       final previous = target.reactions[uid];
       mutation = MessageMutation(

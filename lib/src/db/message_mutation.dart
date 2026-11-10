@@ -1,4 +1,4 @@
-enum MessageMutationKind { reaction, delete }
+enum MessageMutationKind { reaction, delete, edit }
 
 enum ReactionOperation { set, clear }
 
@@ -7,17 +7,22 @@ class MessageMutation {
     required this.kind,
     required this.targetId,
     this.emoji = '',
+    this.body = '',
     this.operation = ReactionOperation.set,
     this.revision = 0,
   });
   final MessageMutationKind kind;
-  final String targetId, emoji;
+  final String targetId, emoji, body;
   final ReactionOperation operation;
   final int revision;
 
   Map<String, dynamic> toJson() => {
     'type': kind.name,
     'targetId': targetId,
+    if (kind == MessageMutationKind.edit) ...{
+      'body': body,
+      'revision': revision,
+    },
     if (kind == MessageMutationKind.reaction) ...{
       'emoji': emoji,
       'operation': operation.name,
@@ -34,6 +39,24 @@ class MessageMutation {
     }
     if (kind == MessageMutationKind.delete) {
       return MessageMutation(kind: kind, targetId: target);
+    }
+    if (kind == MessageMutationKind.edit) {
+      final body = j['body'], revision = j['revision'];
+      if (body is! String ||
+          body.length > 32768 ||
+          body.runes.length > 16384 ||
+          body.trim().isEmpty ||
+          revision is! int ||
+          revision < 1 ||
+          revision > 10) {
+        throw const FormatException('Invalid edit');
+      }
+      return MessageMutation(
+        kind: kind,
+        targetId: target,
+        body: body,
+        revision: revision,
+      );
     }
     final emoji = j['emoji'], revision = j['revision'];
     if (emoji is! String ||

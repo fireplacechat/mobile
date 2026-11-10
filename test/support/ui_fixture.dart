@@ -80,6 +80,32 @@ class FixtureChat extends Fake implements ChatService {
     if (sendError != null) throw sendError!;
   }
 
+  final edits = <(String, String)>[];
+  @override
+  Future<void> editMessage(String chatId, String targetId, String body) async {
+    controlAttempts++;
+    if (controlError != null) throw controlError!;
+    final target = await store.get(chatId, targetId);
+    edits.add((targetId, body));
+    await store.add(
+      LocalMessage(
+        id: 'edit-${edits.length}',
+        chatId: chatId,
+        senderUid: 'alice',
+        senderDevice: 'example-device-alice',
+        outgoing: true,
+        sentAt: fixtureTime,
+        body: '',
+        mutation: MessageMutation(
+          kind: MessageMutationKind.edit,
+          targetId: targetId,
+          body: body,
+          revision: target!.editClock + 1,
+        ),
+      ),
+    );
+  }
+
   final replies = <(String, String)>[];
   @override
   Future<void> sendReply(String chatId, String body, String targetId) async {

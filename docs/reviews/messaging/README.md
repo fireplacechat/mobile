@@ -3,8 +3,8 @@
 Four stacked draft changes implement the held-message menu, local selection and
 deletion, encrypted reactions and sender-requested deletion, and composer/gesture
 polish. Merge in that order. This is the requested messaging scope, not a claim of
-complete Signal feature parity. Quoted replies, message editing and attachments
-are not part of these changes.
+complete Signal feature parity. The subsequent quoted-reply and editing drafts
+extend this stack; attachments remain outside this work.
 
 The implementation extends Fireplace's Flutter widgets and local store. Signal's
 [iOS](https://github.com/signalapp/Signal-iOS) and

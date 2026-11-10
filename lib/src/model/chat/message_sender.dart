@@ -173,7 +173,7 @@ class MessageSender {
         .where((d) => d.deviceId != device.keys.deviceId);
     final plain = utf8.encode(
       jsonEncode({
-        'v': quote != null
+        'v': quote != null || mutation?.kind == MessageMutationKind.edit
             ? 3
             : mutation == null
             ? 1

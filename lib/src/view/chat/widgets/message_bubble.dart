@@ -1,5 +1,6 @@
 import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
 import 'package:flutter/material.dart';
+import 'package:fireplace/src/view/chat/message_edit_history.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -203,6 +204,12 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
           child: GestureDetector(
             key: _actionAnchor,
             onTap: widget.selecting ? widget.onToggleSelection : null,
+            onDoubleTap: widget.selecting || widget.preview
+                ? null
+                : widget.actions
+                      .where((a) => a.id == 'edit')
+                      .firstOrNull
+                      ?.onSelected,
             onHorizontalDragUpdate: reply == null
                 ? null
                 : (d) => setState(
@@ -344,13 +351,61 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                             ),
                           ),
                         const SizedBox(height: 2),
-                        Text(
-                          time,
-                          style: TextStyle(
-                            color: mine ? fg : t.secondaryText,
-                            fontSize: 11,
-                            height: 1.3,
-                          ),
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 4,
+                          children: [
+                            if (message.edits.isNotEmpty &&
+                                !message.remotelyDeleted)
+                              Semantics(
+                                button: true,
+                                label: 'View edit history',
+                                child: GestureDetector(
+                                  key: ValueKey('edited-${message.id}'),
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: widget.preview
+                                      ? null
+                                      : widget.selecting
+                                      ? widget.onToggleSelection
+                                      : () => showModalBottomSheet<void>(
+                                          context: context,
+                                          useSafeArea: true,
+                                          showDragHandle: true,
+                                          builder: (_) => MessageEditHistory(
+                                            chatId: message.chatId,
+                                            messageId: message.id,
+                                            ownerUid:
+                                                ref
+                                                    .read(appSessionProvider)
+                                                    .value
+                                                    ?.uid ??
+                                                '',
+                                          ),
+                                        ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                    ),
+                                    child: Text(
+                                      'Edited',
+                                      style: TextStyle(
+                                        color: mine ? fg : t.secondaryText,
+                                        fontSize: 11,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            Text(
+                              time,
+                              style: TextStyle(
+                                color: mine ? fg : t.secondaryText,
+                                fontSize: 11,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),

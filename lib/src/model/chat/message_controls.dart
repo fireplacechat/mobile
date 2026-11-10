@@ -23,32 +23,36 @@ class MessageControls extends Notifier<MessageControlState> {
     return const MessageControlState();
   }
 
+  Future<bool> edit(String id, String body) =>
+      _run((chat) => chat.editMessage(chatId, id, body));
+
   Future<void> react(String id, String emoji) =>
       _run((chat) => chat.react(chatId, id, emoji));
   Future<void> delete(String id) =>
       _run((chat) => chat.deleteForEveryone(chatId, id));
 
-  Future<void> _run(Future<void> Function(ChatService) action) async {
+  Future<bool> _run(Future<void> Function(ChatService) action) async {
     final owner = ref.read(appSessionProvider).value;
     final summary = ref.read(chatSummaryProvider(chatId));
     if (state.busy ||
         owner == null ||
         summary == null ||
         !ref.read(chatActivityProvider.notifier).eligible(summary)) {
-      return;
+      return false;
     }
     state = const MessageControlState(busy: true);
     try {
       await action(owner.chat);
       if (!ref.mounted ||
           !identical(ref.read(appSessionProvider).value, owner)) {
-        return;
+        return false;
       }
       state = const MessageControlState();
+      return true;
     } on SendNotConfirmedException catch (e) {
       if (!ref.mounted ||
           !identical(ref.read(appSessionProvider).value, owner)) {
-        return;
+        return false;
       }
       state = MessageControlState(
         pending: e,
@@ -56,21 +60,23 @@ class MessageControls extends Notifier<MessageControlState> {
             ? 'Sent, but could not save the change on this device.'
             : 'Could not confirm the change. It may have reached them. Nothing was sent again.',
       );
+      return true; // The attempt moved to explicit recovery; never leave a resend-ready edit.
     } on ChatException catch (e) {
       if (!ref.mounted ||
           !identical(ref.read(appSessionProvider).value, owner)) {
-        return;
+        return false;
       }
       state = MessageControlState(notice: e.message);
     } catch (_) {
       if (!ref.mounted ||
           !identical(ref.read(appSessionProvider).value, owner)) {
-        return;
+        return false;
       }
       state = const MessageControlState(
         notice: 'Could not make this change. Try again.',
       );
     }
+    return false;
   }
 
   Future<void> resolvePending() async {

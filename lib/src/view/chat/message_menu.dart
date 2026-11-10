@@ -102,6 +102,21 @@ List<MessageAction> messageMenuActions(
               .reply(message),
         ),
       ),
+    if (canShare &&
+        message.outgoing &&
+        message.status == MessageStatus.ok &&
+        message.editClock < 10 &&
+        now.difference(message.sentAt) >= Duration.zero &&
+        now.difference(message.sentAt) <= const Duration(hours: 24))
+      MessageAction(
+        id: 'edit',
+        label: 'Edit',
+        icon: Icons.edit_outlined,
+        onSelected: () => run(
+          () =>
+              ref.read(messageComposeProvider(chatId()).notifier).edit(message),
+        ),
+      ),
     if (canShare)
       MessageAction(
         id: 'copy',
