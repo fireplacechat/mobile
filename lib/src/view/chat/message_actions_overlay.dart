@@ -181,195 +181,204 @@ class MessageActionsOverlay extends StatelessWidget {
           ),
         ),
         Positioned.fill(
-          child: MessageMenuStack(
-            anchor: anchor,
-            insets: EdgeInsets.fromLTRB(
-              media.padding.left + MessageMenuMetrics.edge,
-              media.padding.top + MessageMenuMetrics.edge,
-              media.padding.right + MessageMenuMetrics.edge,
-              math.max(
-                math.max(media.padding.bottom, media.viewInsets.bottom),
-                MessageMenuMetrics.edge,
-              ),
+          // The overlay sits outside the page Material. Without a text style
+          // here, the held message inherits MaterialApp's fallback: a double
+          // yellow underline.
+          child: DefaultTextStyle(
+            style: theme.textTheme.bodyMedium!.copyWith(
+              decoration: TextDecoration.none,
             ),
-            shift: grow,
-            picker: picker ?? const AlwaysStoppedAnimation(0),
-            pickerTop: pickerTop,
-            children: [
-              if (preview != null)
-                MessageMenuId(
-                  id: 'preview',
-                  child: IgnorePointer(
-                    child: ExcludeSemantics(child: preview!),
-                  ),
+            child: MessageMenuStack(
+              anchor: anchor,
+              insets: EdgeInsets.fromLTRB(
+                media.padding.left + MessageMenuMetrics.edge,
+                media.padding.top + MessageMenuMetrics.edge,
+                media.padding.right + MessageMenuMetrics.edge,
+                math.max(
+                  math.max(media.padding.bottom, media.viewInsets.bottom),
+                  MessageMenuMetrics.edge,
                 ),
-              if (reactions.isNotEmpty)
-                MessageMenuId(
-                  id: 'reactions',
-                  child: fading(
-                    _HoldTracker(
-                      onPoint: (point) => highlight(reactionAt(point)),
-                      onRelease: () {
-                        final chosen = gesture?.highlighted.value;
-                        gesture?.highlighted.value = null;
-                        if (chosen != null && chosen.reaction) choose(chosen);
-                      },
-                      child: Stack(
-                        key: const Key('messageReactionBar'),
-                        clipBehavior: Clip.none,
-                        children: [
-                          Positioned.fill(
-                            child: FadeTransition(
-                              opacity: CurvedAnimation(
-                                parent: animation,
-                                curve: const Interval(0, .5),
-                              ),
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: panel,
-                                  borderRadius: const BorderRadius.all(
-                                    Radius.circular(
-                                      MessageMenuMetrics.barHeight / 2,
-                                    ),
-                                  ),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x4D000000),
-                                      blurRadius: 12,
-                                      offset: Offset(0, 4),
-                                    ),
-                                    BoxShadow(
-                                      color: Color(0x0D000000),
-                                      blurRadius: 4,
-                                    ),
-                                  ],
+              ),
+              shift: grow,
+              picker: picker ?? const AlwaysStoppedAnimation(0),
+              pickerTop: pickerTop,
+              children: [
+                if (preview != null)
+                  MessageMenuId(
+                    id: 'preview',
+                    child: IgnorePointer(
+                      child: ExcludeSemantics(child: preview!),
+                    ),
+                  ),
+                if (reactions.isNotEmpty)
+                  MessageMenuId(
+                    id: 'reactions',
+                    child: fading(
+                      _HoldTracker(
+                        onPoint: (point) => highlight(reactionAt(point)),
+                        onRelease: () {
+                          final chosen = gesture?.highlighted.value;
+                          gesture?.highlighted.value = null;
+                          if (chosen != null && chosen.reaction) choose(chosen);
+                        },
+                        child: Stack(
+                          key: const Key('messageReactionBar'),
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned.fill(
+                              child: FadeTransition(
+                                opacity: CurvedAnimation(
+                                  parent: animation,
+                                  curve: const Interval(0, .5),
                                 ),
-                              ),
-                            ),
-                          ),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            clipBehavior: Clip.none,
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: MessageMenuMetrics.barPadding,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  for (final (index, reaction)
-                                      in reactions.indexed)
-                                    ReactionEntrance(
-                                      animation: animation,
-                                      index: index,
-                                      child: SizedBox(
-                                        key: targets[reaction],
-                                        width: MessageMenuMetrics.reactionCell,
-                                        height: MessageMenuMetrics.barHeight,
-                                        child: MessageActionHighlight(
-                                          action: reaction,
-                                          gesture: gesture,
-                                          lift: true,
-                                          child: ReactionBarButton(
-                                            reaction: reaction,
-                                            onPressed: () => choose(reaction),
-                                          ),
-                                        ),
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: panel,
+                                    borderRadius: const BorderRadius.all(
+                                      Radius.circular(
+                                        MessageMenuMetrics.barHeight / 2,
                                       ),
                                     ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              MessageMenuId(
-                id: 'menu',
-                child: fading(
-                  FadeTransition(
-                    opacity: CurvedAnimation(
-                      parent: animation,
-                      curve: Curves.easeInOut,
-                    ),
-                    child: ScaleTransition(
-                      scale: Tween(begin: .2, end: 1.0).animate(grow),
-                      alignment: alignEnd
-                          ? Alignment.topRight
-                          : Alignment.topLeft,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(
-                            MessageMenuMetrics.menuRadius,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x33000000),
-                              blurRadius: 64,
-                              offset: Offset(0, 32),
-                            ),
-                          ],
-                        ),
-                        child: KeyedSubtree(
-                          key: panelKey,
-                          child: Material(
-                            key: const Key('messageActionsPanel'),
-                            color: panel.withValues(alpha: .92),
-                            elevation: 0,
-                            shadowColor: Colors.transparent,
-                            borderRadius: BorderRadius.circular(
-                              MessageMenuMetrics.menuRadius,
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: BackdropFilter(
-                              filter: ui.ImageFilter.blur(
-                                sigmaX: 24,
-                                sigmaY: 24,
-                              ),
-                              child: _HoldTracker(
-                                onPoint: (point) => highlight(rowAt(point)),
-                                onRelease: () {
-                                  final chosen = gesture?.highlighted.value;
-                                  gesture?.highlighted.value = null;
-                                  if (chosen != null && !chosen.reaction) {
-                                    choose(chosen);
-                                  }
-                                },
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      for (final (index, action)
-                                          in actions.indexed)
-                                        MessageActionHighlight(
-                                          key: targets[action],
-                                          action: action,
-                                          gesture: gesture,
-                                          child: MessageMenuRow(
-                                            action: action,
-                                            autofocus: index == 0,
-                                            divider:
-                                                index != actions.length - 1,
-                                            onPressed: () => choose(action),
-                                          ),
-                                        ),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Color(0x4D000000),
+                                        blurRadius: 12,
+                                        offset: Offset(0, 4),
+                                      ),
+                                      BoxShadow(
+                                        color: Color(0x0D000000),
+                                        blurRadius: 4,
+                                      ),
                                     ],
                                   ),
                                 ),
                               ),
                             ),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              clipBehavior: Clip.none,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: MessageMenuMetrics.barPadding,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    for (final (index, reaction)
+                                        in reactions.indexed)
+                                      ReactionEntrance(
+                                        animation: animation,
+                                        index: index,
+                                        child: SizedBox(
+                                          key: targets[reaction],
+                                          width:
+                                              MessageMenuMetrics.reactionCell,
+                                          height: MessageMenuMetrics.barHeight,
+                                          child: MessageActionHighlight(
+                                            action: reaction,
+                                            gesture: gesture,
+                                            lift: true,
+                                            child: ReactionBarButton(
+                                              reaction: reaction,
+                                              onPressed: () => choose(reaction),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                MessageMenuId(
+                  id: 'menu',
+                  child: fading(
+                    FadeTransition(
+                      opacity: CurvedAnimation(
+                        parent: animation,
+                        curve: Curves.easeInOut,
+                      ),
+                      child: ScaleTransition(
+                        scale: Tween(begin: .2, end: 1.0).animate(grow),
+                        alignment: alignEnd
+                            ? Alignment.topRight
+                            : Alignment.topLeft,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              MessageMenuMetrics.menuRadius,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x33000000),
+                                blurRadius: 64,
+                                offset: Offset(0, 32),
+                              ),
+                            ],
+                          ),
+                          child: KeyedSubtree(
+                            key: panelKey,
+                            child: Material(
+                              key: const Key('messageActionsPanel'),
+                              color: panel.withValues(alpha: .92),
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                              borderRadius: BorderRadius.circular(
+                                MessageMenuMetrics.menuRadius,
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: BackdropFilter(
+                                filter: ui.ImageFilter.blur(
+                                  sigmaX: 24,
+                                  sigmaY: 24,
+                                ),
+                                child: _HoldTracker(
+                                  onPoint: (point) => highlight(rowAt(point)),
+                                  onRelease: () {
+                                    final chosen = gesture?.highlighted.value;
+                                    gesture?.highlighted.value = null;
+                                    if (chosen != null && !chosen.reaction) {
+                                      choose(chosen);
+                                    }
+                                  },
+                                  child: SingleChildScrollView(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        for (final (index, action)
+                                            in actions.indexed)
+                                          MessageActionHighlight(
+                                            key: targets[action],
+                                            action: action,
+                                            gesture: gesture,
+                                            child: MessageMenuRow(
+                                              action: action,
+                                              autofocus: index == 0,
+                                              divider:
+                                                  index != actions.length - 1,
+                                              onPressed: () => choose(action),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],

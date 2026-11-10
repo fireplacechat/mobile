@@ -76,6 +76,29 @@ void main() {
     });
   }
 
+  testWidgets('the held message is not underlined', (t) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    await openChat(t, f);
+    await t.longPress(bubble('5'));
+    await t.pumpAndSettle();
+    final texts = t.widgetList<RichText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('heldMessage-5')),
+        matching: find.byType(RichText),
+      ),
+    );
+    expect(texts, isNotEmpty);
+    for (final rich in texts) {
+      expect(
+        rich.text.style?.decoration,
+        anyOf(isNull, TextDecoration.none),
+        reason: rich.text.toPlainText(),
+      );
+    }
+  });
+
   testWidgets('holding a reaction enlarges it and releasing sends it', (
     t,
   ) async {
