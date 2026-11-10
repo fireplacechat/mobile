@@ -39,6 +39,10 @@ void main() {
     await t.pumpAndSettle();
     expect(f.chat.reactions, [('5', '❤️')]);
     expect(find.byKey(const ValueKey('reaction-5-❤️')), findsOneWidget);
+    final chip = t.getRect(find.byKey(const ValueKey('reaction-5-❤️')));
+    final message = t.getRect(bubble('5'));
+    expect(chip.top, lessThan(message.bottom));
+    expect(chip.bottom, greaterThan(message.bottom));
     await t.longPress(bubble('5'));
     await t.pumpAndSettle();
     await t.tap(action('react-👍'));
