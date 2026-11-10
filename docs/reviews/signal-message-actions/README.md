@@ -22,6 +22,11 @@ Chats, then People. There is no Stories section.
 The wire format, sender authorization and Firestore rules are unchanged.
 Decision 0023 records the deletion change.
 
+Pressing send clears the composer and shows the message in the conversation
+at once, with its time. Encryption still runs afterwards. The send button
+stays the arrow. A failure still says it was not sent. A reaction sits in a
+pill with the same space on both sides of the emoji.
+
 ## Screenshots
 
 Flutter renders of fictional fixture data, UTC, with the installed Windows
@@ -42,6 +47,8 @@ There is no Stories section and no Back button.
 | Delete all, enlarged text, keyboard open | [Dark](dark-message-delete-all.png) |
 | Forward | [Dark](dark-forward-message.png) |
 | Pinned message | [Dark](dark-pinned-message.png) |
+| Reaction on a message | [Dark](dark-messages-reaction-counts.png), [Light](light-messages-reaction-counts.png) |
+| Message just sent | [Dark](dark-outgoing-sending-next.png) |
 
 Hashes are in [render-sha256.csv](render-sha256.csv).
 
