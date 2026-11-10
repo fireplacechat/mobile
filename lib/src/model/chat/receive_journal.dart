@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:fireplace/src/db/secret_store.dart';
 import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/keys/prekey_service.dart';
 import 'package:fireplace/src/model/chat/session_store.dart';
@@ -60,6 +61,11 @@ class ReceiveJournal {
           sentAt: DateTime.fromMillisecondsSinceEpoch(j['sentAt'] as int),
           body: j['body'] as String,
           status: MessageStatus.values.byName(j['status'] as String),
+          mutation: j['mutation'] == null
+              ? null
+              : MessageMutation.fromJson(
+                  Map<String, dynamic>.from(j['mutation']),
+                ),
         ),
       );
     }

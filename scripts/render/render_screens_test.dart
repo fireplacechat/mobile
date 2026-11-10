@@ -2,6 +2,10 @@
 // flutter test scripts/render/render_screens_test.dart
 // PNGs and a state manifest are written to build/renders/, never shipped.
 import 'dart:async';
+
+import 'catalog_case.dart';
+import 'message_surface_cases.dart';
+
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -38,13 +42,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../test/support/ui_fixture.dart';
 import '../../test/support/account_fixture.dart';
 
 Future<void> loadFonts() async {
+  final emojiPath = Platform.environment['RENDER_EMOJI_FONT'];
+  if (emojiPath != null) {
+    await (FontLoader('PreviewEmoji')..addFont(
+          Future.value(ByteData.sublistView(File(emojiPath).readAsBytesSync())),
+        ))
+        .load();
+  }
   final config = File('.dart_tool/package_config.json');
   final packages =
       (jsonDecode(config.readAsStringSync()) as Map)['packages'] as List;
@@ -90,36 +100,6 @@ Future<void> loadFonts() async {
       .load();
 }
 
-enum CatalogInteraction { searchEmpty, compose, sending }
-
-class CatalogCase {
-  const CatalogCase(
-    this.name,
-    this.screen, {
-    this.overrides = const [],
-    this.signup = false,
-    this.interaction,
-    this.size = const Size(390, 844),
-    this.textScale = 1,
-    this.keyboardInset = 0,
-    this.prepare,
-    this.services,
-    this.act,
-    this.overrideAuth = true,
-    this.notices = false,
-  });
-  final void Function(UiFixture)? prepare;
-  final List<Override> Function(UiFixture)? services;
-  final Future<void> Function(WidgetTester, UiFixture)? act;
-  final String name;
-  final Widget screen;
-  final List<Override> overrides;
-  final bool signup, overrideAuth, notices;
-  final CatalogInteraction? interaction;
-  final Size size;
-  final double textScale, keyboardInset;
-}
-
 void main() {
   final manifest = <Map<String, Object>>[];
   setUpAll(loadFonts);
@@ -129,29 +109,7 @@ void main() {
     ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(manifest));
   });
   final cases = [
-    for (final state in ['selected', 'delete-confirmation', 'deleted'])
-      CatalogCase(
-        'messages-$state',
-        const ChatScreen(chatId: 'alice_fred'),
-        act: (t, f) async {
-          await t.longPress(find.byKey(const ValueKey('messageBubble-5')));
-          await t.pumpAndSettle();
-          await t.ensureVisible(
-            find.byKey(const ValueKey('messageAction-select')),
-          );
-          await t.tap(find.byKey(const ValueKey('messageAction-select')));
-          await t.pumpAndSettle();
-          await t.tap(find.byKey(const ValueKey('messageBubble-4')));
-          await t.pumpAndSettle();
-          if (state == 'selected') return;
-          await t.tap(find.byKey(const Key('deleteSelectedMessages')));
-          await t.pumpAndSettle();
-          if (state == 'delete-confirmation') return;
-          await t.ensureVisible(find.byKey(const Key('confirmDeleteForMe')));
-          await t.tap(find.byKey(const Key('confirmDeleteForMe')));
-          await t.pumpAndSettle();
-        },
-      ),
+    ...messageSurfaceCases,
     for (final mine in [false, true])
       CatalogCase(
         mine ? 'message-actions-outgoing' : 'message-actions-incoming',
@@ -198,6 +156,9 @@ void main() {
         act: (t, f) async {
           await t.longPress(find.byKey(const ValueKey('messageBubble-5')));
           await t.pumpAndSettle();
+          await t.ensureVisible(
+            find.byKey(const ValueKey('messageAction-selectText')),
+          );
           await t.tap(find.byKey(const ValueKey('messageAction-selectText')));
           await t.pumpAndSettle();
         },
@@ -674,7 +635,10 @@ void main() {
                 navigatorKey: navigatorKey,
                 navigatorObservers: [chatRouteObserver],
                 debugShowCheckedModeBanner: false,
-                theme: fireplaceTheme(brightness),
+                theme: fireplaceTheme(brightness).copyWith(
+                  textTheme: fireplaceTheme(brightness).textTheme
+                      .apply(fontFamilyFallback: const ['PreviewEmoji']),
+                ),
                 builder: (context, child) => MediaQuery(
                   data: MediaQuery.of(context).copyWith(
                     textScaler: TextScaler.linear(spec.textScale),
@@ -748,6 +712,9 @@ void main() {
           'textScale': spec.textScale,
           'keyboardInset': spec.keyboardInset,
           'fixture': 'fictional/in-memory',
+          'emojiFontProvided': Platform.environment.containsKey(
+            'RENDER_EMOJI_FONT',
+          ),
           'time': fixtureTime.toIso8601String(),
         });
         await tester.pumpWidget(const SizedBox());

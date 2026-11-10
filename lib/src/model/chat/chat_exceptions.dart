@@ -1,4 +1,5 @@
 import 'package:fireplace/src/model/chat/chat_service.dart' show ChatService;
+import 'package:fireplace/src/db/message_mutation.dart';
 
 /// The server refused a send, so nothing was published. The message is plain words that are safe to show
 /// as they are (unlike an arbitrary [ChatException]).
@@ -39,6 +40,7 @@ class SendNotConfirmedException implements Exception {
     required this.body,
     required this.attemptedAt,
     required this.persisted,
+    this.mutation,
   });
 
   /// [SendOutcome.publishUnknown] or [SendOutcome.publishedLocalSaveFailed].
@@ -53,6 +55,7 @@ class SendNotConfirmedException implements Exception {
   /// True when an "unconfirmed" entry was saved in the on-device history (so it survives a restart).
   /// False when even that failed: the caller must keep the warning in memory.
   final bool persisted;
+  final MessageMutation? mutation;
 
   @override
   String toString() => 'Message not confirmed (${outcome.name})';

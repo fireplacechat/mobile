@@ -10,11 +10,16 @@ class MessageAction {
     required this.icon,
     required this.onSelected,
     this.destructive = false,
+    this.reaction = false,
+    this.emoji,
+    this.selected = false,
   });
   final String id, label;
   final IconData icon;
   final VoidCallback onSelected;
   final bool destructive;
+  final bool reaction, selected;
+  final String? emoji;
 }
 
 Future<void> showMessageActionsMenu(
@@ -46,7 +51,8 @@ Future<void> showMessageActionsMenu(
     pageBuilder: (ctx, animation, secondary) => MessageActionsOverlay(
       anchor: anchor,
       preview: preview,
-      actions: actions,
+      actions: actions.where((a) => !a.reaction).toList(),
+      reactions: actions.where((a) => a.reaction).toList(),
       animation: animation,
     ),
     transitionBuilder: (ctx, animation, secondary, child) => FadeTransition(

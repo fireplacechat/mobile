@@ -153,7 +153,20 @@ void main() {
     final ids = node.getSemanticsData().customSemanticsActionIds!;
     expect(
       ids.map((id) => CustomSemanticsAction.getAction(id)!.label).toSet(),
-      {'Copy', 'Forward', 'Select text', 'Select', 'Report'},
+      {
+        'Copy',
+        'Forward',
+        'Select text',
+        'Select',
+        'Report',
+        'React with ❤️',
+        'React with 👍',
+        'React with 👎',
+        'React with 😂',
+        'React with 😮',
+        'React with 😢',
+        'More reactions',
+      },
     );
     final select = ids.singleWhere(
       (id) => CustomSemanticsAction.getAction(id)!.label == 'Select text',
@@ -239,6 +252,7 @@ void main() {
       await pumpChat(t, f, scale: 2, keyboard: 220);
       await t.longPress(bubble('target'));
       await t.pumpAndSettle();
+      await t.ensureVisible(action('selectText'));
       await t.tap(action('selectText'));
       await t.pumpAndSettle();
       expect(find.byKey(const Key('selectableMessageText')), findsOneWidget);

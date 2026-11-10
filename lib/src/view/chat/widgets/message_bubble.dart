@@ -116,7 +116,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
         .formatTimeOfDay(TimeOfDay.fromDateTime(message.sentAt.toLocal()));
     // A message over the limit can only come from another client: plain text, clipped until asked.
     final oversize = !bad && messageTooLong(message.body);
-    final body = oversize && !_showAll
+    final body = message.remotelyDeleted
+        ? 'This message was deleted'
+        : oversize && !_showAll
         ? '${clipMessage(message.body, oversizedPreviewCharacters)}…'
         : message.body;
     final formatted = bad || oversize
@@ -239,7 +241,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                             color: fg,
                             fontSize: 16,
                             height: 1.4,
-                            fontStyle: bad
+                            fontStyle: bad || message.remotelyDeleted
                                 ? FontStyle.italic
                                 : FontStyle.normal,
                           ),

@@ -10,6 +10,8 @@ import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
+import 'package:fireplace/src/model/chat/message_controls.dart';
+import 'package:fireplace/src/view/chat/message_reactions.dart';
 
 /// Shared touch, keyboard and screen-reader actions for one message.
 List<MessageAction> messageMenuActions(
@@ -27,6 +29,7 @@ List<MessageAction> messageMenuActions(
   required bool identityHeld,
 }) {
   final owner = ref.read(appSessionProvider).value;
+  final now = ref.read(messageControlNowProvider)();
   bool available() {
     if (!isMounted() || owner == null) return false;
     final summary = ref.read(chatSummaryProvider(chatId()));
@@ -39,9 +42,35 @@ List<MessageAction> messageMenuActions(
     if (available()) action();
   }
 
-  final readable = message.status != MessageStatus.undecryptable;
+  final readable =
+      message.status != MessageStatus.undecryptable && !message.remotelyDeleted;
   final canShare = !incomingRequest && !identityHeld && !blocked && readable;
   return [
+    if (canShare &&
+        message.status == MessageStatus.ok &&
+        ref.read(chatSummaryProvider(chatId()))?.accepted == true) ...[
+      for (final emoji in quickReactions)
+        MessageAction(
+          id: 'react-$emoji',
+          label: 'React with $emoji',
+          icon: Icons.emoji_emotions_outlined,
+          reaction: true,
+          emoji: emoji,
+          selected: message.reactions[owner?.uid]?.emoji == emoji,
+          onSelected: () => run(
+            () => ref
+                .read(messageControlsProvider(chatId()).notifier)
+                .react(message.id, emoji),
+          ),
+        ),
+      MessageAction(
+        id: 'moreReactions',
+        label: 'More reactions',
+        icon: Icons.add,
+        reaction: true,
+        onSelected: () => run(() => showReactionPicker(context, ref, message)),
+      ),
+    ],
     if (canShare)
       MessageAction(
         id: 'copy',
@@ -98,6 +127,18 @@ List<MessageAction> messageMenuActions(
         ),
       ),
     // Only another person's message can be reported.
+    if (canShare &&
+        message.outgoing &&
+        message.status == MessageStatus.ok &&
+        now.difference(message.sentAt) >= Duration.zero &&
+        now.difference(message.sentAt) <= const Duration(hours: 24))
+      MessageAction(
+        id: 'deleteEveryone',
+        label: 'Delete for everyone',
+        icon: Icons.delete_outline,
+        destructive: true,
+        onSelected: () => run(() => confirmRemoteDelete(context, ref, message)),
+      ),
     if (!message.outgoing &&
         peerUid != null &&
         !incomingRequest &&

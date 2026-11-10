@@ -12,11 +12,13 @@ class MessageActionsOverlay extends StatelessWidget {
     required this.anchor,
     required this.actions,
     required this.animation,
+    this.reactions = const [],
     this.preview,
   });
 
   final Rect anchor;
   final List<MessageAction> actions;
+  final List<MessageAction> reactions;
   final Animation<double> animation;
   final Widget? preview;
 
@@ -46,6 +48,46 @@ class MessageActionsOverlay extends StatelessWidget {
             ),
           ),
           children: [
+            if (reactions.isNotEmpty)
+              LayoutId(
+                id: _Part.reactions,
+                child: Material(
+                  key: const Key('messageReactionBar'),
+                  elevation: 8,
+                  color: tokens?.panel ?? theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(32),
+                  clipBehavior: Clip.antiAlias,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final reaction in reactions)
+                          IconButton(
+                            key: ValueKey('messageAction-${reaction.id}'),
+                            tooltip: reaction.label,
+                            isSelected: reaction.selected,
+                            style: IconButton.styleFrom(
+                              minimumSize: const Size(44, 44),
+                              backgroundColor: reaction.selected
+                                  ? tokens?.selectedRow
+                                  : null,
+                            ),
+                            onPressed: () => Navigator.pop(context, reaction),
+                            icon: reaction.emoji == null
+                                ? Icon(reaction.icon)
+                                : Text(
+                                    reaction.emoji!,
+                                    textScaler: TextScaler.noScaling,
+                                    style: const TextStyle(fontSize: 28),
+                                  ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
             if (preview != null)
               LayoutId(
                 id: _Part.preview,
@@ -114,7 +156,10 @@ class MessageActionsOverlay extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     action.label,
-                                    style: const TextStyle(fontSize: 17),
+                                    style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w400,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -136,7 +181,7 @@ class MessageActionsOverlay extends StatelessWidget {
   }
 }
 
-enum _Part { preview, menu }
+enum _Part { preview, menu, reactions }
 
 class _MessageMenuLayout extends MultiChildLayoutDelegate {
   _MessageMenuLayout(this.anchor, this.insets);
@@ -152,12 +197,24 @@ class _MessageMenuLayout extends MultiChildLayoutDelegate {
       math.max(insets.top, size.height - insets.bottom),
     );
     final hasPreview = hasChild(_Part.preview);
+    final hasReactions = hasChild(_Part.reactions);
+    final reactionSize = hasReactions
+        ? layoutChild(
+            _Part.reactions,
+            BoxConstraints(
+              maxWidth: math.min(344, area.width),
+              maxHeight: math.min(56, area.height),
+            ),
+          )
+        : Size.zero;
+    final reactionHeight = hasReactions ? reactionSize.height + 8 : 0.0;
     final menu = layoutChild(
       _Part.menu,
       BoxConstraints(
         minWidth: math.min(250, area.width),
         maxWidth: math.min(250, area.width),
-        maxHeight: area.height * (hasPreview ? .7 : 1),
+        maxHeight:
+            math.max(0, area.height - reactionHeight) * (hasPreview ? .7 : 1),
       ),
     );
     const gap = 8.0;
@@ -166,21 +223,36 @@ class _MessageMenuLayout extends MultiChildLayoutDelegate {
             _Part.preview,
             BoxConstraints(
               maxWidth: math.min(anchor.width, area.width),
-              maxHeight: math.max(0, area.height - menu.height - gap),
+              maxHeight: math.max(
+                0,
+                area.height - reactionHeight - menu.height - gap,
+              ),
             ),
           )
         : Size.zero;
     final right = anchor.center.dx > size.width / 2;
     double x(double width) => (right ? anchor.right - width : anchor.left)
         .clamp(area.left, math.max(area.left, area.right - width));
-    final height = preview.height + (hasPreview ? gap : 0) + menu.height;
-    final top = anchor.top
+    final height =
+        reactionHeight + preview.height + (hasPreview ? gap : 0) + menu.height;
+    final top = (anchor.top - reactionHeight)
         .clamp(area.top, math.max(area.top, area.bottom - height))
         .toDouble();
-    if (hasPreview) positionChild(_Part.preview, Offset(x(preview.width), top));
+    if (hasReactions) {
+      positionChild(_Part.reactions, Offset(x(reactionSize.width), top));
+    }
+    if (hasPreview) {
+      positionChild(
+        _Part.preview,
+        Offset(x(preview.width), top + reactionHeight),
+      );
+    }
     positionChild(
       _Part.menu,
-      Offset(x(menu.width), top + preview.height + (hasPreview ? gap : 0)),
+      Offset(
+        x(menu.width),
+        top + reactionHeight + preview.height + (hasPreview ? gap : 0),
+      ),
     );
   }
 

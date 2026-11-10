@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'package:fireplace/src/crypto/session.dart';
 import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 import 'package:fireplace/src/model/chat/async_mutex.dart';
 import 'package:fireplace/src/model/chat/chat_directory.dart';
@@ -172,6 +173,42 @@ class ChatService {
 
   Future<void> sendText(String chatId, String text) =>
       _sender.sendText(chatId, text);
+
+  Future<void> react(String chatId, String targetId, String emoji) =>
+      _sender.sendControl(
+        chatId,
+        MessageMutation(
+          kind: MessageMutationKind.reaction,
+          targetId: targetId,
+          emoji: emoji,
+        ),
+      );
+
+  Future<void> deleteForEveryone(String chatId, String targetId) =>
+      _sender.sendControl(
+        chatId,
+        MessageMutation(kind: MessageMutationKind.delete, targetId: targetId),
+      );
+
+  /// Repairs a confirmed control's local save without publishing another copy.
+  Future<void> saveControlLocally(SendNotConfirmedException send) {
+    if (send.mutation == null ||
+        send.outcome != SendOutcome.publishedLocalSaveFailed) {
+      throw ArgumentError('Only confirmed controls can be saved');
+    }
+    return _messages.add(
+      LocalMessage(
+        id: send.messageId,
+        chatId: send.chatId,
+        senderUid: uid,
+        senderDevice: device.keys.deviceId,
+        outgoing: true,
+        sentAt: send.attemptedAt,
+        body: '',
+        mutation: send.mutation,
+      ),
+    );
+  }
 
   Future<SendOutcome> checkSendStatus(String chatId, String messageId) =>
       _recovery.checkSendStatus(chatId, messageId);

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/view/chat/message_reactions.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
@@ -128,6 +129,7 @@ class ChatTimeline extends ConsumerWidget {
                         ),
                       ),
                       if (message.outgoing &&
+                          !message.remotelyDeleted &&
                           (message.status == MessageStatus.unconfirmed ||
                               send.memoryPending[message.id]?.outcome ==
                                   SendOutcome.publishedLocalSaveFailed))
@@ -148,6 +150,13 @@ class ChatTimeline extends ConsumerWidget {
                             }
                           },
                         ),
+                      MessageReactions(
+                        message: message,
+                        peerName: name,
+                        onSelect: selection.active
+                            ? () => controller.toggle(message.id)
+                            : null,
+                      ),
                     ],
                   );
                 },

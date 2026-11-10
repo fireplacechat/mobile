@@ -58,17 +58,7 @@ class SendRecovery {
   Future<void> confirmOwnSend(String chatId, String messageId) async {
     final m = await _messages.get(chatId, messageId);
     if (m != null && m.status == MessageStatus.unconfirmed) {
-      await _messages.add(
-        LocalMessage(
-          id: m.id,
-          chatId: m.chatId,
-          senderUid: m.senderUid,
-          senderDevice: m.senderDevice,
-          outgoing: true,
-          sentAt: m.sentAt,
-          body: m.body,
-        ),
-      );
+      await _messages.add(m.copyWith(status: MessageStatus.ok));
     }
   }
 

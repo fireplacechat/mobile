@@ -32,7 +32,7 @@ void main() {
           true,
           MessageStatus.ok,
           'Hello',
-          ['copy', 'forward', 'selectText', 'select'],
+          ['copy', 'forward', 'selectText', 'select', 'deleteEveryone'],
         ),
         (
           'blocked',
@@ -138,6 +138,7 @@ void main() {
         'forward': 'Forward',
         'selectText': 'Select text',
         'select': 'Select',
+        'deleteEveryone': 'Delete for everyone',
         'report': 'Report',
       };
       expect(
@@ -206,7 +207,7 @@ void main() {
         );
         await settleUi(t);
         mounted = !unavailable;
-        actions!.first.onSelected();
+        actions!.firstWhere((a) => a.id == 'copy').onSelected();
         await settleUi(t);
         expect(copied, unavailable ? isNull : 'Hello');
         expect(notices, unavailable ? isEmpty : ['Message copied']);

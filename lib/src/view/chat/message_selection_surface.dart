@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
+import 'package:fireplace/src/model/chat/message_controls.dart';
+import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
@@ -64,6 +66,27 @@ class MessageSelectionSurface extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(messageControlsProvider(chatId).select((s) => s.busy));
+    ref.listen(messageControlsProvider(chatId), (previous, next) {
+      if (next.notice == null || next.notice == previous?.notice) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(next.notice!),
+          action: next.pending == null
+              ? null
+              : SnackBarAction(
+                  label:
+                      next.pending!.outcome ==
+                          SendOutcome.publishedLocalSaveFailed
+                      ? 'Save on device'
+                      : 'Check status',
+                  onPressed: () => ref
+                      .read(messageControlsProvider(chatId).notifier)
+                      .resolvePending(),
+                ),
+        ),
+      );
+    });
     final selection = ref.watch(messageSelectionProvider(chatId));
     final controller = ref.read(messageSelectionProvider(chatId).notifier);
     return PopScope(
