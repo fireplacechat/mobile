@@ -1,4 +1,4 @@
-// Export the approved flame geometry with a subtle surface finish for iOS.
+// Export the approved flame geometry with a raised enamel finish for iOS.
 // flutter test scripts/render/render_app_icons_test.dart
 // Exports stay in build/icon-exports until copied into the app's asset catalog.
 import 'dart:convert';
@@ -58,10 +58,20 @@ void paintIcon(Canvas canvas, int pixels) {
     bounds,
     Paint()
       ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFC45D08), fireplaceOrange, Color(0xFFB45100)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFC15A04), fireplaceOrange, Color(0xFFB85401)],
         stops: [0, .5, 1],
+      ).createShader(bounds),
+  );
+  // A broad, low-opacity reflection keeps the burnt orange recognisable.
+  canvas.drawRect(
+    bounds,
+    Paint()
+      ..shader = const RadialGradient(
+        center: Alignment(-.65, -.9),
+        radius: 1.35,
+        colors: [Color(0x14FFFFFF), Color(0x00FFFFFF)],
       ).createShader(bounds),
   );
 
@@ -70,8 +80,8 @@ void paintIcon(Canvas canvas, int pixels) {
   for (var i = 0; i <= 256; i++) {
     final angle = i * math.pi * 2 / 256;
     final c = math.cos(angle), s = math.sin(angle);
-    final x = 512 + 510 * c.sign * math.pow(c.abs(), .4);
-    final y = 512 + 510 * s.sign * math.pow(s.abs(), .4);
+    final x = 512 + 500 * c.sign * math.pow(c.abs(), .4);
+    final y = 512 + 500 * s.sign * math.pow(s.abs(), .4);
     if (i == 0) {
       rim.moveTo(x, y);
     } else {
@@ -79,17 +89,33 @@ void paintIcon(Canvas canvas, int pixels) {
     }
   }
   rim.close();
+  // Keep the bevel inside the OS mask so it survives at home-screen size.
+  const rimLight = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xB8FFFFFF),
+      Color(0x24FFFFFF),
+      Color(0x00FFFFFF),
+      Color(0x18FFFFFF),
+      Color(0x98FFFFFF),
+    ],
+    stops: [0, .27, .5, .73, 1],
+  );
   canvas.drawPath(
     rim,
     Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0x80FFFFFF), Color(0x08FFFFFF), Color(0x183F1A00)],
-        stops: [0, .55, 1],
-      ).createShader(bounds),
+      ..strokeWidth = 24
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
+      ..shader = rimLight.createShader(bounds),
+  );
+  canvas.drawPath(
+    rim,
+    Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7
+      ..shader = rimLight.createShader(bounds),
   );
 
   // Match the current launcher mark's 78% master scale and centred placement.
@@ -97,29 +123,47 @@ void paintIcon(Canvas canvas, int pixels) {
       .transform(Matrix4.diagonal3Values(.78, .78, 1).storage)
       .shift(const Offset(112.64, 112.64));
   canvas.drawPath(
-    mark.shift(const Offset(0, 3)),
+    mark.shift(const Offset(1, 12)),
     Paint()
-      ..color = const Color(0x303F1A00)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+      ..color = const Color(0x493F1A00)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+  );
+  canvas.drawPath(
+    mark.shift(const Offset(0, 5)),
+    Paint()..color = const Color(0xFFDDD0BE),
   );
   canvas.drawPath(
     mark,
     Paint()
       ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFFDFAF5), Color(0xFFFAF7F0), Color(0xFFF4EFE6)],
-      ).createShader(bounds),
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFFFFFEFB), Color(0xFFFAF7F0), Color(0xFFF0EADF)],
+        stops: [0, .55, 1],
+      ).createShader(mark.getBounds()),
   );
-  // A clipped edge catch adds depth without changing the flame silhouettes.
+  // Directional inner edges give the original silhouette a rounded face.
   canvas.save();
   canvas.clipPath(mark);
   canvas.drawPath(
-    mark.shift(const Offset(0, 1.5)),
+    Path.combine(
+      PathOperation.difference,
+      mark,
+      mark.shift(const Offset(-14, -16)),
+    ),
     Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.5
-      ..color = const Color(0xA0FFFFFF),
+      ..color = const Color(0x605D4933)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+  );
+  canvas.drawPath(
+    Path.combine(
+      PathOperation.difference,
+      mark,
+      mark.shift(const Offset(10, 12)),
+    ),
+    Paint()
+      ..color = const Color(0xF0FFFFFF)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
   );
   canvas.restore();
 }
