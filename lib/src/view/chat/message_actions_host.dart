@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fireplace/src/view/chat/emoji_picker.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/view/chat/message_actions_overlay.dart';
 
@@ -18,7 +19,7 @@ class MessageActionsHost extends StatefulWidget {
   final Rect anchor;
   final List<MessageAction> actions;
   final bool reducedMotion;
-  final ValueChanged<MessageAction?> onClosed;
+  final void Function(MessageAction? chosen, String? emoji) onClosed;
   final VoidCallback onDisposed;
   final Widget? preview;
   final MessageMenuGesture? gesture;
@@ -27,8 +28,10 @@ class MessageActionsHost extends StatefulWidget {
 }
 
 class MessageActionsHostState extends State<MessageActionsHost>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _animation;
+  late final AnimationController _picker;
+  MessageAction? _picking;
   bool _closing = false;
   @override
   void initState() {
@@ -39,14 +42,33 @@ class MessageActionsHostState extends State<MessageActionsHost>
           ? Duration.zero
           : const Duration(milliseconds: 400),
     )..forward();
+    _picker = AnimationController(
+      vsync: this,
+      duration: widget.reducedMotion
+          ? Duration.zero
+          : const Duration(milliseconds: 250),
+    );
   }
 
-  Future<void> dismiss(MessageAction? action) async {
+  /// The emoji picker replaces the reaction bar and the action list; the
+  /// held message stays where it is.
+  void _select(MessageAction action) {
+    if (action.onEmoji == null) {
+      dismiss(action);
+      return;
+    }
+    if (_closing || _picking != null) return;
+    widget.gesture?.highlighted.value = null;
+    setState(() => _picking = action);
+    _picker.forward();
+  }
+
+  Future<void> dismiss(MessageAction? action, [String? emoji]) async {
     if (_closing) return;
     _closing = true;
     try {
       await _animation.reverse().orCancel;
-      if (mounted) widget.onClosed(action);
+      if (mounted) widget.onClosed(action, emoji);
     } on TickerCanceled {
       /* The owning overlay was disposed. */
     }
@@ -55,6 +77,7 @@ class MessageActionsHostState extends State<MessageActionsHost>
   @override
   void dispose() {
     _animation.dispose();
+    _picker.dispose();
     widget.onDisposed();
     super.dispose();
   }
@@ -92,9 +115,43 @@ class MessageActionsHostState extends State<MessageActionsHost>
                   reactions: widget.actions.where((a) => a.reaction).toList(),
                   animation: _animation,
                   preview: widget.preview,
-                  gesture: widget.gesture,
-                  onSelected: dismiss,
+                  gesture: _picking == null ? widget.gesture : null,
+                  controls: _picking == null ? null : ReverseAnimation(_picker),
+                  picker: CurvedAnimation(
+                    parent: _picker,
+                    curve: Curves.easeOutCubic,
+                  ),
+                  pickerTop:
+                      (MediaQuery.sizeOf(context).height -
+                          MediaQuery.viewInsetsOf(context).bottom) *
+                      (1 - EmojiPickerMetrics.restingFraction),
+                  onSelected: _select,
                 ),
+                if (_picking case final picking?)
+                  Positioned.fill(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.viewInsetsOf(context).bottom,
+                      ),
+                      child: SlideTransition(
+                        position:
+                            Tween(
+                              begin: const Offset(0, 1),
+                              end: Offset.zero,
+                            ).animate(
+                              CurvedAnimation(
+                                parent: _picker,
+                                curve: Curves.easeOutCubic,
+                              ),
+                            ),
+                        child: EmojiPickerSheet(
+                          recent: picking.recentEmoji,
+                          onPicked: (emoji) => dismiss(picking, emoji),
+                          onDismissed: () => dismiss(null),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

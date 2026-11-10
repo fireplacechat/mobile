@@ -1,5 +1,6 @@
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:flutter/material.dart';
+import 'package:fireplace/src/view/chat/message_actions_overlay.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
@@ -83,7 +84,12 @@ class ChatTimeline extends ConsumerWidget {
                 key: const Key('messageTimeline'),
                 controller: scrollController,
                 reverse: true,
-                padding: EdgeInsets.all(12),
+                // The side inset equals the held-message menu's, so a
+                // message with room for its menu is lifted without moving.
+                padding: const EdgeInsets.symmetric(
+                  horizontal: MessageMenuMetrics.edge,
+                  vertical: 12,
+                ),
                 itemCount: msgs.length,
                 itemBuilder: (_, i) {
                   final index = msgs.length - 1 - i;

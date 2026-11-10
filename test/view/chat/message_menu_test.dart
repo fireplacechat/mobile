@@ -22,7 +22,7 @@ void main() {
           false,
           MessageStatus.ok,
           '**Hello**',
-          ['reply', 'copy', 'forward', 'selectText', 'select', 'report'],
+          ['reply', 'forward', 'copy', 'selectText', 'select', 'report'],
         ),
         (
           'sent',
@@ -35,8 +35,8 @@ void main() {
           [
             'reply',
             'edit',
-            'copy',
             'forward',
+            'copy',
             'selectText',
             'select',
             'deleteEveryone',

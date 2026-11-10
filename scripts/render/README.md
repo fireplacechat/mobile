@@ -32,3 +32,14 @@ bundled with the app or committed. Keep the font and environment identical when
 comparing render hashes. The manifest records whether this fallback was supplied.
 
 The seven-feature continuation adds formatted messages, muted/unread controls, the back-arrow total, forwarding, global search and message location, name-only/text foreground cards, and device linking at narrow enlarged-text and landscape sizes. Searches use the real isolate scanner over fictional local history; asynchronous search is fully settled before capturing. Every state still has paired light/dark renders.
+
+## Comparing with a reference screenshot
+
+The `reference-*` states render at 375 x 812 points with a notched phone's safe
+areas and three pixels per point, the size of the owner's reference screenshots.
+`python3 scripts/render/compare_reference.py RENDER REFERENCE OUT_PREFIX` writes
+a side-by-side image and an even blend of the two; `--render-top` and
+`--reference-top` align crops of different heights. Reference screenshots can
+contain other people's names and messages: keep them and the comparison images
+out of Git unless the owner has cleared them. The renderer also loads the
+Cupertino icon font from the resolved `cupertino_icons` package.

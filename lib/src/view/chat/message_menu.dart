@@ -1,5 +1,6 @@
 import 'package:fireplace/src/model/chat/message_compose_target.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -88,14 +89,20 @@ List<MessageAction> messageMenuActions(
         label: 'More reactions',
         icon: Icons.add,
         reaction: true,
-        onSelected: () => run(() => showReactionPicker(context, ref, message)),
+        recentEmoji: _recentReactions(ref, chatId(), owner?.uid),
+        onEmoji: (emoji) => run(
+          () => ref
+              .read(messageControlsProvider(chatId()).notifier)
+              .react(message.id, emoji),
+        ),
+        onSelected: () {},
       ),
     ],
     if (canShare && message.status == MessageStatus.ok)
       MessageAction(
         id: 'reply',
         label: 'Reply',
-        icon: Icons.reply_rounded,
+        icon: CupertinoIcons.arrowshape_turn_up_left,
         onSelected: () => run(
           () => ref
               .read(messageComposeProvider(chatId()).notifier)
@@ -111,19 +118,10 @@ List<MessageAction> messageMenuActions(
       MessageAction(
         id: 'edit',
         label: 'Edit',
-        icon: Icons.edit_outlined,
+        icon: CupertinoIcons.pencil,
         onSelected: () => run(
           () =>
               ref.read(messageComposeProvider(chatId()).notifier).edit(message),
-        ),
-      ),
-    if (canShare)
-      MessageAction(
-        id: 'copy',
-        label: 'Copy',
-        icon: Icons.copy_outlined,
-        onSelected: () => run(
-          () => _copyMessage(message, isMounted: isMounted, notice: notice),
         ),
       ),
     if (canShare &&
@@ -132,14 +130,23 @@ List<MessageAction> messageMenuActions(
       MessageAction(
         id: 'forward',
         label: 'Forward',
-        icon: Icons.forward_outlined,
+        icon: CupertinoIcons.arrowshape_turn_up_right,
         onSelected: () => run(() => forwardMessage(context, message, name)),
+      ),
+    if (canShare)
+      MessageAction(
+        id: 'copy',
+        label: 'Copy',
+        icon: CupertinoIcons.doc_on_doc,
+        onSelected: () => run(
+          () => _copyMessage(message, isMounted: isMounted, notice: notice),
+        ),
       ),
     if (canShare)
       MessageAction(
         id: 'selectText',
         label: 'Select text',
-        icon: Icons.text_fields_outlined,
+        icon: CupertinoIcons.textformat,
         onSelected: () => run(
           () => showSelectTextSheet(
             context,
@@ -166,7 +173,7 @@ List<MessageAction> messageMenuActions(
       MessageAction(
         id: 'select',
         label: 'Select',
-        icon: Icons.check_circle_outline,
+        icon: CupertinoIcons.checkmark_circle,
         onSelected: () => run(
           () => ref
               .read(messageSelectionProvider(chatId()).notifier)
@@ -182,7 +189,7 @@ List<MessageAction> messageMenuActions(
       MessageAction(
         id: 'deleteEveryone',
         label: 'Delete for everyone',
-        icon: Icons.delete_outline,
+        icon: CupertinoIcons.trash,
         destructive: true,
         onSelected: () => run(() => confirmRemoteDelete(context, ref, message)),
       ),
@@ -194,7 +201,7 @@ List<MessageAction> messageMenuActions(
       MessageAction(
         id: 'report',
         label: 'Report',
-        icon: Icons.flag_outlined,
+        icon: CupertinoIcons.flag,
         destructive: true,
         onSelected: () => run(
           () => contactAction(() async {
@@ -225,4 +232,18 @@ Future<void> _copyMessage(
   } catch (_) {
     if (isMounted()) notice('Could not copy this message. Try again.');
   }
+}
+
+/// This person's reactions in the conversation, newest message first. Read
+/// from the decrypted history already in memory; nothing extra is stored.
+List<String> _recentReactions(WidgetRef ref, String chatId, String? uid) {
+  if (uid == null) return const [];
+  final messages = ref.read(messagesProvider(chatId)).value ?? const [];
+  final recent = <String>[];
+  for (final message in messages.reversed) {
+    final emoji = message.reactions[uid]?.emoji;
+    if (emoji != null && !recent.contains(emoji)) recent.add(emoji);
+    if (recent.length == 16) break;
+  }
+  return recent;
 }

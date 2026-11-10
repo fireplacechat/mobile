@@ -167,6 +167,12 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     final base = mine
         ? colors.outgoing.outgoing
         : colors.incoming.incoming(Theme.of(context).brightness);
+    final quoted = message.quote != null && !message.remotelyDeleted;
+    // With a quote the bubble's own padding shrinks to frame the panel, so
+    // the text keeps its usual distance from the edge with this.
+    final textInset = quoted
+        ? const EdgeInsets.symmetric(horizontal: 6)
+        : EdgeInsets.zero;
     final bubbleRadius = BorderRadius.only(
       topLeft: const Radius.circular(20),
       topRight: const Radius.circular(20),
@@ -246,10 +252,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                         .toDouble(),
                   ),
                   margin: const EdgeInsets.symmetric(vertical: 4),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
+                  padding: quoted
+                      ? const EdgeInsets.fromLTRB(8, 8, 8, 8)
+                      : const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   decoration: BoxDecoration(
                     color: _held
                         ? Color.alphaBlend(const Color(0x22000000), base)
@@ -275,139 +280,158 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                               : widget.actions)
                         CustomSemanticsAction(label: a.label): a.onSelected,
                     },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if (message.quote != null && !message.remotelyDeleted)
-                          MessageQuotePreview(
-                            key: ValueKey('messageQuote-${message.id}'),
-                            quote: message.quote!,
-                            foreground: fg,
-                            author:
-                                message.quote!.senderUid ==
-                                    ref.watch(
-                                      appSessionProvider.select(
-                                        (s) => s.value?.uid,
-                                      ),
-                                    )
-                                ? 'You'
-                                : widget.senderName ?? 'Them',
-                            onTap: widget.preview
-                                ? null
-                                : widget.selecting
-                                ? widget.onToggleSelection
-                                : () => widget.onQuote?.call(
-                                    message.quote!.targetId,
+                    // A reply is as wide as the wider of its quote and its
+                    // own text; the quote panel then spans that width.
+                    child: _HugWidth(
+                      enabled: quoted,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: quoted
+                            ? CrossAxisAlignment.stretch
+                            : CrossAxisAlignment.end,
+                        children: [
+                          if (quoted)
+                            MessageQuotePreview(
+                              key: ValueKey('messageQuote-${message.id}'),
+                              quote: message.quote!,
+                              foreground: fg,
+                              bubble: base,
+                              outgoing: mine,
+                              author:
+                                  message.quote!.senderUid ==
+                                      ref.watch(
+                                        appSessionProvider.select(
+                                          (s) => s.value?.uid,
+                                        ),
+                                      )
+                                  ? 'You'
+                                  : widget.senderName ?? 'Them',
+                              onTap: widget.preview
+                                  ? null
+                                  : widget.selecting
+                                  ? widget.onToggleSelection
+                                  : () => widget.onQuote?.call(
+                                      message.quote!.targetId,
+                                    ),
+                            ),
+                          if (quoted) const SizedBox(height: 5),
+                          if (bad)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 6,
+                                children: [
+                                  Icon(Icons.lock_outline, size: 16, color: fg),
+                                  Text(
+                                    'Unreadable message',
+                                    style: TextStyle(
+                                      color: fg,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                          ),
-                        if (bad)
+                                ],
+                              ),
+                            ),
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 6,
-                              children: [
-                                Icon(Icons.lock_outline, size: 16, color: fg),
-                                Text(
-                                  'Unreadable message',
-                                  style: TextStyle(
+                            padding: textInset,
+                            child: Align(
+                              widthFactor: quoted ? null : 1,
+                              alignment: AlignmentDirectional.centerStart,
+                              child: Text.rich(
+                                formatted.span(
+                                  TextStyle(
                                     color: fg,
-                                    fontWeight: FontWeight.w600,
+                                    fontSize: 17,
+                                    height: 1.3,
+                                    fontStyle: bad || message.remotelyDeleted
+                                        ? FontStyle.italic
+                                        : FontStyle.normal,
+                                  ),
+                                ),
+                                semanticsLabel: formatted.plain,
+                              ),
+                            ),
+                          ),
+                          if (oversize)
+                            TextButton(
+                              key: ValueKey('showAll-${message.id}'),
+                              onPressed: widget.selecting
+                                  ? widget.onToggleSelection
+                                  : () => setState(() => _showAll = !_showAll),
+                              child: Text(
+                                _showAll ? 'Show less' : 'Show all',
+                                style: TextStyle(
+                                  color: fg,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 2),
+                          Padding(
+                            padding: textInset,
+                            child: Wrap(
+                              alignment: WrapAlignment.end,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 4,
+                              children: [
+                                if (message.edits.isNotEmpty &&
+                                    !message.remotelyDeleted)
+                                  Semantics(
+                                    button: true,
+                                    label: 'View edit history',
+                                    child: GestureDetector(
+                                      key: ValueKey('edited-${message.id}'),
+                                      behavior: HitTestBehavior.opaque,
+                                      onTap: widget.preview
+                                          ? null
+                                          : widget.selecting
+                                          ? widget.onToggleSelection
+                                          : () => showModalBottomSheet<void>(
+                                              context: context,
+                                              useSafeArea: true,
+                                              showDragHandle: true,
+                                              builder: (_) => MessageEditHistory(
+                                                chatId: message.chatId,
+                                                messageId: message.id,
+                                                ownerUid:
+                                                    ref
+                                                        .read(
+                                                          appSessionProvider,
+                                                        )
+                                                        .value
+                                                        ?.uid ??
+                                                    '',
+                                              ),
+                                            ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 4,
+                                        ),
+                                        child: Text(
+                                          'Edited',
+                                          style: TextStyle(
+                                            color: mine ? fg : t.secondaryText,
+                                            fontSize: 11,
+                                            height: 1.3,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                Text(
+                                  time,
+                                  style: TextStyle(
+                                    color: mine ? fg : t.secondaryText,
+                                    fontSize: 11,
+                                    height: 1.3,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        Align(
-                          widthFactor: message.quote == null ? 1 : null,
-                          alignment: AlignmentDirectional.centerStart,
-                          child: Text.rich(
-                            formatted.span(
-                              TextStyle(
-                                color: fg,
-                                fontSize: 17,
-                                height: 1.3,
-                                fontStyle: bad || message.remotelyDeleted
-                                    ? FontStyle.italic
-                                    : FontStyle.normal,
-                              ),
-                            ),
-                            semanticsLabel: formatted.plain,
-                          ),
-                        ),
-                        if (oversize)
-                          TextButton(
-                            key: ValueKey('showAll-${message.id}'),
-                            onPressed: widget.selecting
-                                ? widget.onToggleSelection
-                                : () => setState(() => _showAll = !_showAll),
-                            child: Text(
-                              _showAll ? 'Show less' : 'Show all',
-                              style: TextStyle(
-                                color: fg,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 2),
-                        Wrap(
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          spacing: 4,
-                          children: [
-                            if (message.edits.isNotEmpty &&
-                                !message.remotelyDeleted)
-                              Semantics(
-                                button: true,
-                                label: 'View edit history',
-                                child: GestureDetector(
-                                  key: ValueKey('edited-${message.id}'),
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: widget.preview
-                                      ? null
-                                      : widget.selecting
-                                      ? widget.onToggleSelection
-                                      : () => showModalBottomSheet<void>(
-                                          context: context,
-                                          useSafeArea: true,
-                                          showDragHandle: true,
-                                          builder: (_) => MessageEditHistory(
-                                            chatId: message.chatId,
-                                            messageId: message.id,
-                                            ownerUid:
-                                                ref
-                                                    .read(appSessionProvider)
-                                                    .value
-                                                    ?.uid ??
-                                                '',
-                                          ),
-                                        ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 4,
-                                    ),
-                                    child: Text(
-                                      'Edited',
-                                      style: TextStyle(
-                                        color: mine ? fg : t.secondaryText,
-                                        fontSize: 11,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            Text(
-                              time,
-                              style: TextStyle(
-                                color: mine ? fg : t.secondaryText,
-                                fontSize: 11,
-                                height: 1.3,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -418,4 +442,15 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
       ),
     );
   }
+}
+
+/// Sizes a column to its widest child instead of the space offered, so that
+/// children can then be stretched to that width.
+class _HugWidth extends StatelessWidget {
+  const _HugWidth({required this.enabled, required this.child});
+  final bool enabled;
+  final Widget child;
+  @override
+  Widget build(BuildContext context) =>
+      enabled ? IntrinsicWidth(child: child) : child;
 }
