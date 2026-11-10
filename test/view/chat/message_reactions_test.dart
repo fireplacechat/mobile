@@ -73,6 +73,29 @@ void main() {
     expect(f.chat.reactions, [('5', '🥰')]);
   });
 
+  testWidgets('large text keeps picker emoji within their touch targets', (
+    t,
+  ) async {
+    t.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    await openChat(t, f);
+    await t.longPress(bubble('5'));
+    await t.pumpAndSettle();
+    await t.ensureVisible(action('moreReactions'));
+    await t.tap(action('moreReactions'));
+    await t.pumpAndSettle();
+    final button = t.getSize(find.byKey(const ValueKey('pickReaction-🥰')));
+    final emoji = t.getSize(find.text('🥰'));
+    expect(emoji.height, lessThanOrEqualTo(button.height));
+    expect(emoji.width, lessThanOrEqualTo(button.width));
+    await t.tap(find.byKey(const ValueKey('pickReaction-🥰')));
+    await t.pumpAndSettle();
+    expect(f.chat.reactions, [('5', '🥰')]);
+  });
+
   testWidgets(
     'remote deletion confirms, cancels and leaves a neutral placeholder',
     (t) async {
