@@ -106,10 +106,12 @@ void main() {
     await t.pump();
     await t.tap(find.byKey(const Key('keepBlocked')));
     await settleUi(t);
+    // Nothing was sent; the message waits in the conversation as not sent.
     expect(
       t.widget<TextField>(find.byKey(const Key('composer'))).controller!.text,
-      'hello',
+      isEmpty,
     );
+    expect(find.text('Not sent. Tap for options.'), findsOneWidget);
   });
   testWidgets(
     'confirmed check and successful local repair forget the warning',

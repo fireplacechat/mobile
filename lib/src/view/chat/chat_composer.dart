@@ -174,17 +174,13 @@ class ChatComposer extends StatelessWidget {
                         ),
                         onPressed:
                             !canSubmit ||
-                                (editing ? editingBusy : send.sending) ||
+                                (editing && editingBusy) ||
                                 text.text.trim().isEmpty ||
                                 !hasSession
                             ? null
                             : submit ?? send.send,
-                        tooltip: editing
-                            ? 'Save edit'
-                            : send.sending
-                            ? 'Sending message'
-                            : 'Send message',
-                        icon: (editing ? editingBusy : send.sending)
+                        tooltip: editing ? 'Save edit' : 'Send message',
+                        icon: editing && editingBusy
                             ? SizedBox.square(
                                 dimension: 20,
                                 child: CircularProgressIndicator(

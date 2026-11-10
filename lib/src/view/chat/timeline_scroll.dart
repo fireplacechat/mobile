@@ -10,7 +10,13 @@ class TimelineScroll extends ChangeNotifier {
   final _anchors = <String, GlobalKey>{};
   bool _awayFromLatest = false;
   bool _disposed = false;
+  Object? _latestScroll;
   bool get awayFromLatest => _awayFromLatest;
+
+  /// True while the view animates back to the newest message after one's own
+  /// send. A message stored meanwhile must not be taken for an arrival while
+  /// reading, which would hold the view where it was.
+  bool get returningToLatest => _latestScroll != null;
 
   void _onTimelineScroll() {
     final away = controller.hasClients && controller.offset > 96;
@@ -72,13 +78,21 @@ class TimelineScroll extends ChangeNotifier {
     if (_disposed) return;
     if (!controller.hasClients) return;
     if (reduceMotion) {
+      _latestScroll = null;
       controller.jumpTo(0);
     } else {
-      controller.animateTo(
-        0,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
-      );
+      final scroll = Object();
+      _latestScroll = scroll;
+      controller
+          .animateTo(
+            0,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+          )
+          .whenComplete(() {
+            // A second send can replace the animation before it finishes.
+            if (identical(_latestScroll, scroll)) _latestScroll = null;
+          });
     }
   }
 

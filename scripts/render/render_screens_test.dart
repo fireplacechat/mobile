@@ -8,6 +8,7 @@ import 'catalog_case.dart';
 import 'reply_edit_cases.dart';
 import 'reference_cases.dart';
 import 'message_surface_cases.dart';
+import 'outgoing_send_cases.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -128,6 +129,7 @@ void main() {
     ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(manifest));
   });
   final cases = [
+    ...outgoingSendCases,
     ...messageSurfaceCases,
     ...replyEditCases,
     ...referenceCases,

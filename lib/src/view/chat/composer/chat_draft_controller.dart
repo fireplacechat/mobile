@@ -16,24 +16,13 @@ class ChatDraftController extends TextEditingController {
   final String chatId;
   final String? ownerUid;
   late String _lastText;
-  int _revision = 0;
-  bool _sending = false;
 
-  int get revision => _revision;
-
+  // Sending empties the text, which saves an empty draft here: a message
+  // that has been handed over is never restored as an unsent draft.
   void _changed() {
     if (text == _lastText) return;
     _lastText = text;
-    _revision++;
     drafts.save(chatId, text, ownerUid: ownerUid);
-  }
-
-  void sendingChanged(bool sending) {
-    if (_sending == sending) return;
-    _sending = sending;
-    // A send may finish after leaving the route. Do not restore its attempted
-    // text as an unsent draft; edits made during the send are saved separately.
-    drafts.save(chatId, sending ? '' : text, ownerUid: ownerUid);
   }
 
   @override

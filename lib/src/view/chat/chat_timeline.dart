@@ -7,6 +7,7 @@ import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
+import 'package:fireplace/src/model/chat/outgoing_sends.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/chat/widgets/day_separator.dart';
@@ -34,7 +35,13 @@ class ChatTimeline extends ConsumerWidget {
     required this.actionsFor,
     required this.onRetryHistory,
     required this.onLatest,
+    this.outgoing = const {},
+    this.onFailedSend,
   });
+
+  /// Messages in [msgs] that are being sent or were not sent, by their id.
+  final Map<String, OutgoingSend> outgoing;
+  final ValueChanged<OutgoingSend>? onFailedSend;
   final bool blocked, historyFailed, loading, incomingRequest, awayFromLatest;
   final List<LocalMessage> msgs;
   final String name;
@@ -97,6 +104,23 @@ class ChatTimeline extends ConsumerWidget {
                   final showDate =
                       index == 0 ||
                       !sameLocalDay(msgs[index - 1].sentAt, message.sentAt);
+                  final outgoingSend = outgoing[message.id];
+                  if (outgoingSend != null) {
+                    // Not in the history yet: no menu, reactions or selection.
+                    return Column(
+                      key: ValueKey(message.id),
+                      children: [
+                        if (showDate) DaySeparator(date: message.sentAt),
+                        MessageBubble(
+                          key: anchorFor(message.id),
+                          message: message,
+                          senderName: name,
+                          outgoingSend: outgoingSend,
+                          onFailedTap: () => onFailedSend?.call(outgoingSend),
+                        ),
+                      ],
+                    );
+                  }
                   return Column(
                     key: ValueKey(message.id),
                     children: [

@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
-import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
@@ -93,7 +92,8 @@ class Harness {
   final pending = PendingRecorder();
   final events = <String>[];
   String text = 'hello', id = 'alice_fred', uid = 'alice';
-  int revision = 0, notifications = 0;
+  int notifications = 0;
+  final enqueued = <(String, String?)>[];
   bool? confirm = true;
   bool disposedScope = false;
   Completer<bool?>? dialogHold;
@@ -108,16 +108,16 @@ class Harness {
           return pending;
         },
         draft: () => text,
-        draftRevision: () => revision,
+        enqueue: (body, reply) {
+          events.add('enqueue');
+          enqueued.add((body, reply));
+        },
         clearDraft: () {
           events.add('clear');
           text = '';
         },
         notice: (m) => events.add(m),
         showNewest: () => events.add('latest'),
-        reviewIdentity: (peer, pub) async {
-          events.add('review:$peer');
-        },
         identityAlerts: () => alerts,
         confirmSendAnotherCopy: () async {
           events.add('dialog');
@@ -157,96 +157,77 @@ void main() {
     expect(h.events, ['Review the security code change before sending.']);
     expect(h.service.sent, isEmpty);
   });
-  test('4 in-flight send suppresses duplicates and restores sending', () async {
-    final h = Harness();
-    h.service.sendHold = Completer<void>();
-    final first = h.controller.send();
-    await h.controller.send();
-    expect(h.service.sent, hasLength(1));
-    expect(h.controller.sending, isTrue);
-    h.service.sendHold!.complete();
-    await first;
-    expect(h.controller.sending, isFalse);
-  });
-  for (final edited in [false, true]) {
-    test(
-      '5 success preserves revision semantics edited=$edited and side-effect order',
-      () async {
-        final h = Harness();
-        h.service.sendHold = Completer<void>();
-        final f = h.controller.send();
-        if (edited) {
-          h.text = 'new text';
-          h.revision++;
-        }
-        h.service.sendHold!.complete();
-        await f;
-        expect(h.text, edited ? 'new text' : '');
-        expect(h.events, edited ? ['latest'] : ['clear', 'latest']);
-      },
-    );
-  }
-  for (final persisted in [false, true]) {
-    test(
-      '6 uncertain send persisted=$persisted is not a plain failure',
-      () async {
-        final h = Harness();
-        h.service.sendError = uncertain(persisted: persisted);
-        await h.controller.send();
-        expect(h.controller.memoryPending.length, persisted ? 0 : 1);
-        expect(h.pending.items.length, persisted ? 0 : 1);
-        expect(h.controller.sendError, isNull);
-        expect(h.events, ['clear', 'latest']);
-        expect(h.controller.sending, isFalse);
-      },
-    );
-  }
-  test('6 edited draft survives an uncertain send', () async {
-    final h = Harness();
-    h.service
-      ..sendHold = Completer<void>()
-      ..sendError = uncertain();
-    final f = h.controller.send();
-    h.text = 'edited';
-    h.revision++;
-    h.service.sendHold!.complete();
-    await f;
-    expect(h.text, 'edited');
-    expect(h.events, ['latest']);
-  });
-  test('7 identity exception starts review and restores sending', () async {
-    final h = Harness();
-    h.service.sendError = IdentityChangedException('fred', [7]);
-    await h.controller.send();
-    expect(h.events, ['review:fred']);
-    expect(h.controller.sending, isFalse);
-  });
-  test('8 chat exception retains draft and exposes its message', () async {
-    final h = Harness();
-    h.service.sendError = ChatException('Refused');
-    await h.controller.send();
-    expect(h.text, 'hello');
-    expect(h.controller.sendError, 'Refused');
-    expect(h.controller.sending, isFalse);
-  });
   test(
-    '9 unexpected failure retains draft with safe uncertainty wording',
+    '4 send hands the message over and empties the composer at once',
+    () async {
+      final h = Harness()..text = '  hello  ';
+      // Nothing has been sent yet when the composer is already empty: the
+      // queue sends, and the outcome never puts text back.
+      h.service.sendHold = Completer<void>();
+      await h.controller.send();
+      expect(h.enqueued, [('hello', null)]);
+      expect(h.text, '');
+      expect(h.events, ['enqueue', 'clear', 'latest']);
+      expect(h.service.sent, isEmpty, reason: 'the queue sends, not this');
+      expect(h.controller.sendError, isNull);
+    },
+  );
+  test(
+    '5 a message written while another is being sent is queued too',
     () async {
       final h = Harness();
-      h.service.sendError = StateError('secret');
       await h.controller.send();
-      expect(h.text, 'hello');
-      expect(
-        h.controller.sendError,
-        'We could not confirm this send. It may have reached them. Check your history before sending again.',
+      h.text = 'second';
+      await h.controller.send();
+      expect(h.enqueued, [('hello', null), ('second', null)]);
+      expect(h.text, '');
+    },
+  );
+  test(
+    '6 an emptied composer cannot hand the same message over twice',
+    () async {
+      final h = Harness();
+      await h.controller.send();
+      await h.controller.send();
+      expect(h.enqueued, hasLength(1));
+    },
+  );
+  test(
+    '7 a reply is handed over with its target and the reply is cleared',
+    () async {
+      final service = ControllerChat();
+      final events = <String>[];
+      final enqueued = <(String, String?)>[];
+      var text = 'hello';
+      String? reply = 'target';
+      final controller = SendController(
+        chatId: () => 'alice_fred',
+        chat: () => service,
+        ownerUid: () => 'alice',
+        pendingSends: PendingRecorder.new,
+        draft: () => text,
+        enqueue: (body, target) => enqueued.add((body, target)),
+        clearDraft: () => text = '',
+        replyTarget: () => reply,
+        clearReply: () {
+          events.add('clearReply');
+          reply = null;
+        },
+        notice: events.add,
+        showNewest: () {},
+        identityAlerts: () => {},
+        confirmSendAnotherCopy: () async => true,
       );
-      expect(h.controller.sending, isFalse);
+      await controller.send();
+      expect(enqueued, [('hello', 'target')]);
+      expect(events, ['clearReply']);
+      expect(text, '');
     },
   );
   test('dismissError clears the error and notifies exactly once', () async {
-    final h = Harness();
-    h.service.sendError = ChatException('Refused');
+    final h = Harness()..text = 'a' * (maxMessageCharacters + 1);
     await h.controller.send();
+    expect(h.controller.sendError, messageLimitError);
     final n = h.notifications;
     h.controller.dismissError();
     expect(h.controller.sendError, isNull);
@@ -355,31 +336,17 @@ void main() {
     expect(h.service.resends, 0);
     expect(h.controller.messageActions, isEmpty);
   });
-  for (final error in [
-    null,
-    uncertain(),
-    IdentityChangedException('fred', [7]),
-    ChatException('no'),
-    StateError('other'),
-  ]) {
-    test(
-      '14 disposed send completion never notifies or calls screen callbacks: $error',
-      () async {
-        final h = Harness();
-        h.service
-          ..sendHold = Completer<void>()
-          ..sendError = error;
-        final f = h.controller.send();
-        h.controller.dispose();
-        final n = h.notifications;
-        h.service.sendHold!.complete();
-        await f;
-        expect(h.notifications, n);
-        expect(h.events, isEmpty);
-        expect(h.pending.items, isEmpty);
-      },
-    );
-  }
+  test('14 a disposed controller hands nothing over', () async {
+    // The outcome of a send no longer passes through this controller at all:
+    // the queue above the screen owns it (see outgoing_sends_test.dart).
+    final h = Harness();
+    h.controller.dispose();
+    final n = h.notifications;
+    await h.controller.send();
+    expect(h.notifications, n);
+    expect(h.enqueued, isEmpty);
+    expect(h.text, 'hello');
+  });
   test(
     '14 dispose during confirmation suppresses resend and notifications',
     () async {
@@ -412,23 +379,17 @@ void main() {
     expect(h.controller.memoryPending, isEmpty);
     expect(h.pending.items, hasLength(1));
   });
-  test(
-    'getters read the current chat and identity on each invocation',
-    () async {
-      final h = Harness();
-      await h.controller.send();
-      h.id = 'alice_bob';
-      h.uid = 'new-owner';
-      h.text = 'second';
-      h.service.sendError = uncertain();
-      await h.controller.send();
-      expect(h.service.sent, [
-        ('alice_fred', 'hello'),
-        ('alice_bob', 'second'),
-      ]);
-      expect(h.pending.events, ['add:new-owner']);
-    },
-  );
+  test('the identity hold is read again on each send', () async {
+    final h = Harness();
+    await h.controller.send();
+    h.text = 'second';
+    h.alerts = {
+      'fred': [7],
+    };
+    await h.controller.send();
+    expect(h.enqueued, [('hello', null)]);
+    expect(h.text, 'second', reason: 'nothing was handed over');
+  });
   test('memory maps are read-only and silent mutations never notify', () {
     final h = Harness();
     final c = h.controller;
@@ -448,20 +409,6 @@ void main() {
     expect(h.notifications, 0);
     expect(() => c.messageActions.clear(), throwsUnsupportedError);
     expect(() => c.checkNote.clear(), throwsUnsupportedError);
-  });
-  test('10 sending returns to false after each non-disposed outcome', () async {
-    for (final error in [
-      null,
-      uncertain(),
-      IdentityChangedException('fred', [7]),
-      ChatException('no'),
-      StateError('other'),
-    ]) {
-      final h = Harness();
-      h.service.sendError = error;
-      await h.controller.send();
-      expect(h.controller.sending, isFalse);
-    }
   });
   test('clearMemoryPending changes the map without notifying', () {
     final h = Harness()..seed();

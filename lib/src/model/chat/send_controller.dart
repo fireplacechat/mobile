@@ -2,7 +2,6 @@ import 'dart:collection';
 
 import 'package:flutter/foundation.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
-import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
@@ -15,13 +14,12 @@ class SendController extends ChangeNotifier {
     required this.ownerUid,
     required this.pendingSends,
     required this.draft,
-    required this.draftRevision,
     required this.clearDraft,
+    required this.enqueue,
     this.replyTarget,
     this.clearReply,
     required void Function(String) notice,
     required this.showNewest,
-    required this.reviewIdentity,
     required this.identityAlerts,
     required this.confirmSendAnotherCopy,
   }) {
@@ -32,17 +30,18 @@ class SendController extends ChangeNotifier {
   final String? Function() ownerUid;
   final PendingLocalSends Function() pendingSends;
   final String Function() draft;
-  final int Function() draftRevision;
   final void Function() clearDraft;
+
+  /// Hands a message (and the id it replies to, if any) to the outgoing
+  /// queue, which sends it and shows it in the conversation meanwhile.
+  final void Function(String body, String? replyTarget) enqueue;
   final String? Function()? replyTarget;
   final void Function()? clearReply;
   late final void Function(String) _notice;
   final void Function() showNewest;
-  final Future<void> Function(String, List<int>) reviewIdentity;
   final Map<String, List<int>> Function() identityAlerts;
   final Future<bool?> Function() confirmSendAnotherCopy;
   bool _disposed = false;
-  bool _sending = false;
 
   /// Messages whose outcome could not be saved in the on-device history (the storage itself
   /// failed), so the warning lives in memory only. Keyed by the server message id.
@@ -50,7 +49,6 @@ class SendController extends ChangeNotifier {
   final _messageActions = <String, MessageRecoveryAction>{};
   String? _sendError;
   final Map<String, String> _checkNote = {};
-  bool get sending => _sending;
   String? get sendError => _sendError;
   Map<String, MemoryPending> get memoryPending =>
       UnmodifiableMapView(_memoryPending);
@@ -89,7 +87,12 @@ class SendController extends ChangeNotifier {
     super.dispose();
   }
 
+  /// Takes the draft out of the composer at once and hands it to the outgoing
+  /// queue. From here the message shows in the conversation, first as being
+  /// sent and, if that fails, as not sent with the choice to send it again:
+  /// it never goes back into the composer.
   Future<void> send() async {
+    if (_disposed) return;
     if (messageTooLong(draft())) {
       _sendError = messageLimitError;
       _changed();
@@ -97,63 +100,18 @@ class SendController extends ChangeNotifier {
     }
     final body = draft().trim();
     final service = chat();
-    final uid = ownerUid();
-    if (body.isEmpty || service == null || _sending) return;
+    if (body.isEmpty || service == null) return;
     final peerUid = service.peerOf(chatId());
     if (identityAlerts().containsKey(peerUid)) {
       notice('Review the security code change before sending.');
       return;
     }
-    final draftRevision = this.draftRevision();
-    final reply = replyTarget?.call();
-    _sending = true;
     _sendError = null;
+    enqueue(body, replyTarget?.call());
+    clearDraft();
+    clearReply?.call();
+    showNewest();
     _changed();
-    try {
-      if (reply == null) {
-        await service.sendText(chatId(), body);
-      } else {
-        await service.sendReply(chatId(), body, reply);
-      }
-      if (_disposed) return;
-      if (this.draftRevision() == draftRevision) {
-        clearDraft();
-        if (replyTarget?.call() == reply) clearReply?.call();
-      }
-      showNewest();
-    } on SendNotConfirmedException catch (e) {
-      // The message may already have been delivered, so this is NOT a plain failure: the attempted
-      // draft moves into a pending bubble (warning below it) instead of staying poised to resend.
-      if (_disposed) return;
-      if (!e.persisted) {
-        pendingSends().add(e, ownerUid: uid!);
-        _memoryPending[e.messageId] = MemoryPending(e);
-        _changed();
-      }
-      // Edits made while the send was in flight survive: only an untouched draft is cleared.
-      if (this.draftRevision() == draftRevision) {
-        clearDraft();
-        if (replyTarget?.call() == reply) clearReply?.call();
-      }
-      showNewest();
-    } on IdentityChangedException catch (e) {
-      if (!_disposed) await reviewIdentity(e.peerUid, e.newIdentityPub);
-    } on ChatException catch (e) {
-      if (!_disposed) {
-        _sendError = e.message;
-        _changed();
-      }
-    } catch (_) {
-      if (!_disposed) {
-        _sendError = 'We could not confirm this send. It may have reached them. Check your history before sending again.';
-        _changed();
-      }
-    } finally {
-      if (!_disposed) {
-        _sending = false;
-        _changed();
-      }
-    }
   }
 
   void forgetPending(String id) {
