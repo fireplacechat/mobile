@@ -1,5 +1,8 @@
 import 'dart:async';
 
+import 'package:fireplace/src/db/message_mutation.dart';
+import 'package:fireplace/src/db/message_projection.dart';
+
 enum MessageStatus {
   ok,
   undecryptable,
@@ -21,7 +24,12 @@ class LocalMessage {
     required this.body,
     this.status = MessageStatus.ok,
     this.locallyDeleted = false,
-  });
+    this.remotelyDeleted = false,
+    this.mutation,
+    Map<String, MessageReaction> reactions = const {},
+    Map<String, int> reactionClocks = const {},
+  }) : reactions = Map.unmodifiable(reactions),
+       reactionClocks = Map.unmodifiable(reactionClocks);
 
   final String id;
   final String chatId;
@@ -32,6 +40,34 @@ class LocalMessage {
   final String body; // plaintext, or a short reason when undecryptable
   final MessageStatus status;
   final bool locallyDeleted;
+  final bool remotelyDeleted;
+  final MessageMutation? mutation;
+  final Map<String, MessageReaction> reactions;
+  final Map<String, int> reactionClocks;
+  bool get visible => !locallyDeleted && mutation == null;
+
+  LocalMessage copyWith({
+    String? body,
+    bool? outgoing,
+    MessageStatus? status,
+    bool? remotelyDeleted,
+    Map<String, MessageReaction>? reactions,
+    Map<String, int>? reactionClocks,
+  }) => LocalMessage(
+    id: id,
+    chatId: chatId,
+    senderUid: senderUid,
+    senderDevice: senderDevice,
+    outgoing: outgoing ?? this.outgoing,
+    sentAt: sentAt,
+    body: body ?? this.body,
+    status: status ?? this.status,
+    locallyDeleted: locallyDeleted,
+    remotelyDeleted: remotelyDeleted ?? this.remotelyDeleted,
+    mutation: mutation,
+    reactions: reactions ?? this.reactions,
+    reactionClocks: reactionClocks ?? this.reactionClocks,
+  );
 
   factory LocalMessage.tombstone(String chatId, String id) => LocalMessage(
     id: id,
@@ -49,17 +85,7 @@ class LocalMessage {
   LocalMessage forAccount(String uid) {
     final mine = senderUid == uid;
     if (outgoing == mine) return this;
-    return LocalMessage(
-      id: id,
-      chatId: chatId,
-      senderUid: senderUid,
-      senderDevice: senderDevice,
-      outgoing: mine,
-      sentAt: sentAt,
-      body: body,
-      status: status,
-      locallyDeleted: locallyDeleted,
-    );
+    return copyWith(outgoing: mine);
   }
 
   Map<String, dynamic> toJson() => {
@@ -72,6 +98,11 @@ class LocalMessage {
     'body': body,
     'status': status.name,
     if (locallyDeleted) 'locallyDeleted': true,
+    if (remotelyDeleted) 'remotelyDeleted': true,
+    if (mutation != null) 'mutation': mutation!.toJson(),
+    if (reactions.isNotEmpty)
+      'reactions': {for (final e in reactions.entries) e.key: e.value.toJson()},
+    if (reactionClocks.isNotEmpty) 'reactionClocks': reactionClocks,
   };
 
   factory LocalMessage.fromJson(Map<String, dynamic> j) => LocalMessage(
@@ -84,6 +115,17 @@ class LocalMessage {
     body: j['body'],
     status: MessageStatus.values.byName(j['status']),
     locallyDeleted: j['locallyDeleted'] == true,
+    remotelyDeleted: j['remotelyDeleted'] == true,
+    reactionClocks: Map<String, int>.from(j['reactionClocks'] as Map? ?? {}),
+    mutation: j['mutation'] == null
+        ? null
+        : MessageMutation.fromJson(Map<String, dynamic>.from(j['mutation'])),
+    reactions: {
+      for (final e in (j['reactions'] as Map? ?? {}).entries)
+        e.key as String: MessageReaction.fromJson(
+          Map<String, dynamic>.from(e.value),
+        ),
+    },
   );
 }
 
@@ -111,7 +153,7 @@ class MemoryMessageStore implements LocalMessageStore {
   final Map<String, StreamController<List<LocalMessage>>> _ctrls = {};
 
   List<LocalMessage> _sorted(String chatId) =>
-      (_chats[chatId]?.values.where((m) => !m.locallyDeleted).toList() ??
+      (_chats[chatId]?.values.where((m) => m.visible).toList() ??
             <LocalMessage>[])
         ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
 
@@ -122,7 +164,7 @@ class MemoryMessageStore implements LocalMessageStore {
   @override
   Future<void> add(LocalMessage m) async {
     if (_chats[m.chatId]?[m.id]?.locallyDeleted == true) return;
-    (_chats[m.chatId] ??= {})[m.id] = m;
+    _chats[m.chatId] = projectMessageRecords({...?_chats[m.chatId], m.id: m});
     _ctrls[m.chatId]?.add(_sorted(m.chatId));
   }
 
@@ -138,6 +180,7 @@ class MemoryMessageStore implements LocalMessageStore {
       chatId,
       messageId,
     );
+    _chats[chatId] = projectMessageRecords(_chats[chatId]!);
     _ctrls[chatId]?.add(_sorted(chatId));
   }
 

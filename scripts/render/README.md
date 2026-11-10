@@ -26,4 +26,9 @@ fixed; use `TZ=UTC` to keep time labels identical across machines.
 Review images visually as well as running tests. Do not accept a screenshot update
 as evidence that navigation, selection, focus, sending or accessibility works.
 
+For emoji previews, optionally set `RENDER_EMOJI_FONT` to an installed emoji font
+file. The renderer loads it only into the test process as a fallback; it is not
+bundled with the app or committed. Keep the font and environment identical when
+comparing render hashes. The manifest records whether this fallback was supplied.
+
 The seven-feature continuation adds formatted messages, muted/unread controls, the back-arrow total, forwarding, global search and message location, name-only/text foreground cards, and device linking at narrow enlarged-text and landscape sizes. Searches use the real isolate scanner over fictional local history; asynchronous search is fully settled before capturing. Every state still has paired light/dark renders.

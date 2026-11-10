@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+
+import 'package:fireplace/src/db/message_mutation.dart';
+
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -422,12 +425,19 @@ class MessageReceiver {
     // The message authenticated, so its key is spent whatever the payload holds.
     var body = 'Malformed message.';
     var status = MessageStatus.undecryptable;
+    MessageMutation? mutation;
     try {
       final payload = jsonDecode(utf8.decode(plain));
       if (payload is Map &&
           payload['type'] == 'text' &&
           payload['body'] is String) {
         body = payload['body'] as String;
+        status = MessageStatus.ok;
+      } else if (payload is Map &&
+          payload['v'] == 2 &&
+          (payload['type'] == 'reaction' || payload['type'] == 'delete')) {
+        mutation = MessageMutation.fromJson(Map<String, dynamic>.from(payload));
+        body = '';
         status = MessageStatus.ok;
       } else {
         body = '[unsupported message]';
@@ -445,6 +455,7 @@ class MessageReceiver {
       'sentAt': sentAt.millisecondsSinceEpoch,
       'body': body,
       'status': status.name,
+      if (mutation != null) 'mutation': mutation.toJson(),
       'sessions': jsonEncode([for (final x in sessions) x.toJson()]),
       'opk': acceptedWith,
     };

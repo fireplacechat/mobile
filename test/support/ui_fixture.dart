@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
+import 'package:fireplace/src/model/chat/message_controls.dart';
+import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/crypto/device.dart';
 import 'package:fireplace/src/crypto/identity.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -50,6 +52,9 @@ class FixtureChat extends Fake implements ChatService {
   Completer<void>? sendHold;
   Completer<String>? startHold;
   Object? sendError;
+  Object? controlError;
+  final reactions = <(String, String)>[];
+  final remoteDeletes = <String>[];
 
   @override
   String peerOf(String chatId) => chatId.split('_').last;
@@ -73,6 +78,55 @@ class FixtureChat extends Fake implements ChatService {
   @override
   Future<void> deleteMessageLocally(String chatId, String messageId) =>
       store.remove(chatId, messageId);
+
+  @override
+  Future<void> react(String chatId, String targetId, String emoji) async {
+    if (controlError != null) throw controlError!;
+    reactions.add((targetId, emoji));
+    final target = await store.get(chatId, targetId);
+    final previous = target?.reactions['alice'];
+    await store.add(
+      LocalMessage(
+        id: 'reaction-${reactions.length}',
+        chatId: chatId,
+        senderUid: 'alice',
+        senderDevice: 'example-device-alice',
+        outgoing: true,
+        sentAt: fixtureTime,
+        body: '',
+        mutation: MessageMutation(
+          kind: MessageMutationKind.reaction,
+          targetId: targetId,
+          emoji: emoji,
+          revision: (previous?.revision ?? 0) + 1,
+          operation: previous?.emoji == emoji
+              ? ReactionOperation.clear
+              : ReactionOperation.set,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<void> deleteForEveryone(String chatId, String targetId) async {
+    if (controlError != null) throw controlError!;
+    remoteDeletes.add(targetId);
+    await store.add(
+      LocalMessage(
+        id: 'delete-${remoteDeletes.length}',
+        chatId: chatId,
+        senderUid: 'alice',
+        senderDevice: 'example-device-alice',
+        outgoing: true,
+        sentAt: fixtureTime,
+        body: '',
+        mutation: MessageMutation(
+          kind: MessageMutationKind.delete,
+          targetId: targetId,
+        ),
+      ),
+    );
+  }
 
   @override
   Future<String> startChat(String username) async {
@@ -132,6 +186,7 @@ class UiFixture {
   final MemorySecretStore secrets;
   List<Override> get overrides => [
     appSessionProvider.overrideWithValue(AsyncData(session)),
+    messageControlNowProvider.overrideWithValue(() => fixtureTime),
     secretStoreProvider.overrideWithValue(secrets),
     peerUsernameProvider.overrideWith(
       (ref, peer) => names[peer] ?? Future.value(peer),

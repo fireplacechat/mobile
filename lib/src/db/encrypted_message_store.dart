@@ -7,6 +7,7 @@ import 'package:cryptography/cryptography.dart';
 
 import 'package:fireplace/src/crypto/codec.dart';
 import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/db/message_projection.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 
 /// Disk-backed message history, encrypted at rest with AES-256-GCM.
@@ -70,7 +71,7 @@ class EncryptedFileMessageStore implements LocalMessageStore {
   }
 
   List<LocalMessage> _sorted(Map<String, LocalMessage> m) =>
-      m.values.where((m) => !m.locallyDeleted).toList()
+      m.values.where((m) => m.visible).toList()
         ..sort((a, b) => a.sentAt.compareTo(b.sentAt));
 
   @override
@@ -83,7 +84,7 @@ class EncryptedFileMessageStore implements LocalMessageStore {
       // Readers and journal replay must only observe durably committed history.
       final current = await _load(m.chatId);
       if (current[m.id]?.locallyDeleted == true) return;
-      final map = {...current, m.id: m};
+      final map = projectMessageRecords({...current, m.id: m});
       final box = await _aead.encrypt(
         utf8Bytes(jsonEncode([for (final x in map.values) x.toJson()])),
         secretKey: _key,
@@ -112,8 +113,10 @@ class EncryptedFileMessageStore implements LocalMessageStore {
   @override
   Future<void> remove(String chatId, String messageId) {
     final done = _writes.then((_) async {
-      final map = {...await _load(chatId)};
-      map[messageId] = LocalMessage.tombstone(chatId, messageId);
+      final map = projectMessageRecords({
+        ...await _load(chatId),
+        messageId: LocalMessage.tombstone(chatId, messageId),
+      });
       final box = await _aead.encrypt(
         utf8Bytes(jsonEncode([for (final x in map.values) x.toJson()])),
         secretKey: _key,
