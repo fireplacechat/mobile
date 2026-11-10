@@ -102,8 +102,12 @@ class ChatTile extends ConsumerWidget {
               (last.status == MessageStatus.undecryptable
                   ? 'Unreadable encrypted message'
                   : messagePreview(last.body));
+    // Sizes are for the default text size and grow with the system setting.
+    // At the largest ordinary setting (about 1.35) a row is 104 points with
+    // 21 and 20 point text; writing those sizes here would scale them twice.
     final scaler = MediaQuery.textScalerOf(context);
-    final line = scaler.scale(20) * 1.35;
+    final nameLine = scaler.scale(16) * 1.2;
+    final line = scaler.scale(15) * 1.33;
     var pressedAt = Offset.zero;
     return CallbackShortcuts(
       bindings: {
@@ -134,15 +138,20 @@ class ChatTile extends ConsumerWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 104),
+                    constraints: const BoxConstraints(
+                      minHeight: avatarSize + 16,
+                    ),
                     child: Padding(
-                      padding: const EdgeInsets.only(top: 10.5, bottom: 13.5),
+                      padding: EdgeInsets.only(
+                        top: scaler.scale(8),
+                        bottom: scaler.scale(10),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // The date's smaller type must not stretch the line.
                           SizedBox(
-                            height: scaler.scale(26),
+                            height: nameLine,
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.baseline,
                               textBaseline: TextBaseline.alphabetic,
@@ -156,8 +165,8 @@ class ChatTile extends ConsumerWidget {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            fontSize: 21,
-                                            height: 26 / 21,
+                                            fontSize: 16,
+                                            height: 1.2,
                                             fontWeight: FontWeight.w600,
                                             color: t.text,
                                           ),
@@ -173,7 +182,7 @@ class ChatTile extends ConsumerWidget {
                                             key: const Key(
                                               'tileIdentityWarning',
                                             ),
-                                            size: scaler.scale(18),
+                                            size: scaler.scale(14),
                                             color: scheme.error,
                                             semanticLabel:
                                                 'Security code changed',
@@ -189,7 +198,7 @@ class ChatTile extends ConsumerWidget {
                                             key: ValueKey(
                                               'muted-${chat.chatId}',
                                             ),
-                                            size: scaler.scale(16),
+                                            size: scaler.scale(12),
                                             color: t.secondaryText,
                                             semanticLabel: 'Muted',
                                           ),
@@ -217,8 +226,8 @@ class ChatTile extends ConsumerWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 19,
-                                          height: 26 / 19,
+                                          fontSize: 14,
+                                          height: 16 * 1.2 / 14,
                                           fontWeight: FontWeight.w400,
                                           color: t.secondaryText,
                                         ),
@@ -241,8 +250,8 @@ class ChatTile extends ConsumerWidget {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontSize: 20,
-                                      height: 1.35,
+                                      fontSize: 15,
+                                      height: 1.33,
                                       fontWeight: FontWeight.w400,
                                       color: t.secondaryText,
                                     ),
@@ -252,7 +261,13 @@ class ChatTile extends ConsumerWidget {
                                   Padding(
                                     padding: EdgeInsets.only(
                                       left: 8,
-                                      top: line + (line - scaler.scale(26)) / 2,
+                                      top:
+                                          line +
+                                          (line -
+                                                  scaler.scale(
+                                                    UnreadCount.size,
+                                                  )) /
+                                              2,
                                     ),
                                     child: UnreadCount(
                                       key: ValueKey('unread-${chat.chatId}'),
@@ -282,17 +297,20 @@ class UnreadCount extends StatelessWidget {
   const UnreadCount({super.key, required this.count, this.muted = false});
   final int count;
   final bool muted;
+
+  /// Height at the default text size.
+  static const double size = 20;
   @override
   Widget build(BuildContext context) {
     final t = FireplaceUiTokens.of(context);
-    final size = MediaQuery.textScalerOf(context).scale(26);
+    final size = MediaQuery.textScalerOf(context).scale(UnreadCount.size);
     return Semantics(
       label: '$count unread messages',
       excludeSemantics: true,
       child: Container(
         height: size,
         constraints: BoxConstraints(minWidth: size),
-        padding: const EdgeInsets.symmetric(horizontal: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 4),
         alignment: Alignment.center,
         decoration: ShapeDecoration(
           shape: const StadiumBorder(),
@@ -302,7 +320,7 @@ class UnreadCount extends StatelessWidget {
           unreadLabel(count),
           maxLines: 1,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 12,
             height: 1,
             fontWeight: FontWeight.w600,
             color: muted ? t.text : Colors.white,

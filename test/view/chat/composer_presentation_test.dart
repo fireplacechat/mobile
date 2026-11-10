@@ -22,6 +22,17 @@ void main() {
         (field.decoration!.enabledBorder as OutlineInputBorder).borderRadius,
         BorderRadius.circular(22),
       );
+      // Typing shows a thin outline in the accent colour; at rest there is none.
+      expect(
+        (field.decoration!.enabledBorder as OutlineInputBorder).borderSide,
+        BorderSide.none,
+      );
+      final focused = field.decoration!.focusedBorder as OutlineInputBorder;
+      expect(focused.borderRadius, BorderRadius.circular(22));
+      expect(
+        focused.borderSide,
+        BorderSide(color: FireplaceUiTokens.of(t.element(input)).accent),
+      );
       final button = t.widget<IconButton>(find.byKey(const Key('send')));
       expect(button.style!.shape!.resolve({}), isA<CircleBorder>());
       expect(

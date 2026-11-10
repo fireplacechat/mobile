@@ -204,6 +204,11 @@ class ChatTimeline extends ConsumerWidget {
               alignment: Alignment.bottomRight,
               child: FilledButton(
                 key: const Key('latestMessages'),
+                // A hairline keeps the button apart from a bubble of the
+                // same colour beneath it.
+                style: FilledButton.styleFrom(
+                  side: const BorderSide(color: Colors.black, width: .5),
+                ),
                 onPressed: onLatest,
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,

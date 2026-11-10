@@ -3,6 +3,7 @@
 // PNGs and a state manifest are written to build/renders/, never shipped.
 import 'dart:async';
 
+import 'accent_cases.dart';
 import 'catalog_case.dart';
 import 'reply_edit_cases.dart';
 import 'reference_cases.dart';
@@ -12,6 +13,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app.dart';
@@ -129,6 +131,7 @@ void main() {
     ...messageSurfaceCases,
     ...replyEditCases,
     ...referenceCases,
+    ...accentCases,
     for (final mine in [false, true])
       CatalogCase(
         mine ? 'message-actions-outgoing' : 'message-actions-incoming',
@@ -650,34 +653,52 @@ void main() {
             ],
             child: RepaintBoundary(
               key: boundary,
-              child: MaterialApp(
-                navigatorKey: navigatorKey,
-                navigatorObservers: [chatRouteObserver],
-                debugShowCheckedModeBanner: false,
-                theme: fireplaceTheme(brightness).copyWith(
-                  textTheme: fireplaceTheme(brightness).textTheme
-                      .apply(fontFamilyFallback: const ['PreviewEmoji']),
-                ),
-                builder: (context, child) => MediaQuery(
-                  data: MediaQuery.of(context).copyWith(
-                    textScaler: TextScaler.linear(spec.textScale),
-                    viewInsets: EdgeInsets.only(bottom: spec.keyboardInset),
-                    padding: spec.padding,
-                    viewPadding: spec.padding,
-                  ),
-                  child: spec.notices
-                      ? InAppNoticeHost(
-                          navigatorKey: navigatorKey,
-                          child: child!,
-                        )
-                      : child!,
-                ),
-                home: spec.screen,
+              // The saved chat colour is the theme's accent, as in the app.
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final theme = fireplaceTheme(
+                    brightness,
+                    accent: ref.watch(
+                      chatBubbleColorsProvider.select((c) => c.outgoing),
+                    ),
+                  );
+                  return MaterialApp(
+                    navigatorKey: navigatorKey,
+                    navigatorObservers: [chatRouteObserver],
+                    debugShowCheckedModeBanner: false,
+                    theme: theme.copyWith(
+                      textTheme: theme.textTheme.apply(
+                        fontFamilyFallback: const ['PreviewEmoji'],
+                      ),
+                    ),
+                    builder: (context, child) => MediaQuery(
+                      data: MediaQuery.of(context).copyWith(
+                        textScaler: TextScaler.linear(spec.textScale),
+                        viewInsets: EdgeInsets.only(bottom: spec.keyboardInset),
+                        padding: spec.padding,
+                        viewPadding: spec.padding,
+                      ),
+                      child: spec.notices
+                          ? InAppNoticeHost(
+                              navigatorKey: navigatorKey,
+                              child: child!,
+                            )
+                          : child!,
+                    ),
+                    home: spec.screen,
+                  );
+                },
               ),
             ),
           ),
         );
         await settleUi(tester);
+        if (fixture.secrets.data.containsKey(ChatAppearance.storageKey)) {
+          // A saved colour arrives just after the first frame and the theme
+          // eases to it; capture the resting state, not a frame in between.
+          await tester.pump(const Duration(milliseconds: 400));
+          await tester.pump(const Duration(milliseconds: 400));
+        }
         if (spec.signup) {
           await tester.ensureVisible(find.byKey(const Key('toggle')));
           await tester.pump();

@@ -15,7 +15,7 @@ String avatarInitials(String name) {
   ].join().toUpperCase();
 }
 
-/// Initials on the brand orange. There are no profile photos.
+/// Initials on the chosen accent colour. There are no profile photos.
 class PersonAvatar extends StatelessWidget {
   const PersonAvatar({super.key, required this.name, this.size = 44});
   final String name;

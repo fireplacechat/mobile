@@ -56,6 +56,7 @@ void main() {
         ProviderScope(
           overrides: [
             authUserProvider.overrideWithValue(const AsyncData(null)),
+            secretStoreProvider.overrideWithValue(MemorySecretStore()),
           ],
           child: MaterialApp(
             theme: fireplaceTheme(Brightness.light),
@@ -103,11 +104,15 @@ void main() {
         find.byKey(const Key('outgoing-ocean')),
         120,
       );
+      await tester.ensureVisible(find.byKey(const Key('outgoing-ocean')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('outgoing-ocean')));
       await tester.scrollUntilVisible(
         find.byKey(const Key('incoming-forest')),
         120,
       );
+      await tester.ensureVisible(find.byKey(const Key('incoming-forest')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('incoming-forest')));
       await tester.pageBack();
       await tester.pumpAndSettle();
@@ -116,33 +121,14 @@ void main() {
       await tester.tap(find.text('Choose colors'));
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(find.text('Reset colors'), 120);
+      await tester.ensureVisible(find.text('Reset colors'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Reset colors'));
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(bubble('out'), ChatBubbleColor.ember.outgoing);
       expect(bubble('in'), ChatBubbleColor.stone.lightIncoming);
       expect(tester.takeException(), isNull);
-    },
-  );
-
-  test(
-    'a fresh app scope starts with defaults without a persistence dependency',
-    () {
-      final first = ProviderContainer(
-        overrides: [authUserProvider.overrideWithValue(const AsyncData(null))],
-      );
-      first
-          .read(chatBubbleColorsProvider.notifier)
-          .outgoing(ChatBubbleColor.plum);
-      first.dispose();
-      final restarted = ProviderContainer(
-        overrides: [authUserProvider.overrideWithValue(const AsyncData(null))],
-      );
-      addTearDown(restarted.dispose);
-      expect(
-        restarted.read(chatBubbleColorsProvider).outgoing,
-        ChatBubbleColor.ember,
-      );
     },
   );
 
@@ -157,6 +143,7 @@ void main() {
           ProviderScope(
             overrides: [
               authUserProvider.overrideWithValue(const AsyncData(null)),
+              secretStoreProvider.overrideWithValue(MemorySecretStore()),
             ],
             child: MaterialApp(
               theme: fireplaceTheme(brightness),
@@ -179,7 +166,7 @@ void main() {
         await tester.pump();
         expect(
           tester
-              .widget<ChoiceChip>(find.byKey(const Key('incoming-plum')))
+              .widget<ColorBlock>(find.byKey(const Key('incoming-plum')))
               .selected,
           isTrue,
         );
@@ -189,6 +176,7 @@ void main() {
           ProviderScope(
             overrides: [
               authUserProvider.overrideWithValue(const AsyncData(null)),
+              secretStoreProvider.overrideWithValue(MemorySecretStore()),
             ],
             child: MaterialApp(
               theme: fireplaceTheme(brightness),

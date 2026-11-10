@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,29 +28,34 @@ class _FireplaceAppState extends ConsumerState<FireplaceApp> {
   final _navigatorKey = GlobalKey<NavigatorState>();
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'fireplace.',
-    navigatorKey: _navigatorKey,
-    navigatorObservers: [chatRouteObserver],
-    builder: (context, child) => Actions(
-      actions: {
-        // Mobile touch events otherwise keep text fields focused on outside taps.
-        EditableTextTapOutsideIntent:
-            CallbackAction<EditableTextTapOutsideIntent>(
-              onInvoke: (intent) {
-                intent.focusNode.unfocus();
-                return null;
-              },
-            ),
-      },
-      child: InAppNoticeHost(navigatorKey: _navigatorKey, child: child!),
-    ),
-    debugShowCheckedModeBanner: false,
-    theme: fireplaceTheme(Brightness.light),
-    darkTheme: fireplaceTheme(Brightness.dark),
-    themeMode: ref.watch(themeModeProvider).value ?? ThemeMode.system,
-    home: AuthGate(),
-  );
+  Widget build(BuildContext context) {
+    final accent = ref.watch(
+      chatBubbleColorsProvider.select((colors) => colors.outgoing),
+    );
+    return MaterialApp(
+      title: 'fireplace.',
+      navigatorKey: _navigatorKey,
+      navigatorObservers: [chatRouteObserver],
+      builder: (context, child) => Actions(
+        actions: {
+          // Mobile touch events otherwise keep text fields focused on outside taps.
+          EditableTextTapOutsideIntent:
+              CallbackAction<EditableTextTapOutsideIntent>(
+                onInvoke: (intent) {
+                  intent.focusNode.unfocus();
+                  return null;
+                },
+              ),
+        },
+        child: InAppNoticeHost(navigatorKey: _navigatorKey, child: child!),
+      ),
+      debugShowCheckedModeBanner: false,
+      theme: fireplaceTheme(Brightness.light, accent: accent),
+      darkTheme: fireplaceTheme(Brightness.dark, accent: accent),
+      themeMode: ref.watch(themeModeProvider).value ?? ThemeMode.system,
+      home: AuthGate(),
+    );
+  }
 }
 
 class AuthGate extends ConsumerWidget {
