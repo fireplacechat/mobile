@@ -106,7 +106,10 @@ class MessageActionsOverlay extends StatelessWidget {
                                 tooltip: reaction.label,
                                 isSelected: reaction.selected,
                                 style: IconButton.styleFrom(
-                                  minimumSize: const Size(44, 44),
+                                  fixedSize: const Size(48, 48),
+                                  padding: EdgeInsets.zero,
+                                  tapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                   backgroundColor: reaction.selected
                                       ? tokens?.selectedRow
                                       : null,

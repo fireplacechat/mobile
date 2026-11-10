@@ -58,7 +58,10 @@ void main() {
     await openChat(t, f);
     await t.longPress(bubble('5'));
     await t.pumpAndSettle();
-    await t.ensureVisible(action('moreReactions'));
+    final bar = t.getRect(find.byKey(const Key('messageReactionBar')));
+    final more = t.getRect(action('moreReactions'));
+    expect(bar.contains(more.topLeft), isTrue);
+    expect(bar.contains(more.bottomRight), isTrue);
     await t.tap(action('moreReactions'));
     await t.pumpAndSettle();
     await t.tap(find.byKey(const ValueKey('pickReaction-🥰')));
