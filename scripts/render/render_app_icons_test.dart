@@ -80,8 +80,8 @@ void paintIcon(Canvas canvas, int pixels) {
   for (var i = 0; i <= 256; i++) {
     final angle = i * math.pi * 2 / 256;
     final c = math.cos(angle), s = math.sin(angle);
-    final x = 512 + 500 * c.sign * math.pow(c.abs(), .4);
-    final y = 512 + 500 * s.sign * math.pow(s.abs(), .4);
+    final x = 512 + 504 * c.sign * math.pow(c.abs(), .4);
+    final y = 512 + 504 * s.sign * math.pow(s.abs(), .4);
     if (i == 0) {
       rim.moveTo(x, y);
     } else {
@@ -89,7 +89,13 @@ void paintIcon(Canvas canvas, int pixels) {
     }
   }
   rim.close();
-  // Keep the bevel inside the OS mask so it survives at home-screen size.
+  // Light extends outward from this inner bevel, through and beyond the OS
+  // mask. An inset stroke leaves an orange strip outside its brightest edge.
+  final outerEdge = Path.combine(
+    PathOperation.difference,
+    Path()..addRect(bounds.inflate(64)),
+    rim,
+  );
   const rimLight = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -103,18 +109,15 @@ void paintIcon(Canvas canvas, int pixels) {
     stops: [0, .27, .5, .73, 1],
   );
   canvas.drawPath(
-    rim,
+    outerEdge,
     Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 24
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8)
       ..shader = rimLight.createShader(bounds),
   );
   canvas.drawPath(
-    rim,
+    outerEdge,
     Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 7
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5)
       ..shader = rimLight.createShader(bounds),
   );
 
@@ -169,6 +172,42 @@ void paintIcon(Canvas canvas, int pixels) {
 }
 
 void main() {
+  testWidgets('corner highlights continue out to the masked edge', (
+    tester,
+  ) async {
+    await tester.runAsync(() async {
+      for (final pixels in [1024, 180, 120, 60]) {
+        final recorder = ui.PictureRecorder();
+        paintIcon(Canvas(recorder), pixels);
+        final picture = recorder.endRecording();
+        final image = await picture.toImage(pixels, pixels);
+        try {
+          final rgba = (await image.toByteData())!.buffer.asUint8List();
+          for (final bottomRight in [false, true]) {
+            var previous = 0;
+            // Follow each lit corner outward. An inset stroke gets bright and
+            // then orange again; a bevel must stay lit through the outer crop.
+            for (final fraction in [.10, .09, .08, .07, .06, .05, .04]) {
+              final near = (pixels * fraction).floor();
+              final coordinate = bottomRight ? pixels - 1 - near : near;
+              final index = (coordinate * pixels + coordinate) * 4;
+              final light = rgba[index] + rgba[index + 1] + rgba[index + 2];
+              expect(
+                light,
+                greaterThanOrEqualTo(previous - 3),
+                reason: 'No orange strip outside the highlight at $pixels px',
+              );
+              previous = light;
+            }
+          }
+        } finally {
+          image.dispose();
+          picture.dispose();
+        }
+      }
+    });
+  });
+
   testWidgets('export opaque iOS icons from the approved vector mark', (
     tester,
   ) async {
