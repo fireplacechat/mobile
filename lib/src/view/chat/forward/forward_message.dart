@@ -375,14 +375,30 @@ class _ForwardMessageScreenState extends ConsumerState<ForwardMessageScreen> {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                    FilledButton(
+                    IconButton.filled(
                       key: const Key('forwardSend'),
+                      tooltip: 'Send message',
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(40, 40),
+                        fixedSize: const Size(40, 40),
+                        shape: const CircleBorder(),
+                        backgroundColor: t.accent,
+                        foregroundColor: Theme.of(context)
+                            .colorScheme
+                            .onPrimary,
+                      ),
                       onPressed: _busy || _selected.isEmpty || _tooLong
                           ? null
                           : _send,
-                      child: Icon(
-                        _busy ? Icons.hourglass_top : Icons.arrow_upward,
-                      ),
+                      icon: _busy
+                          ? SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            )
+                          : const Icon(Icons.arrow_upward_rounded),
                     ),
                   ],
                 ),

@@ -1,4 +1,5 @@
 import 'package:fireplace/src/model/chat/chat_summary.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:flutter/material.dart';
@@ -52,15 +53,26 @@ void main() {
     );
     expect(find.text('Choose a recipient'), findsOneWidget);
     expect(
-      t.widget<FilledButton>(find.byKey(const Key('forwardSend'))).onPressed,
+      t.widget<IconButton>(find.byKey(const Key('forwardSend'))).onPressed,
       isNull,
     );
     await t.tap(find.byKey(const ValueKey('forwardRecipient-alice_sam')));
     await t.pump();
     expect(find.text('Send to 1'), findsOneWidget);
+    final send = t.widget<IconButton>(find.byKey(const Key('forwardSend')));
+    expect(send.onPressed, isNotNull);
+    expect(send.style!.shape!.resolve({}), isA<CircleBorder>());
     expect(
-      t.widget<FilledButton>(find.byKey(const Key('forwardSend'))).onPressed,
-      isNotNull,
+      send.style!.backgroundColor!.resolve({}),
+      FireplaceUiTokens.of(t.element(find.byKey(const Key('forwardSend'))))
+          .accent,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('forwardSend')),
+        matching: find.byIcon(Icons.arrow_upward_rounded),
+      ),
+      findsOneWidget,
     );
   });
 

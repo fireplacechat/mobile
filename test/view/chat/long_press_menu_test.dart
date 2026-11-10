@@ -280,7 +280,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      t.widget<FilledButton>(find.byKey(const Key('forwardSend'))).onPressed,
+      t.widget<IconButton>(find.byKey(const Key('forwardSend'))).onPressed,
       isNull,
     );
   });
