@@ -34,16 +34,23 @@ void main() {
       await settleUi(t);
       expect(find.textContaining('SECRET-INTERNAL-DETAIL'), findsNothing);
       expect(find.textContaining('Bad state'), findsNothing);
+      // The message is kept in the conversation, marked as not sent.
+      expect(find.text('hello'), findsOneWidget);
+      expect(
+        t.widget<TextField>(find.byKey(const Key('composer'))).controller!.text,
+        isEmpty,
+      );
+      await t.tap(find.text('Not sent. Tap for options.'));
+      await t.pumpAndSettle();
+      expect(find.text('Send not confirmed'), findsOneWidget);
       expect(
         find.textContaining('We could not confirm this send'),
         findsOneWidget,
         reason: 'the user learns the outcome is uncertain without a false resend promise',
       );
-      // and the draft is kept so nothing is lost
-      expect(
-        t.widget<TextField>(find.byKey(const Key('composer'))).controller!.text,
-        'hello',
-      );
+      expect(find.textContaining('SECRET-INTERNAL-DETAIL'), findsNothing);
+      expect(find.textContaining('Bad state'), findsNothing);
+      expect(f.chat.sends, ['hello'], reason: 'nothing is sent again unasked');
     },
   );
 }

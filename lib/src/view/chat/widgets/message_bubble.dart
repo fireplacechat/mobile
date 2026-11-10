@@ -15,6 +15,7 @@ import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
+import 'package:fireplace/src/model/chat/outgoing_sends.dart';
 
 class MessageBubble extends ConsumerStatefulWidget {
   const MessageBubble({
@@ -27,8 +28,15 @@ class MessageBubble extends ConsumerStatefulWidget {
     this.selected = false,
     this.onToggleSelection,
     this.onQuote,
+    this.outgoingSend,
+    this.onFailedTap,
   });
   final LocalMessage message;
+
+  /// Set for a message that is being sent or was not sent. Its footer says
+  /// so instead of a time, and a failed one opens its choices when tapped.
+  final OutgoingSend? outgoingSend;
+  final VoidCallback? onFailedTap;
   final ValueChanged<String>? onQuote;
   final bool preview;
   final bool selecting, selected;
@@ -209,7 +217,11 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
           },
           child: GestureDetector(
             key: _actionAnchor,
-            onTap: widget.selecting ? widget.onToggleSelection : null,
+            onTap: widget.selecting
+                ? widget.onToggleSelection
+                : widget.outgoingSend?.state == OutgoingState.failed
+                ? widget.onFailedTap
+                : null,
             onDoubleTap: widget.selecting || widget.preview
                 ? null
                 : widget.actions
@@ -419,12 +431,35 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                                       ),
                                     ),
                                   ),
+                                if (widget.outgoingSend?.state ==
+                                    OutgoingState.failed) ...[
+                                  Icon(
+                                    Icons.error_outline,
+                                    size: MediaQuery.textScalerOf(context)
+                                        .scale(13),
+                                    color: fg,
+                                  ),
+                                  const SizedBox(width: 4),
+                                ],
                                 Text(
-                                  time,
+                                  switch (widget.outgoingSend?.state) {
+                                    null => time,
+                                    OutgoingState.sending => 'Sending…',
+                                    OutgoingState.failed =>
+                                      'Not sent. Tap for options.',
+                                  },
+                                  key: widget.outgoingSend == null
+                                      ? null
+                                      : ValueKey('sendState-${message.id}'),
                                   style: TextStyle(
                                     color: mine ? fg : t.secondaryText,
                                     fontSize: 11,
                                     height: 1.3,
+                                    fontWeight:
+                                        widget.outgoingSend?.state ==
+                                            OutgoingState.failed
+                                        ? FontWeight.w700
+                                        : null,
                                   ),
                                 ),
                               ],

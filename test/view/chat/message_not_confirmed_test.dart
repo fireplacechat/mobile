@@ -280,13 +280,15 @@ void main() {
   );
 
   testWidgets(
-    'an ordinary refusal is still a plain, retryable failure (draft kept)',
+    'an ordinary refusal is a plain failure: a not-sent bubble that can be sent again',
     (t) async {
       final r = await open(t);
       r.alice.commit = (_) async => throw fb('permission-denied');
       await typeAndSend(t, 'blocked?');
       expect(find.text('Message not confirmed'), findsNothing);
-      expect(composerText(t), 'blocked?');
+      expect(composerText(t), isEmpty);
+      expect(find.text('blocked?'), findsOneWidget);
+      expect(find.text('Not sent. Tap for options.'), findsOneWidget);
     },
   );
 

@@ -14,6 +14,8 @@ import 'package:fireplace/src/view/chat/route_visibility.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/model/chat/contact_controller.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
+import 'package:fireplace/src/model/chat/outgoing_sends.dart';
+import 'package:fireplace/src/view/chat/outgoing_messages.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
 
 import 'package:flutter/material.dart';
@@ -86,7 +88,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ownerUid: () => ref.read(appSessionProvider).value?.uid,
           pendingSends: () => ref.read(pendingLocalSendsProvider.notifier),
           draft: () => _text.text,
-          draftRevision: () => _text.revision,
+          enqueue: (body, reply) => ref
+              .read(outgoingSendsProvider.notifier)
+              .enqueue(widget.chatId, body, replyTarget: reply),
           replyTarget: () =>
               ref.read(messageComposeProvider(widget.chatId))?.replyId,
           clearDraft: _text.clear,
@@ -95,12 +99,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               .clearReply(),
           notice: _snack,
           showNewest: () => _timeline.showNewestAfterOwnSend(_latest),
-          reviewIdentity: (peerUid, pub) =>
-              _contactController.reviewIdentity(peerUid, pub),
           identityAlerts: () => ref.read(identityAlertsProvider).value ?? {},
           confirmSendAnotherCopy: () => confirmAnotherMessageCopy(context),
         )..addListener(() {
-          _text.sendingChanged(_sendController.sending);
           if (mounted) setState(() {});
         });
     _routeVisibility = RouteVisibility(
@@ -270,9 +271,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final target = !_showAll && _location != null
         ? allMessages.indexWhere((m) => m.id == _location)
         : -1;
+    final outgoing = {
+      for (final send in ref.watch(outgoingSendsProvider))
+        if (send.chatId == widget.chatId) send.id: send,
+    };
     final msgs = target < 0
-        ? allMessages
+        ? [...allMessages, ...outgoingBubbles(outgoing.values, stored, session)]
         : allMessages.take(target + 1).toList();
+    reviewIdentityOnFailedSend(
+      ref,
+      widget.chatId,
+      _contactController.reviewIdentity,
+    );
     final activity = ref.watch(chatActivityProvider);
     final otherUnread = activity.otherUnread(widget.chatId);
     final muted = activity.muted.contains(widget.chatId);
@@ -296,7 +306,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ref.watch(identityAlertsProvider).value?.containsKey(peerUid) == true;
     ref.listen(messagesProvider(widget.chatId), (previous, next) {
       if (!_timeline.controller.hasClients || next.hasError) return;
-      if (_timeline.controller.offset > 96) {
+      if (_timeline.controller.offset > 96 && !_timeline.returningToLatest) {
         final anchor = _timeline.readingAnchor();
         if (anchor != null) _timeline.keepReadingAnchor(anchor);
         return;
@@ -437,6 +447,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 scrollController: _timeline.controller,
                 anchorFor: _timeline.anchorFor,
                 send: _sendController,
+                outgoing: outgoing,
+                onFailedSend: (send) => chooseForFailedSend(
+                  context,
+                  ref,
+                  send,
+                  onSendAgain: () => _timeline.showNewestAfterOwnSend(_latest),
+                ),
                 actionsFor: (message) => messageMenuActions(
                   message,
                   ref: ref,

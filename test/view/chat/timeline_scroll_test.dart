@@ -83,6 +83,29 @@ void main() {
     expect(timeline.controller.offset, 0);
     await t.pumpWidget(const SizedBox());
   });
+  testWidgets('a second send keeps the latest-scroll guard until it finishes', (
+    t,
+  ) async {
+    final timeline = TimelineScroll(isMounted: () => true);
+    addTearDown(timeline.dispose);
+    await attach(t, timeline);
+    timeline.controller.jumpTo(1000);
+    timeline.scrollToLatest(reduceMotion: false);
+    await t.pump();
+    await t.pump(const Duration(milliseconds: 40));
+    expect(timeline.controller.offset, greaterThan(96));
+    timeline.scrollToLatest(reduceMotion: false);
+    await t.pump();
+    expect(
+      timeline.returningToLatest,
+      isTrue,
+      reason: 'completion of the cancelled first scroll must not clear it',
+    );
+    await t.pumpAndSettle();
+    expect(timeline.controller.offset, 0);
+    expect(timeline.returningToLatest, isFalse);
+    await t.pumpWidget(const SizedBox());
+  });
   testWidgets(
     'own-send callback is deferred and suppressed after unmount or dispose',
     (t) async {

@@ -78,23 +78,39 @@ void main() {
     },
   );
   testWidgets(
-    'unchanged success clears draft, rejection retains it, disposal is safe',
+    'send empties the composer at once, whatever the outcome; disposal is safe',
     (t) async {
       final f = UiFixture();
       await pumpChat(t, f);
+      // While the send is still on its way the composer is already empty and
+      // the message shows in the conversation.
+      f.chat.sendHold = Completer<void>();
       await t.enterText(find.byKey(const Key('composer')), 'hello');
       await t.pump();
       await t.tap(find.byKey(const Key('send')));
       await t.pump();
       expect(draft(t), isEmpty);
+      expect(find.text('hello'), findsOneWidget);
+      expect(find.text('Sending…'), findsOneWidget);
+      // Text typed during the send is the next message and is left alone.
+      await t.enterText(find.byKey(const Key('composer')), 'typed meanwhile');
+      await t.pump();
+      f.chat.sendHold!.complete();
+      f.chat.sendHold = null;
+      await settleUi(t);
+      expect(draft(t), 'typed meanwhile');
+      expect(find.text('Sending…'), findsNothing);
+      // A failure does not put the failed text back either.
       f.chat.sendError = StateError('rejection');
-      await t.enterText(find.byKey(const Key('composer')), 'keep this');
-      await t.pump();
       await t.tap(find.byKey(const Key('send')));
-      await t.pump();
-      expect(draft(t), 'keep this');
+      await settleUi(t);
+      expect(draft(t), isEmpty);
+      expect(find.text('typed meanwhile'), findsOneWidget);
+      expect(find.text('Not sent. Tap for options.'), findsOneWidget);
       f.chat.sendError = null;
       f.chat.sendHold = Completer<void>();
+      await t.enterText(find.byKey(const Key('composer')), 'last');
+      await t.pump();
       await t.tap(find.byKey(const Key('send')));
       await t.pump();
       await t.pumpWidget(const SizedBox());

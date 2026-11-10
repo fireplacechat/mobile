@@ -354,21 +354,46 @@ void main() {
       },
     );
   }
-  testWidgets('Dismiss removes the send error without clearing the draft', (
-    t,
-  ) async {
-    final f = UiFixture()..chat.sendError = ChatException('Send refused');
-    await host(t, f);
-    await send(t);
-    expect(find.text('Send refused'), findsOneWidget);
-    await t.tap(find.text('Dismiss'));
-    await t.pump();
-    expect(find.text('Send refused'), findsNothing);
-    expect(
-      t.widget<TextField>(find.byKey(const Key('composer'))).controller!.text,
-      'hello',
-    );
-  });
+  testWidgets(
+    'a refused send empties the composer and waits as a failed bubble',
+    (t) async {
+      final f = UiFixture()..chat.sendError = ChatException('Send refused');
+      await host(t, f);
+      await send(t);
+      // The text is in the conversation, not back in the composer.
+      expect(
+        t.widget<TextField>(find.byKey(const Key('composer'))).controller!.text,
+        isEmpty,
+      );
+      expect(find.text('Not sent. Tap for options.'), findsOneWidget);
+      expect(find.byKey(const Key('sendFailure')), findsNothing);
+      expect(f.chat.sends, ['hello'], reason: 'never retried by itself');
+
+      // Cancel keeps it; Send again is the person's decision.
+      await t.tap(find.text('Not sent. Tap for options.'));
+      await t.pumpAndSettle();
+      expect(find.text('Send refused'), findsOneWidget);
+      await t.tap(find.byKey(const Key('failedSendCancel')));
+      await t.pumpAndSettle();
+      expect(find.text('Not sent. Tap for options.'), findsOneWidget);
+      expect(f.chat.sends, hasLength(1));
+
+      await t.tap(find.text('Not sent. Tap for options.'));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('failedSendAgain')));
+      await settleUi(t);
+      expect(f.chat.sends, ['hello', 'hello']);
+      expect(find.text('Not sent. Tap for options.'), findsOneWidget);
+
+      // Delete gives up on it.
+      await t.tap(find.text('Not sent. Tap for options.'));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('failedSendDelete')));
+      await settleUi(t);
+      expect(find.text('Not sent. Tap for options.'), findsNothing);
+      expect(f.chat.sends, hasLength(2));
+    },
+  );
   testWidgets('history error retry invalidates the messages provider', (
     t,
   ) async {
