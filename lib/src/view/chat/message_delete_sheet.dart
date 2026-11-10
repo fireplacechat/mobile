@@ -117,13 +117,23 @@ Future<T?> showFireplaceActionSheet<T>(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        textStyle: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                        ),
                       ),
                       onPressed: () => Navigator.pop(ctx, action.value),
-                      child: Text(action.label),
+                      // The label keeps the theme face. A text style on the
+                      // button replaces that face, and the preview then draws
+                      // each word as a solid bar. Large text scales down to
+                      // one line so the whole label stays visible.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          action.label,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),

@@ -68,7 +68,8 @@ void main() {
         closeTo(id == '4' ? held.right : held.left, 1),
       );
       expect(panel.bottom, lessThanOrEqualTo(844 - 12));
-      expect(find.byType(BackdropFilter), findsNWidgets(2));
+      // The chat behind the focus is blurred. The menu panel is solid.
+      expect(find.byType(BackdropFilter), findsOneWidget);
       await t.tapAt(const Offset(380, 30));
       await t.pumpAndSettle();
       expect(action('copy'), findsNothing);

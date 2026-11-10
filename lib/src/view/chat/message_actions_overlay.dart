@@ -324,49 +324,45 @@ class MessageActionsOverlay extends StatelessWidget {
                             key: panelKey,
                             child: Material(
                               key: const Key('messageActionsPanel'),
-                              color: panel.withValues(alpha: .92),
+                              // Solid. A translucent panel, or a blur of its
+                              // own, paints the bubble colour through the rows.
+                              color: panel,
                               elevation: 0,
                               shadowColor: Colors.transparent,
                               borderRadius: BorderRadius.circular(
                                 MessageMenuMetrics.menuRadius,
                               ),
                               clipBehavior: Clip.antiAlias,
-                              child: BackdropFilter(
-                                filter: ui.ImageFilter.blur(
-                                  sigmaX: 24,
-                                  sigmaY: 24,
-                                ),
-                                child: _HoldTracker(
-                                  onPoint: (point) => highlight(rowAt(point)),
-                                  onRelease: () {
-                                    final chosen = gesture?.highlighted.value;
-                                    gesture?.highlighted.value = null;
-                                    if (chosen != null && !chosen.reaction) {
-                                      choose(chosen);
-                                    }
-                                  },
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        for (final (index, action)
-                                            in actions.indexed)
-                                          MessageActionHighlight(
-                                            key: targets[action],
+                              child: _HoldTracker(
+                                onPoint: (point) => highlight(rowAt(point)),
+                                onRelease: () {
+                                  final chosen = gesture?.highlighted.value;
+                                  gesture?.highlighted.value = null;
+                                  if (chosen != null && !chosen.reaction) {
+                                    choose(chosen);
+                                  }
+                                },
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: [
+                                      for (final (index, action)
+                                          in actions.indexed)
+                                        MessageActionHighlight(
+                                          key: targets[action],
+                                          action: action,
+                                          gesture: gesture,
+                                          child: MessageMenuRow(
                                             action: action,
-                                            gesture: gesture,
-                                            child: MessageMenuRow(
-                                              action: action,
-                                              autofocus: index == 0,
-                                              divider:
-                                                  index != actions.length - 1,
-                                              onPressed: () => choose(action),
-                                            ),
+                                            autofocus: index == 0,
+                                            divider:
+                                                index != actions.length - 1,
+                                            onPressed: () => choose(action),
                                           ),
-                                      ],
-                                    ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ),

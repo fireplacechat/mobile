@@ -56,10 +56,21 @@ Future<void> forwardMessages(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => FractionallySizedBox(
-        heightFactor: 0.92,
-        child: ForwardMessageScreen(message: message, messages: messages),
-      ),
+      builder: (ctx) {
+        final height = MediaQuery.sizeOf(ctx).height * 0.55;
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            height: height,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+              child: ForwardMessageScreen(message: message, messages: messages),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -211,18 +222,22 @@ class _ForwardMessageScreenState extends ConsumerState<ForwardMessageScreen> {
       );
     }
     final t = FireplaceUiTokens.of(context);
+    final sheet = ModalRoute.of(context) is ModalBottomSheetRoute;
     return PopScope(
       canPop: true,
       child: Scaffold(
         backgroundColor: t.panel,
         body: SafeArea(
+          // A sheet is already clear of the status bar. Padding for it
+          // would open a gap at the top of the panel.
+          top: !sheet,
           child: Column(
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
                 child: Row(
                   children: [
-                    if (ModalRoute.of(context) is ModalBottomSheetRoute)
+                    if (sheet)
                       const SizedBox(width: 48)
                     else
                       IconButton(

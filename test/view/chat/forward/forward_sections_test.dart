@@ -63,4 +63,40 @@ void main() {
       isNotNull,
     );
   });
+
+  testWidgets('forward from a chat covers about half the page', (t) async {
+    t.view.physicalSize = const Size(390, 844);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: f.overrides,
+        child: MaterialApp(
+          theme: fireplaceTheme(Brightness.dark),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => forwardMessages(context, [
+                  message(id: '4', body: 'See you at two.', outgoing: true),
+                ]),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await t.tap(find.text('open'));
+    await t.pumpAndSettle();
+    final panel = t.getRect(find.byType(ForwardMessageScreen));
+    expect(panel.height, closeTo(844 * 0.55, 1));
+    expect(panel.bottom, closeTo(844, 1));
+    expect(find.byTooltip('Back'), findsNothing);
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.text('Recent Chats'), findsOneWidget);
+    expect(find.text('Stories'), findsNothing);
+  });
 }

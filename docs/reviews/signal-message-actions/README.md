@@ -25,8 +25,9 @@ Decision 0023 records the deletion change.
 ## Screenshots
 
 Flutter renders of fictional fixture data, UTC, with the installed Windows
-emoji font used only as a test fallback. The forward picture is the same
-screen the sheet shows; as a full page it also has a Back button.
+emoji font used only as a test fallback. The forward picture is the sheet
+over the chat, about half the page. It has Cancel, Recent Chats, then People.
+There is no Stories section and no Back button.
 
 | State | Render |
 | --- | --- |

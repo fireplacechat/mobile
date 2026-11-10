@@ -25,7 +25,6 @@ import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';
-import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/widgets/page.dart';
@@ -268,13 +267,7 @@ void main() {
     CatalogCase('chat-back-unread', const ChatScreen(chatId: 'alice_bob')),
     CatalogCase(
       'forward-message',
-      ForwardMessageScreen(
-        message: message(
-          id: 'source',
-          body: '**See you at two.**',
-          outgoing: true,
-        ),
-      ),
+      const ChatScreen(chatId: 'alice_fred'),
       prepare: (f) {
         f.chat.summaries = [
           ...f.chat.summaries,
@@ -282,6 +275,13 @@ void main() {
         ];
       },
       act: (t, f) async {
+        final target = find.byKey(const ValueKey('messageBubble-4'));
+        await t.ensureVisible(target);
+        await t.pumpAndSettle();
+        await t.longPress(target);
+        await t.pumpAndSettle();
+        await t.tap(find.byKey(const ValueKey('messageAction-forward')));
+        await t.pumpAndSettle();
         await t.tap(find.byKey(const ValueKey('forwardRecipient-alice_bob')));
         await t.pump();
       },
