@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'catalog_case.dart';
 import 'reply_edit_cases.dart';
+import 'reference_cases.dart';
 import 'message_surface_cases.dart';
 
 import 'dart:convert';
@@ -91,6 +92,21 @@ Future<void> loadFonts() async {
         ),
       ))
       .load();
+  final cupertino = packages.cast<Map>().firstWhere(
+    (p) => p['name'] == 'cupertino_icons',
+  );
+  await (FontLoader('packages/cupertino_icons/CupertinoIcons')..addFont(
+        Future.value(
+          ByteData.sublistView(
+            File.fromUri(
+              config.uri
+                  .resolve('${cupertino['rootUri']}/')
+                  .resolve('assets/CupertinoIcons.ttf'),
+            ).readAsBytesSync(),
+          ),
+        ),
+      ))
+      .load();
   await (FontLoader('MaterialIcons')..addFont(
         Future.value(
           ByteData.sublistView(
@@ -112,6 +128,7 @@ void main() {
   final cases = [
     ...messageSurfaceCases,
     ...replyEditCases,
+    ...referenceCases,
     for (final mine in [false, true])
       CatalogCase(
         mine ? 'message-actions-outgoing' : 'message-actions-incoming',
@@ -645,6 +662,8 @@ void main() {
                   data: MediaQuery.of(context).copyWith(
                     textScaler: TextScaler.linear(spec.textScale),
                     viewInsets: EdgeInsets.only(bottom: spec.keyboardInset),
+                    padding: spec.padding,
+                    viewPadding: spec.padding,
                   ),
                   child: spec.notices
                       ? InAppNoticeHost(
@@ -692,7 +711,7 @@ void main() {
             boundary.currentContext!.findRenderObject()
                 as RenderRepaintBoundary;
         final png = await tester.runAsync(() async {
-          final image = await renderer.toImage(pixelRatio: 2);
+          final image = await renderer.toImage(pixelRatio: spec.pixelRatio);
           try {
             return (await image.toByteData(format: ui.ImageByteFormat.png))!
                 .buffer

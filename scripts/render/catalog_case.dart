@@ -21,6 +21,8 @@ class CatalogCase {
     this.act,
     this.overrideAuth = true,
     this.notices = false,
+    this.padding = EdgeInsets.zero,
+    this.pixelRatio = 2,
   });
   final void Function(UiFixture)? prepare;
   final List<Override> Function(UiFixture)? services;
@@ -32,4 +34,8 @@ class CatalogCase {
   final CatalogInteraction? interaction;
   final Size size;
   final double textScale, keyboardInset;
+
+  /// Safe-area insets and capture density, for comparing with a device image.
+  final EdgeInsets padding;
+  final double pixelRatio;
 }
