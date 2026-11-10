@@ -1,6 +1,9 @@
+import 'dart:math' as math;
+
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/message_actions_overlay.dart';
+import 'package:fireplace/src/view/chat/message_menu_stack.dart';
 import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -90,10 +93,15 @@ void main() {
     expect(heart.left - reactions.left, 6);
     expect(heart.width, 44);
     expect(reactions.right - more.right, 6);
-    // Rows are fifty points apart and the list ends at the safe area.
+    // Each row is the body line plus Signal's 23-point padding.
     final reply = t.getRect(action('reply'));
     final forward = t.getRect(action('forward'));
-    expect(forward.top - reply.top, moreOrLessEquals(50, epsilon: .01));
+    expect(
+      forward.top - reply.top,
+      moreOrLessEquals(MessageMenuMetrics.rowHeight, epsilon: .01),
+    );
+    expect(reply.width, moreOrLessEquals(menu.width, epsilon: .01));
+    expect(reply.right, moreOrLessEquals(menu.right, epsilon: .01));
     expect(menu.bottom, phone.height - safeArea.bottom);
     expect(
       t.widget<Material>(panel).borderRadius,
@@ -203,6 +211,36 @@ void main() {
     expect(lifted, findsNothing);
     expect(timeline(t).pixels, offset);
     expect(t.getRect(bubble('more-5')).left, above.left);
+  });
+
+  testWidgets('a tall message scales so the actions stay on screen', (t) async {
+    final f = UiFixture();
+    await f.seed();
+    await f.chat.store.add(
+      message(
+        id: 'tall',
+        outgoing: true,
+        at: fixtureTime.add(const Duration(minutes: 5)),
+        body: List.filled(80, 'A line of message text.').join(' '),
+      ),
+    );
+    addTearDown(f.session.close);
+    await openChat(t, f);
+    final rect = t.getRect(bubble('tall'));
+    final y = math.min(rect.bottom - 24, phone.height - 120);
+    await t.longPressAt(
+      Offset(rect.center.dx, y.clamp(120, phone.height - 80)),
+    );
+    await t.pumpAndSettle();
+    final menu = t.getRect(panel);
+    expect(menu.top, greaterThanOrEqualTo(safeArea.top));
+    expect(menu.bottom, lessThanOrEqualTo(phone.height - safeArea.bottom));
+    expect(
+      t
+          .renderObject<RenderMessageMenu>(find.byType(MessageMenuStack))
+          .previewScale,
+      lessThan(1),
+    );
   });
 
   testWidgets('reduced motion places the raised message without animating', (

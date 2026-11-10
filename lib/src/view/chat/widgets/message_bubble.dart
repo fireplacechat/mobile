@@ -263,7 +263,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                         .clamp(0.0, 480.0)
                         .toDouble(),
                   ),
-                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  margin: widget.preview
+                      ? EdgeInsets.zero
+                      : const EdgeInsets.symmetric(vertical: 4),
                   padding: quoted
                       ? const EdgeInsets.fromLTRB(8, 8, 8, 8)
                       : const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -272,6 +274,16 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                         ? Color.alphaBlend(const Color(0x22000000), base)
                         : base,
                     borderRadius: bubbleRadius,
+                    // The held copy is the only one drawn, so it carries the lift.
+                    boxShadow: widget.preview
+                        ? const [
+                            BoxShadow(
+                              color: Color(0x4D000000),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ]
+                        : null,
                   ),
                   // Painted over the bubble, so focus never changes its size.
                   foregroundDecoration: _focused

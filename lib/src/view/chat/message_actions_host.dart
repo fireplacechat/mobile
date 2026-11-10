@@ -96,39 +96,37 @@ class MessageActionsHostState extends State<MessageActionsHost>
             const SingleActivator(LogicalKeyboardKey.escape): () =>
                 dismiss(null),
           },
-          child: FadeTransition(
-            opacity: CurvedAnimation(
-              parent: _animation,
-              curve: Curves.easeOutCubic,
-            ),
-            child: Stack(
-              children: [
-                ModalBarrier(
-                  dismissible: true,
-                  onDismiss: () => dismiss(null),
-                  semanticsLabel: MaterialLocalizations.of(context)
-                      .modalBarrierDismissLabel,
+          child: Stack(
+            children: [
+              ModalBarrier(
+                dismissible: true,
+                onDismiss: () => dismiss(null),
+                semanticsLabel: MaterialLocalizations.of(context)
+                    .modalBarrierDismissLabel,
+              ),
+              MessageActionsOverlay(
+                anchor: widget.anchor,
+                actions: widget.actions.where((a) => !a.reaction).toList(),
+                reactions: widget.actions.where((a) => a.reaction).toList(),
+                animation: _animation,
+                preview: widget.preview,
+                gesture: _picking == null ? widget.gesture : null,
+                controls: _picking == null ? null : ReverseAnimation(_picker),
+                picker: CurvedAnimation(
+                  parent: _picker,
+                  curve: Curves.easeOutCubic,
                 ),
-                MessageActionsOverlay(
-                  anchor: widget.anchor,
-                  actions: widget.actions.where((a) => !a.reaction).toList(),
-                  reactions: widget.actions.where((a) => a.reaction).toList(),
-                  animation: _animation,
-                  preview: widget.preview,
-                  gesture: _picking == null ? widget.gesture : null,
-                  controls: _picking == null ? null : ReverseAnimation(_picker),
-                  picker: CurvedAnimation(
-                    parent: _picker,
-                    curve: Curves.easeOutCubic,
-                  ),
-                  pickerTop:
-                      (MediaQuery.sizeOf(context).height -
-                          MediaQuery.viewInsetsOf(context).bottom) *
-                      (1 - EmojiPickerMetrics.restingFraction),
-                  onSelected: _select,
-                ),
-                if (_picking case final picking?)
-                  Positioned.fill(
+                pickerTop:
+                    (MediaQuery.sizeOf(context).height -
+                        MediaQuery.viewInsetsOf(context).bottom) *
+                    (1 - EmojiPickerMetrics.restingFraction),
+                onSelected: _select,
+                onReleased: () => dismiss(null),
+              ),
+              if (_picking case final picking?)
+                Positioned.fill(
+                  child: FadeTransition(
+                    opacity: _animation,
                     child: Padding(
                       padding: EdgeInsets.only(
                         bottom: MediaQuery.viewInsetsOf(context).bottom,
@@ -152,8 +150,8 @@ class MessageActionsHostState extends State<MessageActionsHost>
                       ),
                     ),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
       ),
