@@ -185,8 +185,8 @@ class UiFixture {
   late final AppSession session;
   final MemorySecretStore secrets;
   List<Override> get overrides => [
-    messageControlNowProvider.overrideWithValue(() => fixtureTime),
     appSessionProvider.overrideWithValue(AsyncData(session)),
+    messageControlNowProvider.overrideWithValue(() => fixtureTime),
     secretStoreProvider.overrideWithValue(secrets),
     peerUsernameProvider.overrideWith(
       (ref, peer) => names[peer] ?? Future.value(peer),
