@@ -159,34 +159,56 @@ void main() {
       },
     ),
     CatalogCase(
-      'message-report',
+      'message-info',
       const ChatScreen(chatId: 'alice_fred'),
       act: (t, f) async {
         await t.longPress(find.byKey(const ValueKey('messageBubble-5')));
         await t.pumpAndSettle();
-        await t.tap(find.byKey(const ValueKey('messageAction-report')));
+        await t.tap(find.byKey(const ValueKey('messageAction-info')));
         await t.pumpAndSettle();
-        await t.ensureVisible(find.byKey(const Key('reportInclude')));
+        await t.ensureVisible(find.text('Received'));
         await t.pumpAndSettle();
       },
     ),
-    for (final keyboard in [false, true])
-      CatalogCase(
-        keyboard ? 'select-message-text-keyboard' : 'select-message-text',
-        const ChatScreen(chatId: 'alice_fred'),
-        size: keyboard ? const Size(320, 640) : const Size(390, 844),
-        textScale: keyboard ? 2 : 1,
-        keyboardInset: keyboard ? 220 : 0,
-        act: (t, f) async {
-          await t.longPress(find.byKey(const ValueKey('messageBubble-5')));
-          await t.pumpAndSettle();
-          await t.ensureVisible(
-            find.byKey(const ValueKey('messageAction-selectText')),
-          );
-          await t.tap(find.byKey(const ValueKey('messageAction-selectText')));
-          await t.pumpAndSettle();
-        },
-      ),
+    CatalogCase(
+      'message-delete-for-me',
+      const ChatScreen(chatId: 'alice_fred'),
+      act: (t, f) async {
+        await t.longPress(find.byKey(const ValueKey('messageBubble-5')));
+        await t.pumpAndSettle();
+        await t.ensureVisible(
+          find.byKey(const ValueKey('messageAction-delete')),
+        );
+        await t.tap(find.byKey(const ValueKey('messageAction-delete')));
+        await t.pumpAndSettle();
+      },
+    ),
+    CatalogCase(
+      'message-delete-all',
+      const ChatScreen(chatId: 'alice_fred'),
+      size: const Size(320, 640),
+      textScale: 2,
+      keyboardInset: 220,
+      act: (t, f) async {
+        await t.longPress(find.byKey(const ValueKey('messageBubble-5')));
+        await t.pumpAndSettle();
+        await t.ensureVisible(
+          find.byKey(const ValueKey('messageAction-select')),
+        );
+        await t.tap(find.byKey(const ValueKey('messageAction-select')));
+        await t.pumpAndSettle();
+        await t.tap(find.byKey(const Key('deleteAllMessages')));
+        await t.pumpAndSettle();
+      },
+    ),
+    CatalogCase(
+      'pinned-message',
+      const ChatScreen(chatId: 'alice_fred'),
+      act: (t, f) async {
+        await f.session.chatPreferences.togglePin('alice_fred', '5');
+        await t.pumpAndSettle();
+      },
+    ),
     CatalogCase(
       'oversized-message',
       const ChatScreen(chatId: 'alice_fred'),
@@ -253,6 +275,12 @@ void main() {
           outgoing: true,
         ),
       ),
+      prepare: (f) {
+        f.chat.summaries = [
+          ...f.chat.summaries,
+          ChatSummary('alice_sam', 'sam', null),
+        ];
+      },
       act: (t, f) async {
         await t.tap(find.byKey(const ValueKey('forwardRecipient-alice_bob')));
         await t.pump();

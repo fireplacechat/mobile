@@ -279,13 +279,7 @@ void main() {
     await pumpChat(t, f);
     await t.longPress(find.text('Copy this message'));
     await t.pumpAndSettle();
-    await t.tap(find.byKey(const ValueKey('messageAction-selectText')));
-    await t.pumpAndSettle();
-    await t.longPress(find.byKey(const Key('selectableMessageText')));
-    await t.pumpAndSettle();
-    await t.tap(find.text('Select all').last);
-    await t.pumpAndSettle();
-    await t.tap(find.text('Copy').last);
+    await t.tap(find.byKey(const ValueKey('messageAction-copy')));
     await t.pumpAndSettle();
     expect(copiedText, 'Copy this message');
     expect(f.chat.sends, isEmpty);

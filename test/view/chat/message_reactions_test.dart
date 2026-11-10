@@ -106,37 +106,37 @@ void main() {
     expect(f.chat.reactions, [('5', '🥰')]);
   });
 
-  testWidgets(
-    'remote deletion confirms, cancels and leaves a neutral placeholder',
-    (t) async {
-      final f = UiFixture();
-      await f.seed();
-      addTearDown(f.session.close);
-      await openChat(t, f);
-      Future<void> openDelete() async {
-        await t.longPress(bubble('4'));
-        await t.pumpAndSettle();
-        await t.ensureVisible(action('deleteEveryone'));
-        await t.tap(action('deleteEveryone'));
-        await t.pumpAndSettle();
-      }
-
-      await openDelete();
-      await t.tap(find.text('Cancel'));
-      await t.pumpAndSettle();
-      expect(f.chat.remoteDeletes, isEmpty);
-      await openDelete();
-      await t.ensureVisible(find.byKey(const Key('confirmRemoteDelete')));
-      await t.tap(find.byKey(const Key('confirmRemoteDelete')));
-      await t.pumpAndSettle();
-      expect(f.chat.remoteDeletes, ['4']);
-      expect(find.text('This message was deleted'), findsOneWidget);
+  testWidgets('remote deletion confirms, cancels and the message disappears', (
+    t,
+  ) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    await openChat(t, f);
+    Future<void> openDelete() async {
       await t.longPress(bubble('4'));
       await t.pumpAndSettle();
-      expect(action('copy'), findsNothing);
-      expect(find.byKey(const Key('messageReactionBar')), findsNothing);
-    },
-  );
+      await t.ensureVisible(action('delete'));
+      await t.tap(action('delete'));
+      await t.pumpAndSettle();
+    }
+
+    await openDelete();
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    expect(f.chat.remoteDeletes, isEmpty);
+    await openDelete();
+    await t.ensureVisible(find.byKey(const Key('confirmRemoteDelete')));
+    await t.tap(find.byKey(const Key('confirmRemoteDelete')));
+    await t.pumpAndSettle();
+    expect(f.chat.remoteDeletes, ['4']);
+    expect(find.text('This message was deleted'), findsNothing);
+    expect(bubble('4'), findsNothing);
+    expect(
+      find.text('Looking forward to it. What time works for you?'),
+      findsNothing,
+    );
+  });
 
   testWidgets('unknown reaction outcome offers a check and does not retry', (
     t,

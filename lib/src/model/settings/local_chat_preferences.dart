@@ -20,6 +20,9 @@ class LocalChatPreferences {
   final Future<void> Function(String)? _save;
   final seen = <String, Set<String>>{};
   final muted = <String>{};
+
+  /// Message ids pinned in a chat, newest pin first. Ids only: no message text.
+  final pinned = <String, List<String>>{};
   bool previewText = true;
   bool _baselineExisting;
   final _baselinedChats = <String>{};
@@ -94,6 +97,13 @@ class LocalChatPreferences {
           prefs.seen[e.key] = (e.value as List).cast<String>().toSet();
         }
         prefs.muted.addAll((data['muted'] as List).cast<String>());
+        final savedPins = data['pinned'];
+        if (savedPins is Map) {
+          for (final entry in savedPins.entries) {
+            prefs.pinned[entry.key as String] = (entry.value as List)
+                .cast<String>();
+          }
+        }
         prefs.previewText = data['previewText'] != false;
         prefs._baselineExisting = data['baselineExisting'] == true;
         prefs._baselinedChats.addAll(
@@ -104,6 +114,7 @@ class LocalChatPreferences {
         // or silently forget an unknown mute setting and reveal previews.
         prefs.seen.clear();
         prefs.muted.clear();
+        prefs.pinned.clear();
         prefs.previewText = false;
         prefs._available = false;
       }
@@ -123,6 +134,9 @@ class LocalChatPreferences {
         for (final e in seen.entries) e.key: Set<String>.of(e.value),
       };
       final oldMuted = Set<String>.of(muted);
+      final oldPinned = {
+        for (final e in pinned.entries) e.key: List<String>.of(e.value),
+      };
       final oldPreview = previewText;
       final oldBaseline = _baselineExisting;
       final oldChats = Set<String>.of(_baselinedChats);
@@ -131,18 +145,23 @@ class LocalChatPreferences {
         for (final e in seen.entries) e.key: Set<String>.of(e.value),
       };
       final nextMuted = Set<String>.of(muted);
+      final nextPinned = {
+        for (final e in pinned.entries) e.key: List<String>.of(e.value),
+      };
       final nextPreview = previewText;
       final nextBaseline = _baselineExisting;
       final nextChats = Set<String>.of(_baselinedChats);
       String encode(
         Map<String, Set<String>> read,
         Set<String> mute,
+        Map<String, List<String>> pins,
         bool preview,
         bool baseline,
         Set<String> chats,
       ) => jsonEncode({
         'seen': {for (final e in read.entries) e.key: e.value.toList()},
         'muted': mute.toList(),
+        'pinned': pins,
         'previewText': preview,
         'baselineExisting': baseline,
         'baselinedChats': chats.toList(),
@@ -150,6 +169,7 @@ class LocalChatPreferences {
       final json = encode(
         nextSeen,
         nextMuted,
+        nextPinned,
         nextPreview,
         nextBaseline,
         nextChats,
@@ -160,6 +180,9 @@ class LocalChatPreferences {
       muted
         ..clear()
         ..addAll(oldMuted);
+      pinned
+        ..clear()
+        ..addAll(oldPinned);
       previewText = oldPreview;
       _baselineExisting = oldBaseline;
       _baselinedChats
@@ -167,7 +190,14 @@ class LocalChatPreferences {
         ..addAll(oldChats);
       if (!recover &&
           json ==
-              encode(oldSeen, oldMuted, oldPreview, oldBaseline, oldChats)) {
+              encode(
+                oldSeen,
+                oldMuted,
+                oldPinned,
+                oldPreview,
+                oldBaseline,
+                oldChats,
+              )) {
         return;
       }
       await _save?.call(json);
@@ -177,6 +207,9 @@ class LocalChatPreferences {
       muted
         ..clear()
         ..addAll(nextMuted);
+      pinned
+        ..clear()
+        ..addAll(nextPinned);
       previewText = nextPreview;
       _baselineExisting = nextBaseline;
       _baselinedChats
@@ -203,6 +236,17 @@ class LocalChatPreferences {
     }
   });
   Future<void> previews(bool value) => _update(() => previewText = value);
+
+  /// Pins or unpins one message on this device. The newest pin is first.
+  Future<void> togglePin(String chatId, String messageId) => _update(() {
+    final ids = [...pinned[chatId] ?? const <String>[]];
+    if (!ids.remove(messageId)) ids.insert(0, messageId);
+    if (ids.isEmpty) {
+      pinned.remove(chatId);
+    } else {
+      pinned[chatId] = ids;
+    }
+  });
   Future<void> seedExisting(String chatId, Iterable<String> ids) async {
     if (!available || !needsBaseline(chatId)) return;
     final snapshot = ids.toSet();
@@ -229,6 +273,7 @@ class LocalChatPreferences {
         ..clear()
         ..addAll(snapshot);
       muted.clear();
+      pinned.clear();
       previewText = true;
       _baselineExisting = true;
       _baselinedChats

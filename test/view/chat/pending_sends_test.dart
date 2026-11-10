@@ -53,7 +53,10 @@ void main() {
       ),
     );
     await settleUi(t);
-    expect(find.text('private forwarding preview'), findsOneWidget);
+    // The recipient sheet lists chats. It does not print the message.
+    expect(find.text('Forward To'), findsOneWidget);
+    expect(find.text('private forwarding preview'), findsNothing);
+    expect(find.byKey(const Key('forwardSend')), findsOneWidget);
     final c = ProviderScope.containerOf(
       t.element(find.byType(ForwardMessageScreen)),
     );

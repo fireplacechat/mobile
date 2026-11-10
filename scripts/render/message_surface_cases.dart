@@ -25,11 +25,9 @@ final messageSurfaceCases = <CatalogCase>[
           await t.longPress(find.byKey(const ValueKey('messageBubble-4')));
           await t.pumpAndSettle();
           await t.ensureVisible(
-            find.byKey(const ValueKey('messageAction-deleteEveryone')),
+            find.byKey(const ValueKey('messageAction-delete')),
           );
-          await t.tap(
-            find.byKey(const ValueKey('messageAction-deleteEveryone')),
-          );
+          await t.tap(find.byKey(const ValueKey('messageAction-delete')));
           await t.pumpAndSettle();
           if (state.endsWith('confirmation')) return;
           await t.ensureVisible(find.byKey(const Key('confirmRemoteDelete')));

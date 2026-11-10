@@ -46,13 +46,8 @@ prepareMessageContent({
       throw ChatException('This message is no longer available.');
     }
     if (mutation.kind == MessageMutationKind.delete) {
-      final age = DateTime.now().difference(target.sentAt);
-      if (target.senderUid != uid ||
-          age.isNegative ||
-          age > const Duration(hours: 24)) {
-        throw ChatException(
-          'Only your messages from the last 24 hours can be deleted for everyone.',
-        );
+      if (target.senderUid != uid) {
+        throw ChatException('Only your messages can be deleted for everyone.');
       }
     } else if (mutation.kind == MessageMutationKind.edit) {
       final age = DateTime.now().difference(target.sentAt);

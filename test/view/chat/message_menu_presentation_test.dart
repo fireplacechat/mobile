@@ -44,8 +44,8 @@ void main() {
         find.text('Looking forward to it. What time works for you?'),
         findsNothing,
       );
-      await t.tap(action('copy'));
-      await t.pumpAndSettle();
+      expect(bubble('4'), findsNothing);
+      expect(action('copy'), findsNothing);
       expect(copied, isNull);
     },
   );

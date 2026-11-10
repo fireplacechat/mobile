@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
-import 'package:fireplace/src/view/safety/report_dialog.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
+import 'package:fireplace/src/view/chat/message_delete_sheet.dart';
+import 'package:fireplace/src/view/chat/message_info_sheet.dart';
+import 'package:fireplace/src/model/chat/pinned_messages.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
@@ -142,34 +144,7 @@ List<MessageAction> messageMenuActions(
           () => _copyMessage(message, isMounted: isMounted, notice: notice),
         ),
       ),
-    if (canShare)
-      MessageAction(
-        id: 'selectText',
-        label: 'Select text',
-        icon: CupertinoIcons.textformat,
-        onSelected: () => run(
-          () => showSelectTextSheet(
-            context,
-            displayMessage(message.body).plain,
-            protectSelection: (ctx, child) => Consumer(
-              builder: (ctx, sheetRef, _) {
-                sheetRef.watch(appSessionProvider);
-                sheetRef.watch(chatsProvider);
-                sheetRef.watch(blockedUidsProvider);
-                sheetRef.watch(hiddenChatsProvider);
-                sheetRef.watch(identityAlertsProvider);
-                sheetRef.watch(messagesProvider(chatId()));
-                return available()
-                    ? child
-                    : const Text(
-                        'This conversation is no longer available. Close this sheet and return to your chats.',
-                      );
-              },
-            ),
-          ),
-        ),
-      ),
-    if (!incomingRequest && !identityHeld && !blocked)
+    if (!incomingRequest && !identityHeld && !blocked) ...[
       MessageAction(
         id: 'select',
         label: 'Select',
@@ -180,43 +155,75 @@ List<MessageAction> messageMenuActions(
               .toggle(message.id),
         ),
       ),
-    // Only another person's message can be reported.
-    if (canShare &&
-        message.outgoing &&
-        message.status == MessageStatus.ok &&
-        now.difference(message.sentAt) >= Duration.zero &&
-        now.difference(message.sentAt) <= const Duration(hours: 24))
+      if (readable)
+        MessageAction(
+          id: 'info',
+          label: 'Info',
+          icon: CupertinoIcons.info,
+          onSelected: () => run(() => showMessageInfo(context, message)),
+        ),
+      if (readable)
+        MessageAction(
+          id: 'pin',
+          label:
+              ref
+                      .read(pinnedMessagesProvider)[chatId()]
+                      ?.contains(message.id) ==
+                  true
+              ? 'Unpin'
+              : 'Pin',
+          icon: CupertinoIcons.pin,
+          onSelected: () => run(
+            () => ref
+                .read(pinnedMessagesProvider.notifier)
+                .toggle(chatId(), message.id),
+          ),
+        ),
       MessageAction(
-        id: 'deleteEveryone',
-        label: 'Delete for everyone',
+        id: 'delete',
+        label: 'Delete',
         icon: CupertinoIcons.trash,
         destructive: true,
-        onSelected: () => run(() => confirmRemoteDelete(context, ref, message)),
-      ),
-    if (!message.outgoing &&
-        peerUid != null &&
-        !incomingRequest &&
-        !identityHeld &&
-        !blocked)
-      MessageAction(
-        id: 'report',
-        label: 'Report',
-        icon: CupertinoIcons.flag,
-        destructive: true,
         onSelected: () => run(
-          () => contactAction(() async {
-            await showReportDialog(
-              context,
-              ref,
-              peerUid: peerUid,
-              name: name,
-              chatId: chatId(),
-              focus: message,
-            );
-          }),
+          () => _deleteMessage(
+            context,
+            ref,
+            message,
+            everyone: message.outgoing && message.status == MessageStatus.ok,
+          ),
         ),
       ),
+    ],
   ];
+}
+
+Future<void> _deleteMessage(
+  BuildContext context,
+  WidgetRef ref,
+  LocalMessage message, {
+  required bool everyone,
+}) async {
+  final owner = ref.read(appSessionProvider).value;
+  final choice = await showMessageDeleteSheet(context, everyone: everyone);
+  final summary = ref.read(chatSummaryProvider(message.chatId));
+  if (!context.mounted ||
+      choice == null ||
+      owner == null ||
+      summary == null ||
+      !identical(ref.read(appSessionProvider).value, owner) ||
+      !ref.read(chatActivityProvider.notifier).eligible(summary)) {
+    return;
+  }
+  if (choice == MessageDeleteChoice.everyone) {
+    await ref
+        .read(messageControlsProvider(message.chatId).notifier)
+        .delete(message.id);
+    return;
+  }
+  await owner.chat.deleteMessageLocally(message.chatId, message.id);
+  ref
+      .read(pendingLocalSendsProvider.notifier)
+      .remove(message.chatId, message.id);
 }
 
 Future<void> _copyMessage(

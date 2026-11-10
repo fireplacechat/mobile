@@ -181,7 +181,7 @@ void main() {
     await tester.longPress(find.text('Around two? There is no rush.'));
     await tester.pumpAndSettle();
     expect(find.text('Copy'), findsOneWidget);
-    expect(find.text('Select text'), findsOneWidget);
+    expect(find.text('Select'), findsOneWidget);
     expect(field(tester, 'composer').controller.text, 'Keep this draft');
   }, variant: platforms);
 

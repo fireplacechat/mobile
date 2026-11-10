@@ -45,10 +45,25 @@ class MessageSelectionController extends Notifier<MessageSelection> {
     if (!state.deleting) state = MessageSelection();
   }
 
-  Future<Set<String>> deleteSelected() async {
+  Future<Set<String>> deleteSelected() => _delete({...state.ids});
+
+  /// Removes every message still shown in this chat, on this device only.
+  Future<Set<String>> deleteAllLocal() {
+    final ids =
+        ref
+            .read(messagesProvider(chatId))
+            .value
+            ?.where((message) => !message.remotelyDeleted)
+            .map((message) => message.id)
+            .toSet() ??
+        {};
+    return _delete(ids);
+  }
+
+  Future<Set<String>> _delete(Set<String> ids) async {
     final owner = ref.read(appSessionProvider).value;
     if (owner == null || !available || state.deleting) return const {};
-    final remaining = {...state.ids};
+    final remaining = {...ids};
     final removed = <String>{};
     state = MessageSelection(ids: remaining, deleting: true);
     for (final id in List.of(remaining)) {

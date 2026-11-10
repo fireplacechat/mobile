@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
+import 'package:fireplace/src/view/chat/message_selection_mark.dart';
 
 import '../../support/ui_fixture.dart';
 import 'long_press_menu_test.dart' show openChat, bubble, action;
@@ -24,13 +25,13 @@ void main() {
     addTearDown(f.session.close);
     await openChat(t, f);
     await select(t, '5');
-    expect(find.text('1 selected'), findsOneWidget);
+    expect(find.text('1 Selected'), findsOneWidget);
     await t.tap(bubble('4'));
     await t.pumpAndSettle();
-    expect(find.text('2 selected'), findsOneWidget);
+    expect(find.text('2 Selected'), findsOneWidget);
     await t.tap(find.byKey(const Key('deleteSelectedMessages')));
     await t.pumpAndSettle();
-    await t.tap(find.text('Cancel'));
+    await t.tap(find.byKey(const Key('cancelMessageDelete')));
     await t.pumpAndSettle();
     expect(await f.chat.store.get('alice_fred', '5'), isNotNull);
     await t.tap(find.byKey(const Key('deleteSelectedMessages')));
@@ -64,7 +65,7 @@ void main() {
     expect(find.byKey(const Key('selectionCount')), findsNothing);
     expect(await f.chat.store.get('alice_fred', '5'), isNotNull);
     await select(t, '5');
-    await t.tap(find.byKey(const Key('composer')));
+    await t.tap(find.text('Cancel'));
     await t.pumpAndSettle();
     expect(find.byKey(const Key('selectionCount')), findsNothing);
   });
@@ -82,5 +83,46 @@ void main() {
     await settleUi(t);
     expect(c.read(messageSelectionProvider('alice_fred')).ids, isEmpty);
     expect(find.text('Conversation hidden'), findsOneWidget);
+  });
+
+  testWidgets('selection marks are circles in the theme accent', (t) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    await openChat(t, f);
+    await select(t, '5');
+    expect(find.byType(Checkbox), findsNothing);
+    final marks = t.widgetList<MessageSelectionMark>(
+      find.byType(MessageSelectionMark),
+    );
+    expect(marks.any((mark) => mark.selected), isTrue);
+    expect(marks.any((mark) => !mark.selected), isTrue);
+    expect(find.text('Delete All'), findsOneWidget);
+    expect(find.byKey(const Key('forwardSelectedMessages')), findsOneWidget);
+  });
+
+  testWidgets('delete all removes this device only, after confirmation', (
+    t,
+  ) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    await openChat(t, f);
+    await select(t, '5');
+    await t.tap(find.byKey(const Key('deleteAllMessages')));
+    await t.pumpAndSettle();
+    expect(find.text('Delete all messages in the chat?'), findsOneWidget);
+    await t.tap(find.byKey(const Key('cancelDeleteAll')));
+    await t.pumpAndSettle();
+    expect(await f.chat.store.get('alice_fred', '5'), isNotNull);
+    await t.tap(find.byKey(const Key('deleteAllMessages')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('confirmDeleteAllMessages')));
+    await t.pumpAndSettle();
+    for (final id in ['1', '2', '3', '4', '5']) {
+      expect(await f.chat.store.get('alice_fred', id), isNull, reason: id);
+    }
+    expect(f.chat.remoteDeletes, isEmpty);
+    expect(find.byKey(const Key('selectionCount')), findsNothing);
   });
 }

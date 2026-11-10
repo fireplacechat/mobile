@@ -16,6 +16,7 @@ void main() {
           body: 'hello unavailable',
           status: MessageStatus.undecryptable,
         ),
+        message(id: '4', body: 'hello secret').copyWith(remotelyDeleted: true),
       ],
     };
     expect(searchMessages(history, 'hello').length, 2);

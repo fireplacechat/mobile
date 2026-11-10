@@ -84,7 +84,9 @@ class ChatTile extends ConsumerWidget {
       ref.watch(peerDeletedCleanupProvider(chat.chatId));
     }
     final msgs = ref.watch(messagesProvider(chat.chatId)).value ?? const [];
-    final last = msgs.isEmpty ? null : msgs.last;
+    // A remote delete stays in history so it cannot be replayed, and the
+    // conversation shows the previous message instead of a placeholder.
+    final last = msgs.where((message) => !message.remotelyDeleted).lastOrNull;
     final t = FireplaceUiTokens.of(context);
     final scheme = Theme.of(context).colorScheme;
     final preview = held

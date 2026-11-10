@@ -33,7 +33,9 @@ List<MessageSearchHit> searchMessages(
 
   for (final messages in history.values) {
     for (final m in messages) {
-      if (m.status == MessageStatus.undecryptable) continue;
+      if (m.status == MessageStatus.undecryptable || m.remotelyDeleted) {
+        continue;
+      }
       final text = displayMessage(m.body).plain;
       // Lowercasing can change UTF-16 length (e.g. U+0130). Map offsets back.
       final folded = StringBuffer();

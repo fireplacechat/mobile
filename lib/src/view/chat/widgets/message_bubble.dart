@@ -12,6 +12,7 @@ import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
+import 'package:fireplace/src/view/chat/message_press.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
@@ -147,6 +148,8 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
 
   @override
   Widget build(BuildContext context) {
+    // A remote delete stays stored so it cannot be replayed. The row is gone.
+    if (widget.message.remotelyDeleted) return const SizedBox.shrink();
     final message = widget.message;
     final reply = widget.selecting || widget.preview
         ? null
@@ -159,9 +162,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     final time = clockTime(message.sentAt, MaterialLocalizations.of(context));
     // A message over the limit can only come from another client: plain text, clipped until asked.
     final oversize = !bad && messageTooLong(message.body);
-    final body = message.remotelyDeleted
-        ? 'This message was deleted'
-        : oversize && !_showAll
+    final body = oversize && !_showAll
         ? '${clipMessage(message.body, oversizedPreviewCharacters)}…'
         : message.body;
     final formatted = bad || oversize
@@ -215,41 +216,39 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
               },
             ),
           },
-          child: GestureDetector(
+          child: MessagePress(
             key: _actionAnchor,
-            onTap: widget.selecting
+            tap: widget.selecting
                 ? widget.onToggleSelection
                 : widget.outgoingSend?.state == OutgoingState.failed
                 ? widget.onFailedTap
                 : null,
-            onDoubleTap: widget.selecting || widget.preview
+            doubleTap: widget.selecting || widget.preview
                 ? null
                 : widget.actions
                       .where((a) => a.id == 'edit')
                       .firstOrNull
                       ?.onSelected,
-            onHorizontalDragUpdate: reply == null
+            onReplyDelta: reply == null
                 ? null
-                : (d) => setState(
-                    () => _replyDrag = (_replyDrag + d.delta.dx).clamp(0, 72),
+                : (dx) => setState(
+                    () => _replyDrag = (_replyDrag + dx).clamp(0, 72),
                   ),
-            onHorizontalDragCancel: () => setState(() => _replyDrag = 0),
-            onHorizontalDragEnd: reply == null
+            onReplyCancel: reply == null
                 ? null
-                : (_) {
+                : () => setState(() => _replyDrag = 0),
+            onReplyEnd: reply == null
+                ? null
+                : () {
                     if (_replyDrag >= 48) reply.onSelected();
                     setState(() => _replyDrag = 0);
                   },
-            // Touch: press and hold. Desktop: right click.
-            onLongPressStart: widget.actions.isEmpty
+            onFocus:
+                widget.actions.isEmpty || widget.preview || widget.selecting
                 ? null
-                : (d) => _openMenu(d.globalPosition),
-            onSecondaryTapDown: widget.actions.isEmpty
-                ? null
-                : (d) => _openMenu(d.globalPosition),
-            onLongPressMoveUpdate: (d) =>
-                _gesture?.onMove?.call(d.globalPosition),
-            onLongPressEnd: (_) => _gesture?.onEnd?.call(),
+                : _openMenu,
+            onMove: (point) => _gesture?.onMove?.call(point),
+            onRelease: () => _gesture?.onEnd?.call(),
             child: Opacity(
               opacity: _held ? 0 : 1,
               child: Transform.translate(

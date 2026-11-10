@@ -10,6 +10,7 @@ class UiAppBar extends AppBar {
     Widget? title,
     super.actions,
     super.leading,
+    super.leadingWidth,
     super.centerTitle,
     double? toolbarHeight,
   }) : super(
