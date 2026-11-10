@@ -154,6 +154,7 @@ void main() {
     expect(
       ids.map((id) => CustomSemanticsAction.getAction(id)!.label).toSet(),
       {
+        'Reply',
         'Copy',
         'Forward',
         'Select text',
