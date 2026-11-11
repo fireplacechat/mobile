@@ -77,7 +77,7 @@ pull request. The check job needs no secrets and creates no environment.
    before changing encryption or enabling distribution in France. If a build
    shows **Missing Compliance**, use **TestFlight → the build → Manage** to
    answer Apple's questions. See [beta export compliance](https://developer.apple.com/help/app-store-connect/test-a-beta-version/provide-export-compliance-information-for-beta-builds/).
-10. First-build limits: push is off. App Attest is not enabled yet; App Check may
+10. Push needs the owner setup in [decision 0026](../decisions/0026-push-notifications.md) (push capability, APNs key, a fresh profile) before an upload can be signed. App Attest is not enabled yet; App Check may
     show iOS as unverified until its entitlement is added in a later step. Keep
     App Check in monitoring mode; do not enable enforcement for this build.
 

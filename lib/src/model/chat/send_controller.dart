@@ -18,6 +18,7 @@ class SendController extends ChangeNotifier {
     required this.enqueue,
     this.replyTarget,
     this.clearReply,
+    this.sent,
     required void Function(String) notice,
     required this.showNewest,
     required this.identityAlerts,
@@ -37,6 +38,9 @@ class SendController extends ChangeNotifier {
   final void Function(String body, String? replyTarget) enqueue;
   final String? Function()? replyTarget;
   final void Function()? clearReply;
+
+  /// Called once a message is handed to the outgoing queue (the send sound).
+  final void Function()? sent;
   late final void Function(String) _notice;
   final void Function() showNewest;
   final Map<String, List<int>> Function() identityAlerts;
@@ -108,6 +112,7 @@ class SendController extends ChangeNotifier {
     }
     _sendError = null;
     enqueue(body, replyTarget?.call());
+    sent?.call();
     clearDraft();
     clearReply?.call();
     showNewest();

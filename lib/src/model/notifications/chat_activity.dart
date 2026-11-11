@@ -24,6 +24,11 @@ class ChatActivityState {
   int otherUnread(String chatId) => unread.entries
       .where((e) => e.key != chatId && !muted.contains(e.key))
       .fold(0, (a, b) => a + b.value);
+
+  /// The app icon badge: every unread message outside muted chats.
+  int get badgeCount => unread.entries
+      .where((e) => !muted.contains(e.key))
+      .fold(0, (a, b) => a + b.value);
 }
 
 /// Keeps subscriptions to local history while signed in. The initial snapshot

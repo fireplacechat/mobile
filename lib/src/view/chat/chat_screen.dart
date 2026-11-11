@@ -16,6 +16,7 @@ import 'package:fireplace/src/view/chat/route_visibility.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/model/chat/contact_controller.dart';
 import 'package:fireplace/src/model/chat/send_controller.dart';
+import 'package:fireplace/src/model/settings/send_sound_preference.dart';
 import 'package:fireplace/src/model/chat/outgoing_sends.dart';
 import 'package:fireplace/src/view/chat/outgoing_messages.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
@@ -93,6 +94,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           enqueue: (body, reply) => ref
               .read(outgoingSendsProvider.notifier)
               .enqueue(widget.chatId, body, replyTarget: reply),
+          sent: () => ref.read(sendSoundProvider.notifier).play(),
           replyTarget: () =>
               ref.read(messageComposeProvider(widget.chatId))?.replyId,
           clearDraft: _text.clear,

@@ -39,6 +39,7 @@ import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
 import 'package:fireplace/src/view/devices/link_new_device_screen.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/view/safety/blocked_users_screen.dart';
+import 'package:fireplace/src/view/settings/push_settings.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
@@ -631,6 +632,24 @@ void main() {
     ),
     const CatalogCase('settings', SettingsScreen()),
     CatalogCase(
+      'settings-notifications',
+      const SettingsScreen(),
+      push: true,
+      overrides: [appleWordingProvider.overrideWithValue(true)],
+      act: (t, f) async {
+        await t.runAsync(() => Future<void>.delayed(Duration.zero));
+        await t.pumpAndSettle();
+        await t.scrollUntilVisible(
+          find.byKey(const Key('pushSwitch')),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        // Section heading and its three rows at the top of the screen.
+        await t.ensureVisible(find.text('Notifications'));
+        await t.pumpAndSettle();
+      },
+    ),
+    CatalogCase(
       'theme-picker',
       const SettingsScreen(),
       act: (t, f) async {
@@ -687,8 +706,12 @@ void main() {
         tester.view.physicalSize = spec.size;
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
-        final fixture = UiFixture(overrideAuth: spec.overrideAuth);
+        final fixture = UiFixture(
+          overrideAuth: spec.overrideAuth,
+          pushNotifications: spec.push ? fixturePush() : null,
+        );
         await fixture.seed();
+        await fixture.pushNotifications?.start();
         spec.prepare?.call(fixture);
         addTearDown(fixture.session.close);
         final boundary = GlobalKey();

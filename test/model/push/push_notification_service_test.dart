@@ -4,10 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fireplace/src/db/secret_store.dart';
 import 'package:fireplace/src/model/push/push_notification_service.dart';
 
 class _FakeMessaging implements PushMessagingClient {
   bool permission = true;
+  bool undetermined = false;
+  int requestCalls = 0;
   String? apnsToken = 'apns-token';
   String? token = 'fcm-token-0123456789abcdef';
   int getTokenCalls = 0;
@@ -15,10 +18,18 @@ class _FakeMessaging implements PushMessagingClient {
   final refresh = StreamController<String>.broadcast();
 
   @override
-  Future<bool> hasPermission() async => permission;
+  Future<PushPermission> permissionStatus() async => undetermined
+      ? PushPermission.notDetermined
+      : permission
+      ? PushPermission.allowed
+      : PushPermission.denied;
 
   @override
-  Future<bool> requestPermission() async => permission;
+  Future<bool> requestPermission() async {
+    requestCalls++;
+    undetermined = false;
+    return permission;
+  }
 
   @override
   Future<String?> getApnsToken() async => apnsToken;
@@ -119,34 +130,133 @@ void main() {
       await messaging.refresh.close();
     });
 
-    test(
-      'startIfPermitted never prompts and does nothing without prior consent',
-      () async {
-        final db = FakeFirebaseFirestore();
-        final messaging = _FakeMessaging()..permission = false;
-        final service = PushNotificationService(
+    group('launch, opt-out and name preference', () {
+      late FakeFirebaseFirestore db;
+      late _FakeMessaging messaging;
+      late MemorySecretStore prefs;
+      final doc = 'users/alice/pushTokens/alice-device-1';
+      PushNotificationService service() {
+        final s = PushNotificationService(
           db: db,
           uid: 'alice',
           deviceId: 'alice-device-1',
           messaging: messaging,
+          preferences: prefs,
           platform: 'android',
           isApplePlatform: false,
         );
-        await service.startIfPermitted();
-        expect(messaging.getTokenCalls, 0);
-        expect(messaging.presentationCalls, 0);
-        expect(
-          (await db.doc('users/alice/pushTokens/alice-device-1').get()).exists,
-          isFalse,
-        );
-        messaging.permission = true; // the user turned it on in Settings
-        await service.startIfPermitted();
-        expect(
-          (await db.doc('users/alice/pushTokens/alice-device-1').get()).exists,
-          isTrue,
-        );
-      },
-    );
+        addTearDown(s.unregister);
+        return s;
+      }
+
+      setUp(() {
+        db = FakeFirebaseFirestore();
+        messaging = _FakeMessaging()..undetermined = true;
+        prefs = MemorySecretStore();
+        addTearDown(messaging.refresh.close);
+      });
+
+      test('the first launch shows the system prompt and registers', () async {
+        await service().startAtLaunch();
+        expect(messaging.requestCalls, 1);
+        expect((await db.doc(doc).get()).data()?['showName'], isTrue);
+      });
+
+      test('a declined prompt is never shown again at launch', () async {
+        messaging.permission = false;
+        await service().startAtLaunch();
+        expect(messaging.requestCalls, 1);
+        await service().startAtLaunch();
+        expect(messaging.requestCalls, 1);
+        expect((await db.doc(doc).get()).exists, isFalse);
+      });
+
+      test(
+        'Android reports denied before asking; the first launch still asks',
+        () async {
+          messaging
+            ..undetermined = false
+            ..permission = false;
+          await service().startAtLaunch();
+          expect(messaging.requestCalls, 1);
+        },
+      );
+
+      test('later launches re-register silently when allowed', () async {
+        await service().startAtLaunch();
+        await db.doc(doc).delete();
+        await service().startAtLaunch();
+        expect((await db.doc(doc).get()).exists, isTrue);
+      });
+
+      test('turning off in the app is remembered across launches', () async {
+        final first = service();
+        await first.startAtLaunch();
+        expect(await first.status(), PushStatus.on);
+        await first.disable();
+        expect(await first.status(), PushStatus.off);
+        expect((await db.doc(doc).get()).exists, isFalse);
+
+        final next = service();
+        await next.startAtLaunch();
+        expect((await db.doc(doc).get()).exists, isFalse);
+        expect(await next.status(), PushStatus.off);
+
+        await next.start(); // the user turns it back on
+        expect(await next.status(), PushStatus.on);
+        await service().startAtLaunch();
+        expect((await db.doc(doc).get()).exists, isTrue);
+      });
+
+      test('turned off in system settings removes the registration', () async {
+        await service().startAtLaunch();
+        messaging.permission = false;
+        final later = service();
+        await later.startAtLaunch();
+        expect((await db.doc(doc).get()).exists, isFalse);
+        expect(await later.status(), PushStatus.blockedBySystem);
+      });
+
+      test('hiding the name rewrites the registration and persists', () async {
+        final s = service();
+        await s.startAtLaunch();
+        expect(await s.showsName(), isTrue);
+        await s.setShowName(false);
+        expect(await s.showsName(), isFalse);
+        expect((await db.doc(doc).get()).data()?['showName'], isFalse);
+
+        await db.doc(doc).delete();
+        await service().startAtLaunch();
+        expect((await db.doc(doc).get()).data()?['showName'], isFalse);
+        await s.setShowName(true);
+        expect((await db.doc(doc).get()).data()?['showName'], isTrue);
+      });
+
+      test(
+        'the notification sound is on by default and can be turned off',
+        () async {
+          final s = service();
+          await s.startAtLaunch();
+          expect(await s.playsSound(), isTrue);
+          expect((await db.doc(doc).get()).data()?['sound'], isTrue);
+          await s.setSound(false);
+          expect(await s.playsSound(), isFalse);
+          expect((await db.doc(doc).get()).data()?['sound'], isFalse);
+          // The name choice is independent.
+          expect((await db.doc(doc).get()).data()?['showName'], isTrue);
+
+          await db.doc(doc).delete();
+          await service().startAtLaunch();
+          expect((await db.doc(doc).get()).data()?['sound'], isFalse);
+        },
+      );
+
+      test('changing the name preference while off writes nothing', () async {
+        final s = service();
+        await s.setShowName(false);
+        expect((await db.doc(doc).get()).exists, isFalse);
+      });
+    });
   });
 }
 
@@ -154,13 +264,13 @@ class _ControlledMessaging extends _FakeMessaging {
   Future<String?> Function()? tokenRead;
   Future<String?> Function()? apnsRead;
   Future<bool> Function()? permissionRead;
-  Future<bool> Function()? priorPermissionRead;
+  Future<PushPermission> Function()? priorPermissionRead;
   Future<void> Function()? presentation;
   int activeSubscriptions = 0;
 
   @override
-  Future<bool> hasPermission() =>
-      priorPermissionRead?.call() ?? super.hasPermission();
+  Future<PushPermission> permissionStatus() =>
+      priorPermissionRead?.call() ?? super.permissionStatus();
 
   @override
   Future<void> setForegroundPresentation() =>
@@ -279,15 +389,15 @@ void _raceTests() {
       () async {
         final h = _RaceHarness();
         final entered = Completer<void>();
-        final permission = Completer<bool>();
+        final permission = Completer<PushPermission>();
         h.messaging.priorPermissionRead = () {
           entered.complete();
           return permission.future;
         };
-        final starting = h.service.startIfPermitted();
+        final starting = h.service.startAtLaunch();
         await entered.future;
         await h.service.disable();
-        permission.complete(true);
+        permission.complete(PushPermission.allowed);
         await starting;
         expect(await h.registered(), isFalse);
         expect(h.messaging.activeSubscriptions, 0);
