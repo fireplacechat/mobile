@@ -1,4 +1,4 @@
-# 0026: Push notifications, app icon badge and notification settings
+# 0026: Push notifications, app icon badge, sounds and notification settings
 
 Status: requested by the owner, 2026-11-11, after moving the Firebase project to
 the Blaze plan. Review before merge. No change to keys, the ratchet or message
@@ -48,11 +48,41 @@ deleted. Tokens that FCM reports as dead are removed.
     settings, because the app may not prompt again.
   - **Show sender's name** is stored as `showName` on this device's
     registration.
-  - **Sounds, banners and badges** opens the system settings for Fireplace.
+  - **Notification sound** (on by default) is stored as `sound` on this
+    device's registration.
+  - **More in iOS Settings / Android settings** opens the system settings for
+    Fireplace.
+- **In the app:** **Show message text** (the in-app notice) and **Send sound**
+  (on by default; stored on this device as `ui:send-sound`).
 - iOS Settings → Fireplace → Notifications and Android's "Messages" channel
   control sounds, banners, badges and lock-screen previews as usual.
 - While Fireplace is open, the system banner is suppressed. The existing
   in-app notice (with its own "Show message text" choice) shows arrivals.
+
+## Sounds
+
+The owner supplied two pops: `notification_sound.mp3` and `send_sound.wav`.
+They are trimmed to the pop with short fades, so they start at once (200 ms
+and 120 ms long). They are stored as mono 16-bit WAV, which both platforms
+play. The notification pop is levelled to −1 dBFS peak; the send pop keeps its
+original, quieter level. Copies are in `assets/sounds/` (iOS) and
+`android/app/src/main/res/raw/` (Android).
+
+- **Notification pop:** chosen when the alert is sent, so the sender has to
+  know the preference.
+  - iOS: the sender names `notification_pop.wav` in `aps.sound`, or names
+    no sound when it is off. APNs only plays sounds from the app bundle or
+    `Library/Sounds`, so the app copies the asset into `Library/Sounds` at
+    launch. If that copy fails, the default sound plays.
+  - Android: a channel's sound cannot change once it is created, so there are
+    two channels, "Messages" (the pop) and "Messages without sound". The
+    sender picks one per device.
+- **Send pop:** played by the app when a message is handed to the outgoing
+  queue, through the same native channel (no new package).
+  - iOS: a system sound, which is silent when the ringer switch is.
+  - Android: `SoundPool`, played only in normal ringer mode.
+  - The first send after launch waits for the saved choice, so "off" holds
+    from the start.
 
 ## App icon badge
 
@@ -67,8 +97,8 @@ the launcher's dot while an alert is in the shade.
 
 ## Server fields and rules
 
-- `users/{uid}/pushTokens/{deviceId}` gains an optional boolean `showName`
-  (owner-only, as before). Older apps omit it and keep showing names.
+- `users/{uid}/pushTokens/{deviceId}` gains optional booleans `showName` and
+  `sound` (owner-only, as before). Older apps omit them and get the defaults.
 - `pushThrottle/{chatId}` maps a recipient uid to when they were last alerted.
   Only the function writes it; the rules deny all client access. It records
   when messages arrived, which each message's `ts` already shows; it holds no
@@ -87,9 +117,10 @@ spending cap on Blaze, so the owner should set budget alerts.
 - iOS: `Runner.entitlements` (`aps-environment`), `UIBackgroundModes:
   remote-notification`, and a `fireplace/notifications` channel in
   `AppDelegate.swift` (badge, clear delivered, open settings).
-- Android: the "Messages" channel, a status-bar icon generated from the
-  existing flame artwork (`ic_notification`), the brand color, and the same
-  channel in `MainActivity.kt`. `POST_NOTIFICATIONS` was already allowed by
+- Android: the "Messages" and "Messages without sound" channels, a
+  status-bar icon generated from the existing flame artwork
+  (`ic_notification`), the brand color, and the same method channel plus the
+  send pop in `MainActivity.kt`. `POST_NOTIFICATIONS` was already allowed by
   `scripts/check_apk.sh`.
 - `PUSH_ENABLED` now defaults to true. `--dart-define=PUSH_ENABLED=false`
   builds without push.
@@ -110,8 +141,10 @@ spending cap on Blaze, so the owner should set budget alerts.
 ## Tests
 
 `push_notification_service_test.dart` (first-launch prompt, no re-prompt,
-remembered opt-out, system-off cleanup, name preference, existing race
-tests), `app_badge_test.dart`, `push_settings_test.dart`, the
+remembered opt-out, system-off cleanup, name and sound preferences, existing
+race tests), `app_badge_test.dart`, `push_settings_test.dart`,
+`send_sound_preference_test.dart`, `send_sound_test.dart` (the real chat
+screen plays the pop once per send, and not when off), the
 `settings-notifications` render, and in the backend the sender unit tests,
-rules tests for `showName` and `pushThrottle`, and an operator deletion test.
+rules tests for `showName`, `sound` and `pushThrottle`, and an operator deletion test.
 Implementation assisted by Claude Code.

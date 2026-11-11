@@ -1,9 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+final systemNotificationsProvider = Provider<SystemNotifications>(
+  (_) => const ChannelSystemNotifications(),
+);
 
 /// The parts of the operating system's notification features that no plugin
-/// covers: the app icon badge, clearing delivered alerts and opening the
-/// system notification settings for Fireplace. Implemented natively in
+/// covers: the app icon badge, clearing delivered alerts, opening the system
+/// notification settings for Fireplace, and the send sound. Implemented natively in
 /// `ios/Runner/AppDelegate.swift` and `android/.../MainActivity.kt`.
 abstract interface class SystemNotifications {
   /// Sets the red number on the app icon. 0 removes it. iOS only; Android
@@ -15,6 +20,9 @@ abstract interface class SystemNotifications {
 
   /// Opens Fireplace's page in the system notification settings.
   Future<void> openSettings();
+
+  /// Plays the short send pop. Silent when the phone is set to silent.
+  Future<void> playSendSound();
 }
 
 class ChannelSystemNotifications implements SystemNotifications {
@@ -42,4 +50,7 @@ class ChannelSystemNotifications implements SystemNotifications {
 
   @override
   Future<void> openSettings() => _call('openSettings');
+
+  @override
+  Future<void> playSendSound() => _call('playSendSound');
 }

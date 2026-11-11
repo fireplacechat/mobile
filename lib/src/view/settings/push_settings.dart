@@ -3,13 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fireplace/src/model/notifications/app_badge.dart';
+import 'package:fireplace/src/model/notifications/system_notifications.dart';
 import 'package:fireplace/src/model/push/push_notification_service.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
 
 /// Settings → Notifications: alerts while Fireplace is closed, whether they
-/// show the sender's name, and a shortcut to the system settings (sounds,
-/// banners, badges, lock screen), which the app cannot change itself.
+/// show the sender's name and play the pop, and a shortcut to the system
+/// settings (banners, badges, lock screen), which the app cannot change.
 /// Whether to word settings for iOS. A provider so tests and renders can
 /// choose the wording independently of the machine they run on.
 final appleWordingProvider = Provider<bool>((_) => Platform.isIOS);
@@ -26,6 +26,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
     with WidgetsBindingObserver {
   PushStatus? _status;
   bool _showName = true;
+  bool _sound = true;
   bool _busy = false;
   String? _error;
 
@@ -55,10 +56,12 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
     try {
       final status = await widget.service.status();
       final showName = await widget.service.showsName();
+      final sound = await widget.service.playsSound();
       if (!mounted) return;
       setState(() {
         _status = status;
         _showName = showName;
+        _sound = sound;
         _error = null;
       });
     } catch (_) {
@@ -124,10 +127,19 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
               ? (value) => _change(() => widget.service.setShowName(value))
               : null,
         ),
+        SwitchListTile(
+          key: const Key('pushSound'),
+          secondary: const Icon(Icons.volume_up_outlined),
+          title: const Text('Notification sound'),
+          value: _sound,
+          onChanged: on && !_busy
+              ? (value) => _change(() => widget.service.setSound(value))
+              : null,
+        ),
         ListTile(
           key: const Key('pushSystemSettings'),
           leading: const Icon(Icons.tune),
-          title: const Text('Sounds, banners and badges'),
+          title: Text('More in $_system'),
           trailing: const Icon(Icons.open_in_new),
           onTap: () => ref.read(systemNotificationsProvider).openSettings(),
         ),

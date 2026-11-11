@@ -6,10 +6,6 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/notifications/system_notifications.dart';
 
-final systemNotificationsProvider = Provider<SystemNotifications>(
-  (_) => const ChannelSystemNotifications(),
-);
-
 /// Keeps the app icon badge equal to this device's unread total (muted chats
 /// excluded). The count comes from the encrypted local history; the server
 /// never learns what was read. Watch it once near the root of the app.

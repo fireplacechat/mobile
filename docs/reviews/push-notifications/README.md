@@ -10,8 +10,10 @@ app's real icon files (`assets/icon/fireplace_ios.png` and the generated
 fonts). Usernames are fictional.
 
 What a phone shows: the Fireplace icon on the left, the sender's username as the
-title, and **New Message** below it. Each conversation keeps one alert, which
-later alerts replace.
+title, and **New Message** below it, with the Fireplace pop (Settings →
+Notifications → Notification sound). Each conversation keeps one alert, which
+later alerts replace. Sending a message plays a softer pop (Settings → In the
+app → Send sound). Both sounds are on by default.
 
 | Surface | Light | Dark |
 | --- | --- | --- |

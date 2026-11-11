@@ -232,6 +232,25 @@ void main() {
         expect((await db.doc(doc).get()).data()?['showName'], isTrue);
       });
 
+      test(
+        'the notification sound is on by default and can be turned off',
+        () async {
+          final s = service();
+          await s.startAtLaunch();
+          expect(await s.playsSound(), isTrue);
+          expect((await db.doc(doc).get()).data()?['sound'], isTrue);
+          await s.setSound(false);
+          expect(await s.playsSound(), isFalse);
+          expect((await db.doc(doc).get()).data()?['sound'], isFalse);
+          // The name choice is independent.
+          expect((await db.doc(doc).get()).data()?['showName'], isTrue);
+
+          await db.doc(doc).delete();
+          await service().startAtLaunch();
+          expect((await db.doc(doc).get()).data()?['sound'], isFalse);
+        },
+      );
+
       test('changing the name preference while off writes nothing', () async {
         final s = service();
         await s.setShowName(false);

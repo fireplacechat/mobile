@@ -19,6 +19,7 @@ import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/status.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
+import 'package:fireplace/src/model/settings/send_sound_preference.dart';
 import 'package:fireplace/src/view/settings/theme_mode_tile.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -271,12 +272,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 if (pushEnabled && s.pushNotifications != null)
                   PushSettingsSection(service: s.pushNotifications!),
                 UiSettingsSection(
-                  title: 'In-app notifications',
+                  title: 'In the app',
                   children: [
                     SwitchListTile(
                       key: const Key('notificationPreviews'),
+                      secondary: const Icon(Icons.chat_bubble_outline),
                       title: const Text('Show message text'),
-                      subtitle: const Text('While the app is open'),
                       value: ref.watch(chatActivityProvider).previewText,
                       onChanged: _busy || !activity.preferencesAvailable
                           ? null
@@ -284,6 +285,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               () => ref
                                   .read(chatActivityProvider.notifier)
                                   .previews(value),
+                            ),
+                    ),
+                    SwitchListTile(
+                      key: const Key('sendSound'),
+                      secondary: const Icon(Icons.send_outlined),
+                      title: const Text('Send sound'),
+                      value: ref.watch(sendSoundProvider).value ?? true,
+                      onChanged: _busy
+                          ? null
+                          : (value) => _run(
+                              () => ref
+                                  .read(sendSoundProvider.notifier)
+                                  .setOn(value),
                             ),
                     ),
                   ],

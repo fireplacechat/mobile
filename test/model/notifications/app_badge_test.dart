@@ -14,6 +14,8 @@ class _FakeSystem implements SystemNotifications {
   Future<void> clearDelivered() async => calls.add('clear');
   @override
   Future<void> openSettings() async => calls.add('settings');
+  @override
+  Future<void> playSendSound() async => calls.add('send sound');
 }
 
 class _FakeActivity extends ChatActivity {

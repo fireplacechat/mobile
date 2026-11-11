@@ -114,6 +114,7 @@ class PushNotificationService {
        _optOutKey = 'pushoff:$uid',
        _askedKey = 'pushasked:$uid',
        _hideNameKey = 'pushhidename:$uid',
+       _silentKey = 'pushsilent:$uid',
        _isApplePlatform = isApplePlatform ?? Platform.isIOS,
        _platform = platform ?? (Platform.isIOS ? 'ios' : 'android'),
        _apnsTokenWait = apnsTokenWait,
@@ -127,7 +128,7 @@ class PushNotificationService {
   // Device-local choices. They are not secrets, but this store is already
   // per-install, survives restarts and is wiped with the account.
   final SecretStore _prefs;
-  final String _optOutKey, _askedKey, _hideNameKey;
+  final String _optOutKey, _askedKey, _hideNameKey, _silentKey;
   final bool _isApplePlatform;
   final String _platform;
   final Duration _apnsTokenWait;
@@ -204,11 +205,13 @@ class PushNotificationService {
       if (gen != _generation) return;
       try {
         final showName = await showsName();
+        final sound = await playsSound();
         if (gen != _generation) return;
         await _tokenRef.set({
           'token': token,
           'platform': _platform,
           'showName': showName,
+          'sound': sound,
           'updatedAt': FieldValue.serverTimestamp(),
         });
         // A write already sent cannot be cancelled; remove its stale result.
@@ -247,11 +250,19 @@ class PushNotificationService {
   /// just "Fireplace".
   Future<bool> showsName() async => await _prefs.read(_hideNameKey) == null;
 
-  Future<void> setShowName(bool value) async {
-    if (value) {
-      await _prefs.delete(_hideNameKey);
+  Future<void> setShowName(bool value) => _setFlag(_hideNameKey, off: !value);
+
+  /// Whether alerts on this device play the Fireplace pop (default) or no
+  /// sound. The sender chooses the sound when it sends, so it must know.
+  Future<bool> playsSound() async => await _prefs.read(_silentKey) == null;
+
+  Future<void> setSound(bool value) => _setFlag(_silentKey, off: !value);
+
+  Future<void> _setFlag(String key, {required bool off}) async {
+    if (off) {
+      await _prefs.write(key, '1');
     } else {
-      await _prefs.write(_hideNameKey, '1');
+      await _prefs.delete(key);
     }
     // Rewrite the registration so the sender sees the new choice.
     final token = _lastToken;

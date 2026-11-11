@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:fireplace/src/model/notifications/app_badge.dart';
 import 'package:fireplace/src/model/notifications/system_notifications.dart';
 import 'package:fireplace/src/model/push/push_notification_service.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
@@ -36,6 +35,8 @@ class _System implements SystemNotifications {
   Future<void> clearDelivered() async {}
   @override
   Future<void> openSettings() async => opened++;
+  @override
+  Future<void> playSendSound() async {}
 }
 
 // The service's Firestore and preference calls finish outside the fake clock.
@@ -115,6 +116,24 @@ void main() {
     await settle(tester);
     expect(switchValue(tester, 'pushSwitch'), isFalse);
     expect(enabled(tester, 'pushShowName'), isFalse);
+  });
+
+  testWidgets('the notification sound switch follows the registration', (
+    tester,
+  ) async {
+    await pump(tester);
+    expect(enabled(tester, 'pushSound'), isFalse, reason: 'off until allowed');
+    await tester.tap(find.byKey(const Key('pushSwitch')));
+    await settle(tester);
+    expect(switchValue(tester, 'pushSound'), isTrue, reason: 'on by default');
+    await tester.tap(find.byKey(const Key('pushSound')));
+    await settle(tester);
+    expect(switchValue(tester, 'pushSound'), isFalse);
+    expect(
+      (await db.doc('users/alice/pushTokens/alice-device-1').get())
+          .data()?['sound'],
+      isFalse,
+    );
   });
 
   testWidgets('blocked in system settings opens them', (tester) async {

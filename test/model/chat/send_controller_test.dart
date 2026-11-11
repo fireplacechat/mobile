@@ -93,6 +93,7 @@ class Harness {
   final events = <String>[];
   String text = 'hello', id = 'alice_fred', uid = 'alice';
   int notifications = 0;
+  int sounds = 0;
   final enqueued = <(String, String?)>[];
   bool? confirm = true;
   bool disposedScope = false;
@@ -117,6 +118,7 @@ class Harness {
           text = '';
         },
         notice: (m) => events.add(m),
+        sent: () => sounds++,
         showNewest: () => events.add('latest'),
         identityAlerts: () => alerts,
         confirmSendAnotherCopy: () async {
@@ -138,6 +140,7 @@ void main() {
     final h = Harness()..text = 'a' * (maxMessageCharacters + 1);
     await h.controller.send();
     expect(h.controller.sendError, messageLimitError);
+    expect(h.sounds, 0, reason: 'nothing was sent, so no sound');
     expect(h.service.sent, isEmpty);
     expect(h.text.length, maxMessageCharacters + 1);
   });
@@ -147,6 +150,7 @@ void main() {
     expect(h.service.sent, isEmpty);
     expect(h.controller.sendError, isNull);
     expect(h.notifications, 0);
+    expect(h.sounds, 0);
   });
   test('3 identity hold refuses send with exact notice', () async {
     final h = Harness()
@@ -156,6 +160,7 @@ void main() {
     await h.controller.send();
     expect(h.events, ['Review the security code change before sending.']);
     expect(h.service.sent, isEmpty);
+    expect(h.sounds, 0);
   });
   test(
     '4 send hands the message over and empties the composer at once',
@@ -168,6 +173,7 @@ void main() {
       expect(h.enqueued, [('hello', null)]);
       expect(h.text, '');
       expect(h.events, ['enqueue', 'clear', 'latest']);
+      expect(h.sounds, 1, reason: 'the send sound plays once per message');
       expect(h.service.sent, isEmpty, reason: 'the queue sends, not this');
       expect(h.controller.sendError, isNull);
     },
