@@ -51,7 +51,6 @@ class ChatSafetyNotices extends StatelessWidget {
     required this.onReviewIdentity,
     required this.onAccept,
     required this.onBlock,
-    required this.onReport,
   });
   final String? peerUid;
   final String name;
@@ -61,7 +60,7 @@ class ChatSafetyNotices extends StatelessWidget {
   final ContactController contact;
   final SendController send;
   final Future<void> Function(List<int>) onReviewIdentity;
-  final Future<void> Function() onAccept, onBlock, onReport;
+  final Future<void> Function() onAccept, onBlock;
   @override
   Widget build(BuildContext context) => ConstrainedBox(
     constraints: BoxConstraints(
@@ -89,7 +88,6 @@ class ChatSafetyNotices extends StatelessWidget {
               busy: contact.busy,
               onAccept: onAccept,
               onBlock: onBlock,
-              onReport: onReport,
             ),
           if (contact.error != null)
             UiNotice(warning: true, text: contact.error!),

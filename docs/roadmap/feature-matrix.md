@@ -27,7 +27,7 @@ Where a common habit conflicts with privacy, privacy wins, and the app explains 
 | Bold, italic, strikethrough | single-character markers (`*b*` `_i_` `~s~`) | `**b**` `_i_` `~~s~~` (owner choice) | built on the chat UI branch; consider also accepting single `*` and `~` so habits carry over |
 | Monospace / code | triple backtick | not planned | cheap and useful; decide |
 | Time inside the bubble, grouped bubbles | yes | time under text; no grouping | **adopt** (inline time, grouping consecutive messages): shorter chats, the familiar look |
-| Long-press menu | reply, forward, copy, delete, info | built (copy, forward, select text, report) | have it; add reply and delete later by adding entries to one list |
+| Long-press menu | reply, forward, copy, delete, info | built (copy, forward, select text) | have it; add reply and delete later by adding entries to one list |
 | Reply / quote | yes | not built | **priority candidate**: it is the most used chat feature after sending; fits privacy (local rendering of a quoted message id) |
 | Forward | yes | built | have it |
 | Delete for me | yes | not built | later; local only, easy |
@@ -51,7 +51,7 @@ Where a common habit conflicts with privacy, privacy wins, and the app explains 
 | Voice and video calls | yes | not a priority (owner) | later |
 | Multi-device | yes | linked devices exist | have it |
 | Backup | yes | recovery key restores identity, not old messages | by design; explain clearly |
-| Block and report | yes | built | have it |
+| Block | yes | built | have it |
 | Wallpaper and bubble colours | yes | bubble colours built, kept on the device; your colour is the app's accent | wallpaper later |
 | Large text, screen readers | yes | built, needs phone testing | keep testing |
 

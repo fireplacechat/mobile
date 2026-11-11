@@ -140,56 +140,6 @@ void main() {
     expect(alice.safety.isBlocked('bob'), isTrue);
   });
 
-  testWidgets(
-    'reporting sends the chosen reason, note and (only if ticked) recent messages',
-    (t) async {
-      final (db, alice, bob) = await world(t);
-      await t.runAsync(() async {
-        await bob.chat.acceptRequest('alice_bob');
-        await alice.chat.sendText('alice_bob', 'buy my coins');
-      });
-      await t.pumpWidget(host(alice, const ChatScreen(chatId: 'alice_bob')));
-      await settle(t);
-      Future<void> openReport() async {
-        await t.tap(find.byKey(const Key('chatMenu')));
-        await t.pumpAndSettle();
-        await t.tap(find.byKey(const Key('menuReport')));
-        await t.pumpAndSettle();
-      }
-
-      await openReport();
-      await t.tap(find.byKey(const Key('reason_harassment')));
-      await t.enterText(
-        find.byKey(const Key('reportNote')),
-        'keeps pestering me',
-      );
-      await t.ensureVisible(find.byKey(const Key('sendReport')));
-      await t.pump();
-      await t.tap(find.byKey(const Key('sendReport')));
-      await settle(t);
-      var d = (await t.runAsync(
-        () => db.collection('reports').doc('alice_bob').get(),
-      ))!.data()!;
-      expect(d['reason'], 'harassment');
-      expect(d['note'], 'keeps pestering me');
-      expect(d.containsKey('context'), isFalse); // nothing shared unless ticked
-
-      await openReport();
-      await t.ensureVisible(find.byKey(const Key('reportInclude')));
-      await t.pump();
-      await t.tap(find.byKey(const Key('reportInclude')));
-      await t.pump();
-      await t.ensureVisible(find.byKey(const Key('sendReport')));
-      await t.pump();
-      await t.tap(find.byKey(const Key('sendReport')));
-      await settle(t);
-      d = (await t.runAsync(
-        () => db.collection('reports').doc('alice_bob').get(),
-      ))!.data()!;
-      expect(d['context'], contains('reporter: buy my coins'));
-    },
-  );
-
   testWidgets('Requests screen lists a request and Accept / Ignore work', (
     t,
   ) async {

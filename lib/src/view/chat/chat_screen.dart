@@ -27,7 +27,6 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
-import 'package:fireplace/src/view/safety/report_dialog.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/view/chat/confirm_another_copy.dart';
 import 'package:fireplace/src/widgets/page.dart';
@@ -397,15 +396,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onUnblock: () => _contactController.contactAction(
                 () => session.safety.unblock(peerUid),
               ),
-              onReport: () => _contactController.contactAction(() async {
-                await showReportDialog(
-                  context,
-                  ref,
-                  peerUid: peerUid,
-                  name: name,
-                  chatId: widget.chatId,
-                );
-              }),
             ),
         ],
       ),
@@ -441,15 +431,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               onBlock: () => _contactController.contactAction(
                 () => _blockPeer(session!, peerUid!, name),
               ),
-              onReport: () => _contactController.contactAction(() async {
-                await showReportDialog(
-                  context,
-                  ref,
-                  peerUid: peerUid!,
-                  name: name,
-                  chatId: widget.chatId,
-                );
-              }),
             ),
             if (pinned.isNotEmpty)
               PinnedBar(

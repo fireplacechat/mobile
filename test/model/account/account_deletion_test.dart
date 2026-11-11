@@ -82,8 +82,6 @@ void main() {
       'x25519Pub': 'a',
       'kemPub': 'b',
     });
-    await alice.safety.report(peerUid: 'bob', reason: ReportReason.spam);
-    await bob.safety.report(peerUid: 'alice', reason: ReportReason.other);
   });
 
   AccountService serviceFor(
@@ -141,8 +139,6 @@ void main() {
     // others untouched
     expect((await db.collection('users').doc('bob').get()).exists, isTrue);
     expect(await count(db, 'users/bob/devices'), 1);
-    // reports are kept
-    expect(await count(db, 'reports'), 2);
     // local erase + session stop happened, secrets are empty, auth user removed
     expect(log, ['stop', 'destroyLocal']);
     expect(alice.secrets.data, isEmpty);

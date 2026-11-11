@@ -5,17 +5,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:fireplace/src/db/secret_store.dart';
 
-enum ReportReason { spam, harassment, abuse, impersonation, other }
-
-/// Blocking, reporting and locally hiding message requests.
+/// Blocking and locally hiding message requests.
 ///
 /// - **Block**: a document in `users/{me}/blocks/{peer}`. The Firestore rules refuse
 ///   chat creation and messages from a blocked person, and this device ignores
 ///   anything of theirs that is still in flight.
-/// - **Report**: a write-only document in `reports/` for the app operator. The
-///   messages are end-to-end encrypted, so context is only what the reporter
-///   chooses to include, and it cannot be verified.
 /// - **Hide**: a purely local "ignore" for message requests.
+/// Message text stays on the device. Nothing in this service sends it anywhere.
 class SafetyService {
   SafetyService(this._db, this._store, this.uid);
   final FirebaseFirestore _db;
@@ -68,31 +64,6 @@ class SafetyService {
     await _blocks.doc(peerUid).delete();
     _blocked = {..._blocked}..remove(peerUid);
     _blockedCtrl.add(_blocked);
-  }
-
-  /// [context] is optional plaintext the reporter chooses to share (max 20 lines).
-  Future<void> report({
-    required String peerUid,
-    required ReportReason reason,
-    String? chatId,
-    String? note,
-    List<String> context = const [],
-  }) async {
-    final trimmed = (note ?? '').trim();
-    await _db.collection('reports').doc('${uid}_$peerUid').set({
-      'reporter': uid,
-      'reported': peerUid,
-      'reason': reason.name,
-      'chatId': ?chatId,
-      if (trimmed.isNotEmpty)
-        'note': trimmed.length > 500 ? trimmed.substring(0, 500) : trimmed,
-      if (context.isNotEmpty)
-        'context': [
-          for (final c in context.take(20))
-            c.length > 1000 ? c.substring(0, 1000) : c,
-        ],
-      'createdAt': FieldValue.serverTimestamp(),
-    });
   }
 
   // ------------------------------------------------------------ hidden requests

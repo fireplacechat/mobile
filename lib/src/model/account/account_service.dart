@@ -16,10 +16,10 @@ import 'package:fireplace/src/db/secret_store.dart';
 ///  6. stop the running session and erase all local keys and history,
 ///  7. delete the Firebase Auth user.
 ///
-/// Kept on purpose: reports filed about or by this account (needed to handle
-/// abuse), and other people's own messages to this account (they cannot be
+/// Kept on purpose: other people's own messages to this account (they cannot be
 /// read any more: the keys are gone). The other participant's app removes the
-/// emptied conversation when it notices the profile is gone.
+/// emptied conversation when it notices the profile is gone. Message text is
+/// never copied into a report.
 class AccountService {
   AccountService({
     required FirebaseAuth auth,

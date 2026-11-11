@@ -102,10 +102,9 @@ class ChatOverflowMenu extends StatelessWidget {
     required this.onMute,
     required this.onBlock,
     required this.onUnblock,
-    required this.onReport,
   });
   final bool muted, blocked;
-  final Future<void> Function() onMute, onBlock, onUnblock, onReport;
+  final Future<void> Function() onMute, onBlock, onUnblock;
   @override
   Widget build(BuildContext context) => PopupMenuButton<String>(
     key: Key('chatMenu'),
@@ -116,8 +115,6 @@ class ChatOverflowMenu extends StatelessWidget {
         await onBlock();
       } else if (v == 'unblock') {
         await onUnblock();
-      } else if (v == 'report') {
-        await onReport();
       }
     },
     itemBuilder: (_) => [
@@ -130,11 +127,6 @@ class ChatOverflowMenu extends StatelessWidget {
         key: Key('menuBlock'),
         value: blocked ? 'unblock' : 'block',
         child: Text(blocked ? 'Unblock' : 'Block'),
-      ),
-      PopupMenuItem(
-        key: Key('menuReport'),
-        value: 'report',
-        child: Text('Report'),
       ),
     ],
   );

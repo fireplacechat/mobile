@@ -4,7 +4,6 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
-import 'package:fireplace/src/view/safety/report_dialog.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/widgets/page.dart';
@@ -209,22 +208,6 @@ class _RequestTileState extends ConsumerState<_RequestTile> {
                     child: const Text('Block'),
                   ),
                 ],
-              ),
-              TextButton.icon(
-                key: Key('report_${chat.chatId}'),
-                onPressed: _busy
-                    ? null
-                    : () => _run(() async {
-                        await showReportDialog(
-                          context,
-                          ref,
-                          peerUid: chat.peerUid,
-                          name: name,
-                          chatId: chat.chatId,
-                        );
-                      }),
-                icon: const Icon(Icons.flag_outlined),
-                label: const Text('Report'),
               ),
               if (_error != null) UiActionError(message: _error!),
               if (_busy)

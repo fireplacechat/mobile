@@ -7,7 +7,6 @@ import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
-import 'package:fireplace/src/view/safety/report_dialog.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 
 class ChatDetailsScreen extends ConsumerStatefulWidget {
@@ -99,25 +98,6 @@ class _ChatDetailsScreenState extends ConsumerState<ChatDetailsScreen> {
                 onTap: _busy
                     ? null
                     : () => _run(blocked ? w.onUnblock : w.onBlock),
-              ),
-              ListTile(
-                key: const Key('detailsReport'),
-                leading: const Icon(Icons.flag_outlined),
-                title: const Text('Report'),
-                subtitle: const Text(
-                  'Message context is optional and starts off',
-                ),
-                onTap: _busy
-                    ? null
-                    : () => _run(() async {
-                        await showReportDialog(
-                          context,
-                          ref,
-                          peerUid: w.peerUid,
-                          name: w.name,
-                          chatId: w.chatId,
-                        );
-                      }),
               ),
             ],
           ),

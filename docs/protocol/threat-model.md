@@ -8,7 +8,7 @@
 - Credentials and the ability to reach an account's conversations.
 - Availability and cost of the shared Firebase project (free-tier quotas).
 
-Goals: Firebase and network observers cannot read message bodies; a participant can detect replacement of a contact's identity key; a stolen copy of a session heals after a round trip or two; strangers cannot flood or probe other users freely; people can block, report and delete.
+Goals: Firebase and network observers cannot read message bodies; a participant can detect replacement of a contact's identity key; a stolen copy of a session heals after a round trip or two; strangers cannot flood or probe other users freely; people can block and delete.
 
 ## What is implemented
 - **Accounts:** username + password on Firebase Auth via a synthetic address `<username>@users.fireplace.invalid`. No email/phone. Optional recovery key; device linking by QR + 6-digit code.
@@ -17,11 +17,11 @@ Goals: Firebase and network observers cannot read message bodies; a participant 
 - **Ratchet:** hybrid double ratchet (X25519 + ML-KEM-768 on every direction change), per-message AES-256-GCM keys that are deleted after use. Forward secrecy for processed messages; post-compromise security after the compromised side answers with fresh keys.
 - **Wire and state validation:** versions, lengths and types of messages and of stored session state are checked before use; failed decrypts never change state; repeated invalid new-chain messages are rate-limited per session. Session ids commit to the full handshake transcript (protocol v4).
 - **Local storage:** history in an AES-256-GCM file with the key in Keychain/Keystore; keys/sessions in the platform secure store.
-- **Server rules (Firestore):** participants only; message and device checks; message requests (3-message cap before acceptance); blocking; report write-only; banned tokens refused; sender can delete own messages; account data deletable by its owner. Tested against the emulator (see `firebase/tests/`).
-- **Abuse handling:** report, block, ignore requests, operator CLI (`tools/operator`) to review reports and suspend accounts.
+- **Server rules (Firestore):** participants only; message and device checks; message requests (3-message cap before acceptance); blocking; banned tokens refused; sender can delete own messages; account data deletable by its owner. Reports are not stored. Tested against the emulator (see `firebase/tests/`).
+- **Abuse handling:** block, ignore requests, and an operator CLI (`tools/operator`) that can suspend accounts. Message text is not stored for review.
 
 ## What leaks (metadata)
-Firebase and anyone with database access see: account ids and usernames, display names, device ids and public keys, which accounts chat, who started a chat, who sent each message and when, approximate message length and the number of recipient devices (envelope sizes), request/accept state, report records, and moderation records. Direct username lookup is possible for any signed-in user (listing is denied). The block list is private but the rules consult it, so a blocked person's failed send is observable to them as an error. Network providers see IP addresses, times and traffic sizes.
+Firebase and anyone with database access see: account ids and usernames, display names, device ids and public keys, which accounts chat, who started a chat, who sent each message and when, approximate message length and the number of recipient devices (envelope sizes), request/accept state, and moderation records. They do not see message text. Direct username lookup is possible for any signed-in user (listing is denied). The block list is private but the rules consult it, so a blocked person's failed send is observable to them as an error. Network providers see IP addresses, times and traffic sizes.
 
 The device holds decrypted history. Someone with an unlocked phone, screen capture or accessibility access, malware, a compromised OS, device backups exposing keys, or a memory dump can read content. Deleting data is logical, not secure erasure from flash, backups, screenshots or recipients' phones.
 
@@ -30,8 +30,7 @@ The device holds decrypted history. Someone with an unlocked phone, screen captu
 
 **Mitigations and their limits:**
 - *Key substitution by the server:* prekeys and device certificates are signed by the account identity; pinning + safety numbers expose swapped identities. A first-contact substitution is only caught if users compare safety numbers.
-- *Spam / unsolicited contact / cost abuse:* invite-only sign-up (accounts without an invite are inert), message requests, blocking, reporting, suspension, and an enforced limit of one message per 500 ms per account. An invitee can still send 2 messages/s until banned, reads are not rate limited, and there is no App Check or device attestation yet, so free-tier quotas can still be exhausted by a determined invitee (an outage, not a bill, on the free plan; see `docs/push/COSTS.md`).
-- *Reports:* message text in a report is whatever the reporter attached and cannot be verified (no message franking).
+- *Spam / unsolicited contact / cost abuse:* invite-only sign-up (accounts without an invite are inert), message requests, blocking, suspension, and an enforced limit of one message per 500 ms per account. An invitee can still send 2 messages/s until banned, reads are not rate limited, and there is no App Check or device attestation yet, so free-tier quotas can still be exhausted by a determined invitee (an outage, not a bill, on the free plan; see `docs/push/COSTS.md`).
 - *A contact who sends invalid messages:* after 8 invalid new-chain messages (tampered headers or ciphertexts; replays and reflections are refused cheaply and do not count) in a minute the session ignores further new-chain messages from that contact for up to a minute (they are retried afterwards); this only affects the conversation with that contact. Draining someone's one-time prekeys (anyone with an account can claim them) downgrades new sessions to the signed prekey alone, a 7-day forward-secrecy window; a server substituting a one-time prekey can only make that handshake fail.
 - *Compromised device:* not protected. After a one-time copy of session state, messages protected by the copied keys stay readable until the heal point.
 - *Metadata:* not hidden.

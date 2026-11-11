@@ -46,7 +46,7 @@ All app imports use `package:fireplace/...`. Top-level startup wiring can assemb
 2. `model/chat/chat_service.dart` forwards to `model/chat/message_sender.dart`, which asks `crypto/session.dart` to encrypt per device and publishes ciphertext.
 3. An uncertain send is kept for the user's explicit confirmation or retry; it never silently resends.
 4. `model/chat/message_receiver.dart` decrypts, journals through `model/chat/receive_journal.dart`, and saves the message in `db/encrypted_message_store.dart`.
-5. Screens read local history. The server receives ciphertext for messaging; optional reports can contain plaintext selected by the reporter.
+5. Screens read local history. The server receives ciphertext for messaging. Message text is not copied into a report.
 
 Firestore stores public keys, ciphertext and account/chat metadata. Secure storage holds device keys and ratchet state. Encrypted local files hold history and preferences. Providers assemble these resources and manage their lifecycle.
 

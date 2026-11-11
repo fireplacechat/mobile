@@ -218,37 +218,7 @@ void main() {
     );
   });
 
-  group('reporting and hiding', () {
-    test(
-      'a report is stored under a deterministic id with trimmed content',
-      () async {
-        await alice.safety.report(
-          peerUid: 'bob',
-          reason: ReportReason.spam,
-          chatId: chatId,
-          note: '  unsolicited links  ',
-          context: List.generate(30, (i) => 'line $i ${'x' * 2000}'),
-        );
-        final d = (await db.collection('reports').doc('alice_bob').get())
-            .data()!;
-        expect(d['reporter'], 'alice');
-        expect(d['reported'], 'bob');
-        expect(d['reason'], 'spam');
-        expect(d['note'], 'unsolicited links');
-        expect((d['context'] as List), hasLength(20));
-        expect(
-          (d['context'] as List).every((c) => (c as String).length <= 1000),
-          isTrue,
-        );
-      },
-    );
-
-    test('a report without optional fields is minimal', () async {
-      await alice.safety.report(peerUid: 'bob', reason: ReportReason.abuse);
-      final d = (await db.collection('reports').doc('alice_bob').get()).data()!;
-      expect(d.keys.toSet(), {'reporter', 'reported', 'reason', 'createdAt'});
-    });
-
+  group('hiding', () {
     test('hidden requests persist locally and can be restored', () async {
       await alice.safety.hideChat(chatId);
       expect(await alice.safety.hiddenChats(), {chatId});

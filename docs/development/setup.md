@@ -41,7 +41,7 @@ can run the unit, widget and protocol tests independently.
 logic and Firebase access, `db/` stores local data, and `view/` contains screens. See the
 [architecture map](../architecture.md) for the staged layout and remaining composites. Chat bodies are encrypted
 before upload. The service still sees account/device identifiers, participants, timestamps and
-ciphertext sizes. Optional reports can contain plaintext selected by the reporter.
+ciphertext sizes. Message text is not uploaded in a report.
 
 No completed independent audit is claimed. Read the [threat model](../protocol/threat-model.md),
 [account deletion notes](../protocol/account-deletion.md) and [decisions](../decisions/).
