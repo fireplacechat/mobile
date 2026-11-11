@@ -6,7 +6,7 @@
 - Message content and the keys that protect it; account identity keys; device keys; recovery material; session state; pinned contact identities.
 - Local decrypted history (encrypted at rest by the app).
 - Credentials and the ability to reach an account's conversations.
-- Availability and cost of the shared Firebase project (free-tier quotas).
+- Availability and cost of the shared Firebase project (Blaze plan: usage past the free allowances is billed, with no hard cap on Firestore).
 
 Goals: Firebase and network observers cannot read message bodies; a participant can detect replacement of a contact's identity key; a stolen copy of a session heals after a round trip or two; strangers cannot flood or probe other users freely; people can block and delete.
 
@@ -23,6 +23,8 @@ Goals: Firebase and network observers cannot read message bodies; a participant 
 ## What leaks (metadata)
 Firebase and anyone with database access see: account ids and usernames, display names, device ids and public keys, which accounts chat, who started a chat, who sent each message and when, approximate message length and the number of recipient devices (envelope sizes), request/accept state, and moderation records. They do not see message text. Direct username lookup is possible for any signed-in user (listing is denied). The block list is private but the rules consult it, so a blocked person's failed send is observable to them as an error. Network providers see IP addresses, times and traffic sizes.
 
+With notifications on, Apple (APNs) and Google (FCM) also see, for each alert: that the device received one, when, and the sender's username as the title (unless "Show sender's name" is off on that device). They never see message text; the server does not have it. Alerts show on the lock screen according to the phone's own notification-preview setting.
+
 The device holds decrypted history. Someone with an unlocked phone, screen capture or accessibility access, malware, a compromised OS, device backups exposing keys, or a memory dump can read content. Deleting data is logical, not secure erasure from flash, backups, screenshots or recipients' phones.
 
 ## Adversaries and limits
@@ -30,7 +32,7 @@ The device holds decrypted history. Someone with an unlocked phone, screen captu
 
 **Mitigations and their limits:**
 - *Key substitution by the server:* prekeys and device certificates are signed by the account identity; pinning + safety numbers expose swapped identities. A first-contact substitution is only caught if users compare safety numbers.
-- *Spam / unsolicited contact / cost abuse:* invite-only sign-up (accounts without an invite are inert), message requests, blocking, suspension, and an enforced limit of one message per 500 ms per account. An invitee can still send 2 messages/s until banned, reads are not rate limited, and there is no App Check or device attestation yet, so free-tier quotas can still be exhausted by a determined invitee (an outage, not a bill, on the free plan; see `docs/push/COSTS.md`).
+- *Spam / unsolicited contact / cost abuse:* invite-only sign-up (accounts without an invite are inert), message requests, blocking, suspension, and an enforced limit of one message per 500 ms per account. An invitee can still send 2 messages/s until banned, reads are not rate limited, and there is no App Check or device attestation yet, so a determined invitee can still drive up usage. On the Blaze plan that is a bill rather than an outage; budget alerts give warning and the push function's instance cap bounds its own cost, but nothing caps Firestore spending (see `docs/push/COSTS.md` in the backend repository).
 - *A contact who sends invalid messages:* after 8 invalid new-chain messages (tampered headers or ciphertexts; replays and reflections are refused cheaply and do not count) in a minute the session ignores further new-chain messages from that contact for up to a minute (they are retried afterwards); this only affects the conversation with that contact. Draining someone's one-time prekeys (anyone with an account can claim them) downgrades new sessions to the signed prekey alone, a 7-day forward-secrecy window; a server substituting a one-time prekey can only make that handshake fail.
 - *Compromised device:* not protected. After a one-time copy of session state, messages protected by the copied keys stay readable until the heal point.
 - *Metadata:* not hidden.
@@ -39,7 +41,7 @@ The device holds decrypted history. Someone with an unlocked phone, screen captu
 - *Dependencies:* ML-KEM/ML-DSA come from the pure-Dart `pqcrypto` package (not FIPS-validated; not hardened against side channels). The classical AES-GCM, X25519, Ed25519 and HKDF primitives from `cryptography` also use Dart implementations on Android/iOS with the current provider configuration; browser builds can use Web Crypto with Dart fallbacks. No constant-time or side-channel-hardening guarantee is claimed for these implementations. The protocol glue is project code that has had review by tools and tests but **no external cryptographic audit**.
 
 ## Not supported
-Group chats, calls, attachments, real-email recovery, push notifications (planned; the free Firebase plan has no sender), multi-device history sync (a new device starts with an empty history), message deletion for everyone, disappearing messages.
+Group chats, calls, attachments, real-email recovery, multi-device history sync (a new device starts with an empty history), message deletion for everyone, disappearing messages.
 
 ## Operational assumptions
 Production TLS endpoints and the deployed rules from this repository; Firebase admin credentials kept out of the client and repo; Firebase client configuration treated as public identifiers; rule and dependency changes reviewed and tested before release; a published security contact ([`SECURITY.md`](../../.github/SECURITY.md)) and operator process for reports; store privacy disclosures that include Firebase/SDK practices.

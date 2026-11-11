@@ -92,6 +92,7 @@ class SessionHarness {
         ),
         firestoreProvider.overrideWithValue(db),
         secretStoreProvider.overrideWithValue(secrets),
+        pushMessagingClientProvider.overrideWithValue(null),
       ],
     );
     container!.listen(appSessionProvider, (_, _) {}, fireImmediately: true);

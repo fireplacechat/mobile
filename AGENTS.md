@@ -4,7 +4,7 @@ Read this first. It is the single source of truth for how we work in this reposi
 Humans: start with [CONTRIBUTING.md](.github/CONTRIBUTING.md). Documentation index: [docs/README.md](docs/README.md).
 
 ## What this is
-Fireplace is an open-source (AGPL-3.0), end-to-end encrypted 1:1 messenger: Flutter + Firebase (Spark free plan only), iOS first, then Android,
+Fireplace is an open-source (AGPL-3.0), end-to-end encrypted 1:1 messenger: Flutter + Firebase (Blaze plan, kept inside the free allowances where possible), iOS first, then Android,
 username + password (no phone number or email), hybrid post-quantum cryptography (X25519 + ML-KEM-768, Ed25519 + ML-DSA-65, double ratchet).
 Goal: a messenger that feels instantly familiar, built to be free, open, no ads, no tracking, small and dependable.
 
@@ -35,7 +35,9 @@ Backend rules/operator tooling and website/legal sources are maintained separate
   No status indicators (typing, read receipts, delivered ticks, online / last seen).
 - **Never commit** passwords, private keys, signing material, recovery codes, service-account files, tokens or real user data. Fixtures are fictional.
 - **Do not change** wire formats, key handling, authentication or Firestore rules without a design note in `docs/decisions/` and tests.
-- **Free plan only.** No paid Firebase features, no new services. Do not add packages without the owner's approval; say why one is needed.
+- **Blaze plan, cost-conscious.** The project is on Firebase's pay-as-you-go Blaze plan (needed for the push Cloud Function). Firestore has no hard
+  spending cap there, so every new read, write or function call is a cost: bound it, and say what it costs in the design note. No new paid
+  Firebase features or services without the owner's approval. Do not add packages without the owner's approval; say why one is needed.
 - **No macOS CI runs unless the owner asks for one.** `ios.yml` is manual-only; do not add push, pull-request or schedule triggers to it, and do not dispatch it yourself.
 - **The owner deploys production.** Firebase deploys, store submissions, signing and publishing the website are done by the owner, never by an assistant.
 - **Public wording** (website, README, store text) is shown to the owner before it is published. Plain, short, neutral. No founder name, no

@@ -18,7 +18,7 @@ import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/status.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
-import 'package:fireplace/src/view/settings/push_tile.dart';
+import 'package:fireplace/src/view/settings/push_settings.dart';
 import 'package:fireplace/src/view/settings/theme_mode_tile.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -268,6 +268,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ],
                 ),
+                if (pushEnabled && s.pushNotifications != null)
+                  PushSettingsSection(service: s.pushNotifications!),
                 UiSettingsSection(
                   title: 'In-app notifications',
                   children: [
@@ -288,11 +290,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ],
                 ),
-                if (pushEnabled && s.pushNotifications != null)
-                  UiSettingsSection(
-                    title: 'Notifications',
-                    children: [PushTile(service: s.pushNotifications!)],
-                  ),
                 UiSettingsSection(
                   title: 'Account actions',
                   children: [

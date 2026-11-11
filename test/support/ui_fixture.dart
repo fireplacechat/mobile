@@ -13,6 +13,7 @@ import 'package:fireplace/src/model/chat/message_controls.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/crypto/device.dart';
 import 'package:fireplace/src/crypto/identity.dart';
+import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -198,6 +199,7 @@ class UiFixture {
     FixtureSafety? safety,
     MemorySecretStore? secrets,
     LocalChatPreferences? chatPreferences,
+    this.pushNotifications,
     this.overrideAuth = true,
   }) : chat = chat ?? FixtureChat(),
        keys = keys ?? FixtureKeys(),
@@ -223,12 +225,16 @@ class UiFixture {
       keys: this.keys,
       safety: this.safety,
       chatPreferences: chatPreferences,
+      pushNotifications: pushNotifications,
       chatsSub: const Stream<void>.empty().listen((_) {}),
       dispose: () async {},
     );
   }
   final FixtureChat chat;
   final FixtureKeys keys;
+
+  /// Shown in Settings → Notifications when present.
+  final PushNotificationService? pushNotifications;
   final FixtureSafety safety;
   final bool overrideAuth;
   bool hasBackup = false, verified = false;
@@ -333,4 +339,30 @@ Future<void> settleUi(WidgetTester tester) async {
     );
     await tester.pump();
   }
+}
+
+/// A notifications service over an in-memory Firestore, with the system
+/// permission already granted. For settings renders and tests.
+PushNotificationService fixturePush() => PushNotificationService(
+  db: FakeFirebaseFirestore(),
+  uid: 'alice',
+  deviceId: 'example-device-alice',
+  messaging: _FixturePushMessaging(),
+  isApplePlatform: false,
+  platform: 'ios',
+);
+
+class _FixturePushMessaging implements PushMessagingClient {
+  @override
+  Future<PushPermission> permissionStatus() async => PushPermission.allowed;
+  @override
+  Future<bool> requestPermission() async => true;
+  @override
+  Future<String?> getApnsToken() async => 'example-apns-token';
+  @override
+  Future<String?> getToken() async => 'example-fcm-token-0123456789';
+  @override
+  Stream<String> get onTokenRefresh => const Stream.empty();
+  @override
+  Future<void> setForegroundPresentation() async {}
 }

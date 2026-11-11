@@ -34,6 +34,12 @@ final authServiceProvider = Provider<AuthService>((ref) {
   );
 });
 
+/// The platform push plugin, or null when push is compiled out. Tests
+/// override it so no Firebase plugin is touched.
+final pushMessagingClientProvider = Provider<PushMessagingClient?>(
+  (_) => pushEnabled ? FirebasePushMessagingClient() : null,
+);
+
 final authUserProvider = StreamProvider<User?>(
   (ref) => ref.watch(authProvider).authStateChanges(),
 );
@@ -116,19 +122,21 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     final keys = KeyService(db, secrets);
     final device = await keys.ensureDevice(user.uid);
     scope.checkActive();
-    // 4. Restore notifications when enabled and already permitted.
-    final pushNotifications = pushEnabled
-        ? PushNotificationService(
+    // 4. Notifications: the first signed-in launch shows the system prompt;
+    // later launches re-register silently unless the user turned them off.
+    final messaging = ref.watch(pushMessagingClientProvider);
+    final pushNotifications = messaging == null
+        ? null
+        : PushNotificationService(
             db: db,
             uid: user.uid,
             deviceId: device.keys.deviceId,
-            messaging: FirebasePushMessagingClient(),
-          )
-        : null;
+            messaging: messaging,
+            preferences: secrets,
+          );
     if (pushNotifications != null) scope.add(pushNotifications.unregister);
-    // Only re-register silently if the user already allowed notifications.
     unawaited(
-      pushNotifications?.startIfPermitted().catchError((Object _) {}) ??
+      pushNotifications?.startAtLaunch().catchError((Object _) {}) ??
           Future<void>.value(),
     );
     // 5. Maintain prekeys.

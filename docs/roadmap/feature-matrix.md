@@ -39,11 +39,11 @@ Where a common habit conflicts with privacy, privacy wins, and the app explains 
 | Mute | yes | built | have it |
 | Unread counts and badge | yes | built | have it (local only; nobody learns you read anything) |
 | Typing indicator, online / last seen, blue ticks | yes | **no, by decision** | conflicts with the privacy principle |
-| Message notifications | yes | in-app banner built; system push is groundwork only | push needs a server-side sender (not free-plan trivial); decide how to do it without leaking content |
+| Message notifications | yes | built: in-app banner, and system push with the sender's username and "New Message" | the server never sees message text, so a push cannot show it ([0026](../decisions/0026-push-notifications.md)) |
 | Search | per chat and global | global search of all message text built | have it; add search inside one chat later |
 | Link previews | yes | not built | **do not** build (the previewing phone would contact the site); plain tappable links are enough |
 | Tappable links | yes | not built | suggested: detect links and open them in the browser (no confirmation step); needs a link-opening package, owner approval |
-| Photos, video, files, voice notes | yes | not built | the biggest gap; needs encrypted attachments and a storage budget on the free plan |
+| Photos, video, files, voice notes | yes | not built | the biggest gap; needs encrypted attachments and a storage budget (Cloud Storage is billed on Blaze) |
 | Stickers, GIFs | yes | not a priority (owner) | later |
 | Disappearing messages | yes | no per-chat disappearance timer or automatic deletion guarantee | decide; natural fit for the privacy story |
 | Drafts | yes | not saved | cheap, local |
@@ -59,4 +59,4 @@ Where a common habit conflicts with privacy, privacy wins, and the app explains 
 1. Inline time and grouped bubbles (visual, small, no protocol change).
 2. Reply with a quoted message (protocol field for the quoted message id, rendered locally).
 3. Drafts, delete for me, pin and archive (local only).
-4. Tappable links, then attachments (photos first), then push notifications.
+4. Tappable links, then attachments (photos first).

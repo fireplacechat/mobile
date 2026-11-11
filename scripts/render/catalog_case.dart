@@ -23,7 +23,11 @@ class CatalogCase {
     this.notices = false,
     this.padding = EdgeInsets.zero,
     this.pixelRatio = 2,
+    this.push = false,
   });
+
+  /// The session has a notifications service (Settings → Notifications).
+  final bool push;
   final void Function(UiFixture)? prepare;
   final List<Override> Function(UiFixture)? services;
   final Future<void> Function(WidgetTester, UiFixture)? act;

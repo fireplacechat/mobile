@@ -54,7 +54,7 @@ Written 2026-10-05 from a read of the code on the UI follow-up branch (`feature/
 - **What:** when a message arrives while you are in the app but not looking at that chat, a box slides in at the top with the sender's name and the message text. Tapping it opens the chat. It goes away by itself after a few seconds and can be swiped away.
 - **Not shown for:** the chat you are in, muted chats, a contact whose security code change is on hold, and message requests you have not accepted (their text stays hidden until accepted, as it is today).
 - **To decide:** a setting to hide the message text in the box (name only); how several arrivals stack; a screen-reader announcement.
-- **Separate from this:** notifications while the app is closed or in the background (operating-system push). The code for that is compiled in but turned off (`PUSH_ENABLED`); it needs a server-side sender and Apple push set up. See docs/push/README.md. Not part of this item.
+- **Separate from this:** notifications while the app is closed or in the background (operating-system push). Built: the alert shows the sender's username and "New Message"; see [decision 0026](../decisions/0026-push-notifications.md). Not part of this item.
 
 ### 6. Forwarding
 
@@ -84,7 +84,7 @@ These came up in the review but the owner has not said either way.
 | Item | Today | Note |
 |---|---|---|
 | Links | Plain text, not tappable, no previews | Tappable links need a link-opening package (the owner decides) and an "Open this link?" confirmation. Previews mean a phone fetches the page, which tells that site who is looking; if previews are ever added, make them opt-in. |
-| Photos, files, voice notes, video | Not supported | The largest missing feature. Needs encrypted storage design and a size budget on the free plan. |
+| Photos, files, voice notes, video | Not supported | The largest missing feature. Needs encrypted storage design and a size budget (Cloud Storage is billed on Blaze). |
 | Reply / quote | Not supported | Could share the per-message menu with forwarding. |
 | Reactions | Not supported | |
 | Pin and archive chats | Not supported | |

@@ -19,4 +19,4 @@ Date: 2026-10-03. Status: accepted. Responds to the cost/abuse analysis in `docs
 - A bill from a bug in our own code (rate limit applies to messages only).
 - Reads: listeners and rules reads are not rate limited (App Check is the follow-up).
 - A compromised invitee account can still send 2 messages/second for as long as it exists; the ban tool (up to an hour for token expiry) ends it.
-- Cloud Functions / Blaze remain off. See `docs/push/COSTS.md`.
+- Cloud Functions / Blaze remain off. See `docs/push/COSTS.md`. *(Superseded 2026-11-11: the project moved to Blaze for push; see [0026](0026-push-notifications.md).)*

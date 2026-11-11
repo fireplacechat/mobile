@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/app/theme_preference.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
+import 'package:fireplace/src/model/notifications/app_badge.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/auth/auth_screen.dart';
 import 'package:fireplace/src/view/devices/new_device_screen.dart';
@@ -29,6 +30,8 @@ class _FireplaceAppState extends ConsumerState<FireplaceApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Keeps the app icon badge in step with local unread counts.
+    ref.watch(appBadgeProvider);
     final accent = ref.watch(
       chatBubbleColorsProvider.select((colors) => colors.outgoing),
     );

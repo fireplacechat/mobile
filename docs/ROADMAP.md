@@ -6,6 +6,7 @@ Plans change, and nothing here is a promise or a date. Ideas and questions are w
 [`good first issue`](https://github.com/fireplacechat/mobile/labels/good%20first%20issue).
 
 ## Done recently
+- Push notifications while the app is closed: the sender's username and "New Message", never the message text, plus the unread badge on the app icon and notification settings in the app ([decision 0026](decisions/0026-push-notifications.md)).
 - The code is organised by feature, in small focused files, with a written architecture map ([docs/architecture.md](architecture.md)) and checks that keep it that way.
 - Contributor documents are in place: a Code of Conduct, a contributor license agreement, issue templates and starter issues.
 
@@ -14,7 +15,6 @@ Plans change, and nothing here is a promise or a date. Ideas and questions are w
 
 ## Next
 - A clear offline state ("this will send when you are back online").
-- Push notifications when the app is closed, once the server-side sender is in place.
 - Message editing and deleting, after deciding exactly what those promise.
 
 ## Under consideration
