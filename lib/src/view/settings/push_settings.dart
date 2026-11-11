@@ -92,10 +92,14 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
   Future<void> _toggle(bool want) => _change(() async {
     if (!want) return widget.service.disable();
     await widget.service.start();
+    final status = await widget.service.status();
     // The system no longer shows its prompt once someone said no; only its
     // settings can turn alerts back on.
-    if (await widget.service.status() == PushStatus.blockedBySystem) {
+    if (status == PushStatus.blockedBySystem) {
       await ref.read(systemNotificationsProvider).openSettings();
+    } else if (status != PushStatus.on) {
+      // Allowed, but the server did not take the registration.
+      throw StateError('not registered');
     }
   });
 

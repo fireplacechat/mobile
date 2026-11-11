@@ -30,7 +30,12 @@ void main() {
       ),
     );
     await settleUi(tester);
-    await tester.ensureVisible(find.byKey(const Key('openLicences')));
+    // About is the last section; the list builds rows as they scroll in.
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('openLicences')),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('openLicences')));
     await tester.pumpAndSettle();

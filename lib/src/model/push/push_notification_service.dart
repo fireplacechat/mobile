@@ -135,6 +135,11 @@ class PushNotificationService {
   final DocumentReference<Map<String, dynamic>> _tokenRef;
   StreamSubscription<String>? _tokenSubscription;
   Future<void>? _startFuture;
+  // The run in progress, if any, and whether this device's registration was
+  // last written successfully. A finished run that did not register (the
+  // server refused it, no token, offline) may be retried.
+  Object? _run;
+  bool _registered = false;
   String? _lastToken;
   bool _stopped = false;
   int _generation = 0;
@@ -143,7 +148,26 @@ class PushNotificationService {
 
   /// Turns notifications on from an explicit user action (the settings
   /// switch), asking the system for permission if it still allows a prompt.
-  Future<void> start() => _startFuture ??= _start(explicit: true);
+  /// Tapping it again after an attempt that did not register tries again.
+  Future<void> start() {
+    if (_startFuture != null && _run == null && !_registered) {
+      final subscription = _tokenSubscription;
+      _tokenSubscription = null;
+      unawaited(subscription?.cancel());
+      _startFuture = null;
+    }
+    return _startFuture ??= _tracked(explicit: true);
+  }
+
+  Future<void> _tracked({required bool explicit}) async {
+    final run = Object();
+    _run = run;
+    try {
+      await _start(explicit: explicit);
+    } finally {
+      if (identical(_run, run)) _run = null;
+    }
+  }
 
   /// Called once per signed-in launch. The first time, it shows the system
   /// prompt; afterwards it re-registers silently only if notifications are
@@ -161,10 +185,10 @@ class PushNotificationService {
     if (permission == PushPermission.notDetermined || !asked) {
       await _prefs.write(_askedKey, '1');
       if (_stopped || gen != _generation) return;
-      return _startFuture ??= _start(explicit: false);
+      return _startFuture ??= _tracked(explicit: false);
     }
     if (permission == PushPermission.allowed) {
-      return _startFuture ??= _start(explicit: false);
+      return _startFuture ??= _tracked(explicit: false);
     }
     // Switched off in system settings: drop the token so nothing is sent.
     await _deleteRegistration();
@@ -215,7 +239,11 @@ class PushNotificationService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
         // A write already sent cannot be cancelled; remove its stale result.
-        if (gen != _generation) await _deleteRegistration();
+        if (gen != _generation) {
+          await _deleteRegistration();
+        } else {
+          _registered = true;
+        }
       } catch (_) {
         // Push is optional; a transient Firestore failure must not block chat.
       }
@@ -301,13 +329,14 @@ class PushNotificationService {
     await _deleteRegistration();
   }
 
-  Future<void> _deleteRegistration() => _deletionWork = _deletionWork.then((
-    _,
-  ) async {
-    try {
-      await _tokenRef.delete();
-    } catch (_) {
-      // Cleanup is best-effort. The account/session transition must continue.
-    }
-  });
+  Future<void> _deleteRegistration() {
+    _registered = false;
+    return _deletionWork = _deletionWork.then((_) async {
+      try {
+        await _tokenRef.delete();
+      } catch (_) {
+        // Cleanup is best-effort. The account/session transition must continue.
+      }
+    });
+  }
 }
