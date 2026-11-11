@@ -63,7 +63,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
       });
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Could not read notification settings.');
+        setState(() => _error = 'Could not load. Try again.');
       }
     }
   }
@@ -79,7 +79,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
       await _load();
     } catch (_) {
       if (mounted) {
-        setState(() => _error = 'Could not change notifications. Try again.');
+        setState(() => _error = 'Could not change. Try again.');
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -96,18 +96,10 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
     }
   });
 
-  String get _subtitle {
-    if (_error != null) return _error!;
-    return switch (_status) {
-      null => 'Loading…',
-      PushStatus.on =>
-        _showName
-            ? 'Shows who wrote, never what they wrote.'
-            : 'Shows “New Message” only.',
-      PushStatus.off => 'No alerts while Fireplace is closed.',
-      PushStatus.blockedBySystem => 'Turned off in $_system. Tap to open them.',
-    };
-  }
+  // Only says something when the person may need to act.
+  String? get _subtitle =>
+      _error ??
+      (_status == PushStatus.blockedBySystem ? 'Off in $_system' : null);
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +111,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
           key: const Key('pushSwitch'),
           secondary: const Icon(Icons.notifications_outlined),
           title: const Text('Allow notifications'),
-          subtitle: Text(_subtitle),
+          subtitle: _subtitle == null ? null : Text(_subtitle!),
           value: on,
           onChanged: _busy || _status == null ? null : _toggle,
         ),
@@ -127,9 +119,6 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
           key: const Key('pushShowName'),
           secondary: const Icon(Icons.person_outline),
           title: const Text('Show sender’s name'),
-          subtitle: const Text(
-            'Off shows “Fireplace” instead of the username. Message text is never sent.',
-          ),
           value: _showName,
           onChanged: on && !_busy
               ? (value) => _change(() => widget.service.setShowName(value))
@@ -139,7 +128,6 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
           key: const Key('pushSystemSettings'),
           leading: const Icon(Icons.tune),
           title: const Text('Sounds, banners and badges'),
-          subtitle: Text('Change these in $_system.'),
           trailing: const Icon(Icons.open_in_new),
           onTap: () => ref.read(systemNotificationsProvider).openSettings(),
         ),

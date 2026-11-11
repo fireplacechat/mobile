@@ -99,15 +99,12 @@ void main() {
     await tester.tap(find.byKey(const Key('pushSwitch')));
     await settle(tester);
     expect(switchValue(tester, 'pushSwitch'), isTrue);
-    expect(
-      find.text('Shows who wrote, never what they wrote.'),
-      findsOneWidget,
-    );
+    expect(find.text('Off in iOS Settings'), findsNothing);
     expect(enabled(tester, 'pushShowName'), isTrue);
 
     await tester.tap(find.byKey(const Key('pushShowName')));
     await settle(tester);
-    expect(find.text('Shows “New Message” only.'), findsOneWidget);
+    expect(switchValue(tester, 'pushShowName'), isFalse);
     expect(
       (await db.doc('users/alice/pushTokens/alice-device-1').get())
           .data()?['showName'],
@@ -117,16 +114,13 @@ void main() {
     await tester.tap(find.byKey(const Key('pushSwitch')));
     await settle(tester);
     expect(switchValue(tester, 'pushSwitch'), isFalse);
-    expect(find.text('No alerts while Fireplace is closed.'), findsOneWidget);
+    expect(enabled(tester, 'pushShowName'), isFalse);
   });
 
   testWidgets('blocked in system settings opens them', (tester) async {
     messaging.permission = PushPermission.denied;
     await pump(tester);
-    expect(
-      find.text('Turned off in iOS Settings. Tap to open them.'),
-      findsOneWidget,
-    );
+    expect(find.text('Off in iOS Settings'), findsOneWidget);
     await tester.tap(find.byKey(const Key('pushSwitch')));
     await settle(tester);
     expect(system.opened, 1);
@@ -150,6 +144,5 @@ void main() {
     await tester.tap(find.byKey(const Key('pushSystemSettings')));
     await settle(tester);
     expect(system.opened, 1);
-    expect(find.text('Change these in iOS Settings.'), findsOneWidget);
   });
 }
