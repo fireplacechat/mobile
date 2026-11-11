@@ -155,34 +155,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
                 UiSettingsSection(
-                  title: 'About',
+                  title: 'In the app',
                   children: [
-                    ListTile(
-                      key: const Key('legalLinks'),
-                      leading: const Icon(Icons.policy_outlined),
-                      title: const Text('Privacy and terms'),
-                      subtitle: const Text(
-                        'Read the privacy policy and terms of use',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _busy
+                    SwitchListTile(
+                      key: const Key('notificationPreviews'),
+                      secondary: const Icon(Icons.chat_bubble_outline),
+                      title: const Text('Show message text'),
+                      value: ref.watch(chatActivityProvider).previewText,
+                      onChanged: _busy || !activity.preferencesAvailable
                           ? null
-                          : () => _open(const LegalLinksScreen()),
+                          : (value) => _run(
+                              () => ref
+                                  .read(chatActivityProvider.notifier)
+                                  .previews(value),
+                            ),
                     ),
-                    ListTile(
-                      key: const Key('openLicences'),
-                      leading: const Icon(Icons.description_outlined),
-                      title: const Text('Open-source licences'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _busy
+                    SwitchListTile(
+                      key: const Key('sendSound'),
+                      secondary: const Icon(Icons.send_outlined),
+                      title: const Text('Send sound'),
+                      value: ref.watch(sendSoundProvider).value ?? true,
+                      onChanged: _busy
                           ? null
-                          : () => showLicensePage(
-                              context: context,
-                              applicationName: 'fireplace.',
+                          : (value) => _run(
+                              () => ref
+                                  .read(sendSoundProvider.notifier)
+                                  .setOn(value),
                             ),
                     ),
                   ],
                 ),
+                if (pushEnabled && s.pushNotifications != null)
+                  PushSettingsSection(service: s.pushNotifications!),
                 UiSettingsSection(
                   title: 'Account',
                   children: [
@@ -269,39 +273,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ],
                 ),
-                if (pushEnabled && s.pushNotifications != null)
-                  PushSettingsSection(service: s.pushNotifications!),
-                UiSettingsSection(
-                  title: 'In the app',
-                  children: [
-                    SwitchListTile(
-                      key: const Key('notificationPreviews'),
-                      secondary: const Icon(Icons.chat_bubble_outline),
-                      title: const Text('Show message text'),
-                      value: ref.watch(chatActivityProvider).previewText,
-                      onChanged: _busy || !activity.preferencesAvailable
-                          ? null
-                          : (value) => _run(
-                              () => ref
-                                  .read(chatActivityProvider.notifier)
-                                  .previews(value),
-                            ),
-                    ),
-                    SwitchListTile(
-                      key: const Key('sendSound'),
-                      secondary: const Icon(Icons.send_outlined),
-                      title: const Text('Send sound'),
-                      value: ref.watch(sendSoundProvider).value ?? true,
-                      onChanged: _busy
-                          ? null
-                          : (value) => _run(
-                              () => ref
-                                  .read(sendSoundProvider.notifier)
-                                  .setOn(value),
-                            ),
-                    ),
-                  ],
-                ),
                 UiSettingsSection(
                   title: 'Account actions',
                   children: [
@@ -343,6 +314,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                     .popUntil((r) => r.isFirst);
                               }
                             }),
+                    ),
+                  ],
+                ),
+                UiSettingsSection(
+                  title: 'About',
+                  children: [
+                    ListTile(
+                      key: const Key('legalLinks'),
+                      leading: const Icon(Icons.policy_outlined),
+                      title: const Text('Privacy and terms'),
+                      subtitle: const Text(
+                        'Read the privacy policy and terms of use',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _busy
+                          ? null
+                          : () => _open(const LegalLinksScreen()),
+                    ),
+                    ListTile(
+                      key: const Key('openLicences'),
+                      leading: const Icon(Icons.description_outlined),
+                      title: const Text('Open-source licences'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _busy
+                          ? null
+                          : () => showLicensePage(
+                              context: context,
+                              applicationName: 'fireplace.',
+                            ),
                     ),
                   ],
                 ),

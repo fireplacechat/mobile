@@ -644,8 +644,8 @@ void main() {
           200,
           scrollable: find.byType(Scrollable).first,
         );
-        // Section heading and its three rows at the top of the screen.
-        await t.ensureVisible(find.text('Notifications'));
+        // "In the app" and Notifications, one after the other, at the top.
+        await t.ensureVisible(find.text('In the app'));
         await t.pumpAndSettle();
       },
     ),
