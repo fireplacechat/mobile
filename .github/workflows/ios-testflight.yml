@@ -37,7 +37,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version-file: pubspec.yaml
-          cache: true
+          cache: false
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
       - name: Print built app version
@@ -58,7 +58,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version-file: pubspec.yaml
-          cache: true
+          cache: false
       - run: flutter pub get
       # The repository only allows GitHub-owned actions and the pinned Flutter action, so no Ruby
       # setup action: the macOS runner already ships Ruby and Bundler; fastlane comes from ios/Gemfile.lock.

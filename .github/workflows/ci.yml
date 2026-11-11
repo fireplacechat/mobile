@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with: { flutter-version-file: pubspec.yaml, cache: true }
+        with: { flutter-version-file: pubspec.yaml, cache: false }
       - run: flutter pub get
       - run: dart format --output=none --set-exit-if-changed lib test scripts
       - run: flutter analyze
@@ -45,7 +45,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with: { flutter-version-file: pubspec.yaml, cache: true }
+        with: { flutter-version-file: pubspec.yaml, cache: false }
       - run: flutter pub get
       - run: flutter test --exclude-tags timing --total-shards 3 --shard-index ${{ matrix.shard }}
 
@@ -56,7 +56,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
-        with: { flutter-version-file: pubspec.yaml, cache: true }
+        with: { flutter-version-file: pubspec.yaml, cache: false }
       - run: flutter pub get
       - run: scripts/run_timing_tests.sh
 
