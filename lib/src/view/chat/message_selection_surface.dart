@@ -99,7 +99,7 @@ class MessageSelectionSurface extends ConsumerWidget {
     }
     final removed = await ref
         .read(messageSelectionProvider(chatId).notifier)
-        .deleteAllLocal();
+        .deleteAll();
     if (!context.mounted ||
         !identical(ref.read(appSessionProvider).value, owner)) {
       return;

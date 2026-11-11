@@ -14,7 +14,8 @@ Someone else's message can be removed on this device only. That deletion is not
 sent, and their devices keep the message.
 
 Delete all, from the selection bar, removes the messages shown in that chat on
-this device. It does not ask other devices to delete them.
+this device. Messages you sent are also deleted for everyone. Decision 0025
+replaces the earlier rule that delete all asked no other device to delete them.
 
 ## What remains on screen
 

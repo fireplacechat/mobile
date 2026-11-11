@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
 import 'package:fireplace/src/view/chat/message_selection_mark.dart';
 
@@ -101,9 +102,81 @@ void main() {
     expect(find.byKey(const Key('forwardSelectedMessages')), findsOneWidget);
   });
 
-  testWidgets('delete all removes this device only, after confirmation', (
-    t,
-  ) async {
+  testWidgets('delete all deletes messages you sent for everyone', (t) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    await f.chat.store.add(
+      message(
+        id: '6',
+        outgoing: true,
+        body: 'Still sending',
+        status: MessageStatus.unconfirmed,
+        at: fixtureTime.add(const Duration(minutes: 1)),
+      ),
+    );
+    await openChat(t, f);
+    await select(t, '5');
+    await t.tap(find.byKey(const Key('deleteAllMessages')));
+    await t.pumpAndSettle();
+    expect(find.text('Delete all messages in the chat?'), findsOneWidget);
+    expect(
+      find.text(
+        'Messages you sent are deleted for everyone. Their messages are removed only on this device.',
+      ),
+      findsOneWidget,
+    );
+    await t.tap(find.byKey(const Key('cancelDeleteAll')));
+    await t.pumpAndSettle();
+    expect(await f.chat.store.get('alice_fred', '5'), isNotNull);
+    expect(f.chat.remoteDeletes, isEmpty);
+    await t.tap(find.byKey(const Key('deleteAllMessages')));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.byKey(const Key('confirmDeleteAllMessages')));
+    await t.tap(find.byKey(const Key('confirmDeleteAllMessages')));
+    await t.pumpAndSettle();
+    for (final id in ['1', '3', '5', '6']) {
+      expect(await f.chat.store.get('alice_fred', id), isNull, reason: id);
+    }
+    for (final id in ['2', '4']) {
+      final saved = await f.chat.store.get('alice_fred', id);
+      expect(saved?.remotelyDeleted, isTrue, reason: id);
+      expect(saved?.body, isEmpty, reason: id);
+    }
+    expect(f.chat.remoteDeletes, ['2', '4']);
+    expect(find.text('Of course. I can bring dessert.'), findsNothing);
+    expect(find.text('Are we still on for Saturday?'), findsNothing);
+    expect(find.text('Still sending'), findsNothing);
+    expect(find.byKey(const Key('selectionCount')), findsNothing);
+  });
+
+  testWidgets('delete all stops when deleting a sent message fails', (t) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    f.chat.controlError = Exception('offline');
+    await openChat(t, f);
+    await select(t, '5');
+    await t.tap(find.byKey(const Key('deleteAllMessages')));
+    await t.pumpAndSettle();
+    await t.ensureVisible(find.byKey(const Key('confirmDeleteAllMessages')));
+    await t.tap(find.byKey(const Key('confirmDeleteAllMessages')));
+    await t.pumpAndSettle();
+    expect(f.chat.remoteDeletes, isEmpty);
+    expect(await f.chat.store.get('alice_fred', '1'), isNull);
+    expect(await f.chat.store.get('alice_fred', '2'), isNotNull);
+    expect(await f.chat.store.get('alice_fred', '4'), isNotNull);
+    expect(find.text('Could not make this change. Try again.'), findsOneWidget);
+    expect(find.text('Of course. I can bring dessert.'), findsOneWidget);
+  });
+
+  testWidgets('delete all actions stay above an open keyboard', (t) async {
+    t.view.physicalSize = const Size(320, 640);
+    t.view.devicePixelRatio = 1;
+    t.view.viewInsets = const FakeViewPadding(bottom: 220);
+    t.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(t.view.reset);
+    addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
     final f = UiFixture();
     await f.seed();
     addTearDown(f.session.close);
@@ -111,18 +184,11 @@ void main() {
     await select(t, '5');
     await t.tap(find.byKey(const Key('deleteAllMessages')));
     await t.pumpAndSettle();
-    expect(find.text('Delete all messages in the chat?'), findsOneWidget);
-    await t.tap(find.byKey(const Key('cancelDeleteAll')));
-    await t.pumpAndSettle();
-    expect(await f.chat.store.get('alice_fred', '5'), isNotNull);
-    await t.tap(find.byKey(const Key('deleteAllMessages')));
-    await t.pumpAndSettle();
-    await t.tap(find.byKey(const Key('confirmDeleteAllMessages')));
-    await t.pumpAndSettle();
-    for (final id in ['1', '2', '3', '4', '5']) {
-      expect(await f.chat.store.get('alice_fred', id), isNull, reason: id);
+    final limit = 640 - 220;
+    for (final key in ['confirmDeleteAllMessages', 'cancelDeleteAll']) {
+      final rect = t.getRect(find.byKey(Key(key)));
+      expect(rect.top, greaterThanOrEqualTo(0), reason: key);
+      expect(rect.bottom, lessThanOrEqualTo(limit), reason: key);
     }
-    expect(f.chat.remoteDeletes, isEmpty);
-    expect(find.byKey(const Key('selectionCount')), findsNothing);
   });
 }
