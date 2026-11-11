@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/widgets/day_separator.dart';
 import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
+import 'package:fireplace/src/view/chat/widgets/rising_send.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -130,6 +131,77 @@ void main() {
       expect(t.takeException(), isNull);
     },
   );
+  testWidgets(
+    'a saved send is not shown beside the row that is still going out',
+    (t) async {
+      final f = UiFixture();
+      await pumpChat(t, f);
+      f.chat.sendHold = Completer<void>();
+      await t.enterText(find.byKey(const Key('composer')), 'hello once');
+      await t.pump();
+      await t.tap(find.byKey(const Key('send')));
+      await t.pump();
+      expect(find.text('hello once'), findsOneWidget);
+      await f.chat.store.add(
+        message(
+          id: 'saved-hello',
+          body: 'hello once',
+          outgoing: true,
+          at: fixtureTime,
+        ),
+      );
+      await t.pump();
+      expect(find.text('hello once'), findsOneWidget);
+      f.chat.sendHold!.complete();
+      await t.pump();
+      expect(find.text('hello once'), findsOneWidget);
+    },
+  );
+  testWidgets(
+    'an older message with the same text does not swallow the new send',
+    (t) async {
+      final f = UiFixture();
+      await f.seed();
+      await pumpChat(t, f);
+      const body = 'Of course. I can bring dessert.';
+      f.chat.sendHold = Completer<void>();
+      await t.enterText(find.byKey(const Key('composer')), body);
+      await t.pump();
+      await t.tap(find.byKey(const Key('send')));
+      await t.pump();
+      expect(find.text(body), findsNWidgets(2));
+      f.chat.sendHold!.complete();
+      await t.pump();
+    },
+  );
+  testWidgets('a sent message slides up from behind the composer', (t) async {
+    final f = UiFixture();
+    t.view.physicalSize = const Size(390, 844);
+    t.view.devicePixelRatio = 1;
+    addTearDown(t.view.reset);
+    await pumpChat(t, f, scale: 2, keyboard: 280);
+    f.chat.sendHold = Completer<void>();
+    await t.enterText(find.byKey(const Key('composer')), 'slide up');
+    await t.pump();
+    await t.tap(find.byKey(const Key('send')));
+    await t.pump();
+    final bubble = find.byKey(const ValueKey('messageBubble-outgoing-0'));
+    final listBottom = t
+        .getBottomLeft(find.byKey(const Key('messageTimeline')))
+        .dy;
+    final startTop = t.getTopLeft(bubble).dy;
+    final startBottom = t.getBottomLeft(bubble).dy;
+    expect(startBottom, greaterThan(listBottom - 1));
+    await t.pump(RisingSend.duration);
+    final endTop = t.getTopLeft(bubble).dy;
+    final endBottom = t.getBottomLeft(bubble).dy;
+    expect(endTop, lessThan(startTop));
+    expect(endBottom, lessThanOrEqualTo(listBottom));
+    expect(find.text('slide up'), findsOneWidget);
+    expect(t.takeException(), isNull);
+    f.chat.sendHold!.complete();
+    await t.pump();
+  });
   testWidgets(
     'keyboard send shortcut works once and ordinary Enter preserves multiline editing',
     (t) async {

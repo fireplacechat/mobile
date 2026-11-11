@@ -25,6 +25,8 @@ class OutgoingSend {
     this.error,
     this.mayHaveArrived = false,
     this.identity,
+    this.historyKnown = false,
+    this.historyIds = const {},
   });
 
   /// Local only; never a server message id.
@@ -43,6 +45,15 @@ class OutgoingSend {
   /// Set when the send stopped because the contact's security code changed.
   final IdentityChangedException? identity;
 
+  /// True when [historyIds] is the conversation as it was when this send was
+  /// queued. A later stored message with the same text is this send, so the
+  /// optimistic row must not be drawn beside it. False when that snapshot
+  /// was not loaded yet; the optimistic row then stays up.
+  final bool historyKnown;
+
+  /// Message ids already on screen when this send was queued.
+  final Set<String> historyIds;
+
   OutgoingSend _failed(
     String error, {
     bool mayHaveArrived = false,
@@ -57,6 +68,8 @@ class OutgoingSend {
     error: error,
     mayHaveArrived: mayHaveArrived,
     identity: identity,
+    historyKnown: historyKnown,
+    historyIds: historyIds,
   );
 
   OutgoingSend _retrying() => OutgoingSend(
@@ -65,6 +78,8 @@ class OutgoingSend {
     body: body,
     createdAt: createdAt,
     replyTarget: replyTarget,
+    historyKnown: historyKnown,
+    historyIds: historyIds,
   );
 }
 
@@ -97,12 +112,17 @@ class OutgoingSends extends Notifier<List<OutgoingSend>> {
 
   /// Takes the message from the composer and starts sending it.
   String enqueue(String chatId, String body, {String? replyTarget}) {
+    final history = ref.read(messagesProvider(chatId));
     final send = OutgoingSend(
       id: 'outgoing-${_next++}',
       chatId: chatId,
       body: body,
       replyTarget: replyTarget,
       createdAt: ref.read(messageControlNowProvider)(),
+      historyKnown: history.value != null,
+      historyIds: history.value == null
+          ? const <String>{}
+          : Set<String>.unmodifiable(history.value!.map((m) => m.id)),
     );
     state = [...state, send];
     _drain(chatId);

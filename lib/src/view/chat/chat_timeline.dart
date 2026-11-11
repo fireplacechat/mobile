@@ -12,6 +12,7 @@ import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/chat/widgets/day_separator.dart';
 import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
+import 'package:fireplace/src/view/chat/widgets/rising_send.dart';
 import 'package:fireplace/src/view/chat/widgets/unconfirmed_note.dart';
 
 class ChatTimeline extends ConsumerWidget {
@@ -107,17 +108,21 @@ class ChatTimeline extends ConsumerWidget {
                   final outgoingSend = outgoing[message.id];
                   if (outgoingSend != null) {
                     // Not in the history yet: no menu, reactions or selection.
+                    final bubble = MessageBubble(
+                      key: anchorFor(message.id),
+                      message: message,
+                      senderName: name,
+                      outgoingSend: outgoingSend,
+                      onFailedTap: () => onFailedSend?.call(outgoingSend),
+                    );
                     return Column(
                       key: ValueKey(message.id),
                       children: [
                         if (showDate) DaySeparator(date: message.sentAt),
-                        MessageBubble(
-                          key: anchorFor(message.id),
-                          message: message,
-                          senderName: name,
-                          outgoingSend: outgoingSend,
-                          onFailedTap: () => onFailedSend?.call(outgoingSend),
-                        ),
+                        if (outgoingSend.state == OutgoingState.sending)
+                          RisingSend(child: bubble)
+                        else
+                          bubble,
                       ],
                     );
                   }

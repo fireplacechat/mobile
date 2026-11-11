@@ -1,6 +1,7 @@
 import 'package:fireplace/src/model/chat/message_content.dart';
 import 'package:fireplace/src/db/message_quote.dart';
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -29,6 +30,7 @@ class MessageSender {
     required LocalMessageStore messages,
     SafetyService? safety,
     Future<void> Function(WriteBatch batch)? commitBatch,
+    Future<void> Function()? beforeChatListBump,
     required String uid,
     required LocalDevice device,
     required AsyncMutex lock,
@@ -45,6 +47,7 @@ class MessageSender {
          messages,
          safety,
          commitBatch,
+         beforeChatListBump,
          uid,
          device,
          lock,
@@ -63,6 +66,7 @@ class MessageSender {
     this._messages,
     this._safety,
     this._commitBatch,
+    this._beforeChatListBump,
     this.uid,
     this.device,
     this._lock,
@@ -80,6 +84,7 @@ class MessageSender {
   final LocalMessageStore _messages;
   final SafetyService? _safety;
   final Future<void> Function(WriteBatch batch)? _commitBatch;
+  final Future<void> Function()? _beforeChatListBump;
   final String uid;
   final LocalDevice device;
   final AsyncMutex _lock;
@@ -92,6 +97,11 @@ class MessageSender {
   Duration get sendGap => ChatTuning.sendGap;
 
   DateTime? _lastPublish;
+
+  /// When this device last started a chat-list bump. The server timestamp can
+  /// still be the old one when the next message is sent, and a second bump
+  /// would only repeat a write.
+  DateTime? _lastListBump;
 
   Future<void> sendText(String chatId, String text) {
     // Reject even if another send is waiting offline, without touching any state.
@@ -377,13 +387,17 @@ class MessageSender {
     } catch (_) {
       localSaveFailed = true;
     }
-    if (mode == 'normal' && bumpNow) {
-      // Keeps the chat list ordered; at most once a minute to save writes.
-      try {
-        await chatRef.update({'lastMessageAt': FieldValue.serverTimestamp()});
-      } catch (_) {
-        // Only affects chat-list ordering; the message itself is already sent.
-      }
+    final listQuiet =
+        _lastListBump == null ||
+        DateTime.now().difference(_lastListBump!) > const Duration(minutes: 1);
+    if (mode == 'normal' && bumpNow && listQuiet) {
+      // The saved message is already in the conversation. Waiting for this
+      // ordering write kept that row on screen twice: once from history and
+      // once from the optimistic send, for the whole round trip. The write
+      // still happens at most once a minute and never decides whether the
+      // send succeeded.
+      _lastListBump = DateTime.now();
+      unawaited(_orderChatList(chatRef));
     }
     if (localSaveFailed) {
       // The message IS on the server. Say so, and do not let it look like a failure.
@@ -399,6 +413,17 @@ class MessageSender {
       );
     }
   });
+
+  Future<void> _orderChatList(
+    DocumentReference<Map<String, dynamic>> chatRef,
+  ) async {
+    try {
+      await _beforeChatListBump?.call();
+      await chatRef.update({'lastMessageAt': FieldValue.serverTimestamp()});
+    } catch (_) {
+      // Only affects chat-list ordering; the message itself is already sent.
+    }
+  }
 
   static String _refusedText(String code) => switch (code) {
     'resource-exhausted' => 'The server is busy or its free usage limit has been reached, so nothing was sent. Try again later.',

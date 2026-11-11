@@ -47,6 +47,7 @@ class ChatService {
     required LocalMessageStore messages,
     SafetyService? safety,
     @visibleForTesting Future<void> Function(WriteBatch batch)? commitBatch,
+    @visibleForTesting Future<void> Function()? beforeChatListBump,
   }) : _db = db,
        _keys = keys,
        _prekeys = prekeys,
@@ -55,7 +56,8 @@ class ChatService {
        _safety = safety,
        _sess = SessionStore(secrets, device),
        _directory = ChatDirectory(db, messages, uid, safety),
-       _commitBatch = commitBatch {
+       _commitBatch = commitBatch,
+       _beforeChatListBump = beforeChatListBump {
     keys.bindLocalDevice(uid, device);
   }
 
@@ -66,6 +68,7 @@ class ChatService {
   final PreKeyService _prekeys;
   final SafetyService? _safety;
   final Future<void> Function(WriteBatch batch)? _commitBatch;
+  final Future<void> Function()? _beforeChatListBump;
   final SecretStore _secrets;
   final LocalMessageStore _messages;
   final SessionStore _sess;
@@ -95,6 +98,7 @@ class ChatService {
     messages: _messages,
     safety: _safety,
     commitBatch: _commitBatch,
+    beforeChatListBump: _beforeChatListBump,
     uid: uid,
     device: device,
     lock: _lock,
