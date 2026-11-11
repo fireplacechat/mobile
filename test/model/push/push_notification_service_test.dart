@@ -404,6 +404,36 @@ void _raceTests() {
       },
     );
 
+    test(
+      'a refused registration is retried on the next tap, not reused',
+      () async {
+        // What production does while its rules predate `showName`/`sound`.
+        final h = _RaceHarness();
+        var refuse = true;
+        h.db.beforeSet = () async {
+          if (refuse) throw StateError('permission-denied');
+        };
+        await h.service.start();
+        expect(await h.registered(), isFalse);
+        expect(await h.service.status(), PushStatus.off);
+
+        refuse = false; // the new rules are deployed
+        await h.service.start();
+        expect(await h.registered(), isTrue);
+        expect(await h.service.status(), PushStatus.on);
+        expect(h.messaging.activeSubscriptions, 1);
+      },
+    );
+
+    test('a registered start is shared, not repeated', () async {
+      final h = _RaceHarness();
+      await h.service.start();
+      final writes = h.db.writes;
+      await h.service.start();
+      expect(h.db.writes, writes);
+      expect(h.messaging.activeSubscriptions, 1);
+    });
+
     test('disable during foreground setup prevents late start', () async {
       final h = _RaceHarness();
       final entered = Completer<void>();

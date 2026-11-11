@@ -11,6 +11,7 @@ import 'package:fireplace/src/view/settings/push_settings.dart';
 
 class _Messaging implements PushMessagingClient {
   PushPermission permission = PushPermission.allowed;
+  String? token = 'fcm-token-0123456789abcdef';
   final refresh = StreamController<String>.broadcast();
   @override
   Future<PushPermission> permissionStatus() async => permission;
@@ -20,7 +21,7 @@ class _Messaging implements PushMessagingClient {
   @override
   Future<String?> getApnsToken() async => 'apns';
   @override
-  Future<String?> getToken() async => 'fcm-token-0123456789abcdef';
+  Future<String?> getToken() async => token;
   @override
   Stream<String> get onTokenRefresh => refresh.stream;
   @override
@@ -134,6 +135,23 @@ void main() {
           .data()?['sound'],
       isFalse,
     );
+  });
+
+  testWidgets('a failed turn-on says so, and the next tap retries', (
+    tester,
+  ) async {
+    messaging.token = null; // registration cannot happen
+    await pump(tester);
+    await tester.tap(find.byKey(const Key('pushSwitch')));
+    await settle(tester);
+    expect(switchValue(tester, 'pushSwitch'), isFalse);
+    expect(find.text('Could not change. Try again.'), findsOneWidget);
+
+    messaging.token = 'fcm-token-0123456789abcdef';
+    await tester.tap(find.byKey(const Key('pushSwitch')));
+    await settle(tester);
+    expect(switchValue(tester, 'pushSwitch'), isTrue);
+    expect(find.text('Could not change. Try again.'), findsNothing);
   });
 
   testWidgets('blocked in system settings opens them', (tester) async {
