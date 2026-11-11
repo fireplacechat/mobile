@@ -61,3 +61,9 @@ tools/operator/node_modules/
 *-key.json
 service-account*.json
 site/out/
+
+# Apple signing and push keys (App Store Connect API, APNs, DeviceCheck).
+# Apple lets you download each .p8 once; keep it outside the repository.
+*.p8
+*.p12
+*.mobileprovision
