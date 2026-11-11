@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:fireplace/fireplace_services.dart';
+import 'package:fireplace/src/model/account/profile_ready.dart';
 import 'package:fireplace/src/model/chat/chat_sync_coordinator.dart';
 import 'package:fireplace/src/model/common/session_scope.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
@@ -94,19 +95,18 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     final secrets = ref.watch(secretStoreProvider);
     // 2. Wait for the account profile.
     // An account being deleted (or left half-deleted) must not be used normally.
-    // A brand-new sign-up writes its profile right after the account exists, so
-    // give that a few seconds before treating a missing profile as "half deleted".
-    Map<String, dynamic>? profile;
-    for (var i = 0; i < 20; i++) {
-      final snap = await db.collection('users').doc(user.uid).get();
-      scope.checkActive();
-      if (snap.exists) {
-        profile = snap.data();
-        break;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 250));
-      scope.checkActive();
-    }
+    // Sign-up creates the Auth user, which starts this session, and only then
+    // writes the profile. The first reads are also refused until the ID token
+    // is attached. Wait that out. A confirmed miss is still "half deleted".
+    final profile = await waitForOwnProfile(
+      ensureCredential: () => user.getIdToken().then((_) {}),
+      read: () async {
+        final snap = await db.collection('users').doc(user.uid).get();
+        return ProfileRead(exists: snap.exists, data: snap.data());
+      },
+      justCreated: justCreatedAccount(user),
+      checkActive: scope.checkActive,
+    );
     if (profile == null || profile['deleting'] == true) {
       throw AccountDeletionPending(user.uid);
     }

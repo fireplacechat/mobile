@@ -246,9 +246,9 @@ void main() {
       ),
     );
     await host(t, f);
-    await t.tap(find.byKey(const Key('chatMenu')));
+    await t.tap(find.byKey(const Key('chatDetails')));
     await t.pumpAndSettle();
-    await t.tap(find.byKey(const Key('menuMute')));
+    await t.tap(find.byKey(const Key('detailsMute')));
     await settleUi(t);
     expect(
       find.text('Could not save the mute preference. Try again.'),

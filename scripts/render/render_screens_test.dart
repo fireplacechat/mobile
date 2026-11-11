@@ -587,9 +587,43 @@ void main() {
         peerUid: 'fred',
         chatId: 'alice_fred',
         name: 'fred',
+        onMute: (_) async {},
         onBlock: () async {},
         onUnblock: () async {},
+        onReportSpam: (_) async {},
       ),
+    ),
+    CatalogCase(
+      'block-confirm',
+      ChatDetailsScreen(
+        peerUid: 'fred',
+        chatId: 'alice_fred',
+        name: 'fred',
+        onMute: (_) async {},
+        onBlock: () async {},
+        onUnblock: () async {},
+        onReportSpam: (_) async {},
+      ),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('detailsBlock')));
+        await t.pumpAndSettle();
+      },
+    ),
+    CatalogCase(
+      'report-spam',
+      ChatDetailsScreen(
+        peerUid: 'fred',
+        chatId: 'alice_fred',
+        name: 'fred',
+        onMute: (_) async {},
+        onBlock: () async {},
+        onUnblock: () async {},
+        onReportSpam: (_) async {},
+      ),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('detailsReport')));
+        await t.pumpAndSettle();
+      },
     ),
     const CatalogCase(
       'verification',

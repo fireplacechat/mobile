@@ -183,6 +183,30 @@ void main() {
       },
     );
 
+    test(
+      'a spam report names the accounts and stores no message text',
+      () async {
+        await alice.chat.startChat('bob');
+        await alice.chat.sendText(chatId, 'hello from the conversation');
+        await alice.safety.reportSpam('bob');
+        final data = (await db.collection('reports').doc('alice_bob').get())
+            .data()!;
+        expect(data.keys.toSet(), {
+          'reporter',
+          'reported',
+          'reason',
+          'createdAt',
+        });
+        expect(data['reporter'], 'alice');
+        expect(data['reported'], 'bob');
+        expect(data['reason'], 'spam');
+        expect(
+          data.values.map((value) => '$value').join(' '),
+          isNot(contains('hello from the conversation')),
+        );
+      },
+    );
+
     test('messages from a blocked person are ignored, later ones work again after unblocking', () async {
       await alice.chat.startChat('bob');
       await bob.chat.acceptRequest(chatId);

@@ -82,6 +82,12 @@ class AuthService {
       throw AuthException(e.message ?? 'Sign-up failed.');
     }
     final user = cred.user!;
+    // Creating the Auth user signs the app in before this profile exists.
+    // Attach the ID token first so the profile write is not refused as a
+    // stranger, and so the session that starts from that sign-in can read it.
+    try {
+      await user.getIdToken().timeout(const Duration(seconds: 10));
+    } catch (_) {}
     try {
       final batch = _db.batch();
       batch.set(_db.collection('usernames').doc(name), {'uid': user.uid});

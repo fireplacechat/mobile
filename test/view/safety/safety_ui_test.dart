@@ -129,15 +129,84 @@ void main() {
     await t.runAsync(() => bob.chat.acceptRequest('alice_bob'));
     await t.pumpWidget(host(alice, const ChatScreen(chatId: 'alice_bob')));
     await settle(t);
-    await t.tap(find.byKey(const Key('chatMenu')));
+    expect(find.byKey(const Key('chatMenu')), findsNothing);
+    expect(find.byKey(const Key('verify')), findsOneWidget);
+    await t.tap(find.byKey(const Key('chatDetails')));
     await t.pumpAndSettle();
-    await t.tap(find.byKey(const Key('menuBlock')));
+    expect(find.text('Mute'), findsOneWidget);
+    expect(find.text('Block User'), findsOneWidget);
+    expect(find.text('Report Spam'), findsOneWidget);
+    expect(find.byIcon(Icons.notifications_none), findsOneWidget);
+    expect(
+      t.getTopLeft(find.byKey(const Key('detailsMute'))).dy,
+      lessThan(t.getTopLeft(find.byKey(const Key('detailsBlock'))).dy),
+    );
+    expect(
+      t.getTopLeft(find.byKey(const Key('detailsBlock'))).dy,
+      lessThan(t.getTopLeft(find.byKey(const Key('detailsReport'))).dy),
+    );
+    Color labelColor(Key key) => t
+        .widget<Text>(
+          find.descendant(of: find.byKey(key), matching: find.byType(Text)),
+        )
+        .style!
+        .color!;
+    expect(
+      labelColor(const Key('detailsBlock')),
+      labelColor(const Key('detailsReport')),
+    );
+    expect(
+      labelColor(const Key('detailsMute')),
+      isNot(labelColor(const Key('detailsBlock'))),
+    );
+    await t.tap(find.byKey(const Key('detailsBlock')));
     await t.pumpAndSettle();
+    expect(find.text('Block bob?'), findsOneWidget);
+    expect(
+      find.text('Blocked users will not be able to send you messages.'),
+      findsOneWidget,
+    );
     await t.tap(find.byKey(const Key('confirmBlock')));
     await settle(t);
     final doc = await t.runAsync(() => db.doc('users/alice/blocks/bob').get());
     expect(doc!.exists, isTrue);
     expect(alice.safety.isBlocked('bob'), isTrue);
+  });
+
+  testWidgets('report spam names the account and sends no message text', (
+    t,
+  ) async {
+    final (db, alice, bob) = await world(t);
+    await t.runAsync(() => bob.chat.acceptRequest('alice_bob'));
+    await t.runAsync(() => bob.chat.sendText('alice_bob', 'buy this now'));
+    await t.pumpWidget(host(alice, const ChatScreen(chatId: 'alice_bob')));
+    await settle(t);
+    await t.tap(find.byKey(const Key('chatDetails')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('detailsReport')));
+    await t.pumpAndSettle();
+    expect(find.text('Report Spam?'), findsOneWidget);
+    expect(
+      find.textContaining("can't see the content of any chats"),
+      findsOneWidget,
+    );
+    expect(find.text('Report Spam and Block'), findsOneWidget);
+    await t.tap(find.byKey(const Key('confirmReportSpam')));
+    await settle(t);
+    final doc = await t.runAsync(
+      () => db.collection('reports').doc('alice_bob').get(),
+    );
+    final data = doc!.data()!;
+    expect(data.keys.toSet(), {'reporter', 'reported', 'reason', 'createdAt'});
+    expect(data['reporter'], 'alice');
+    expect(data['reported'], 'bob');
+    expect(data['reason'], 'spam');
+    expect(
+      data.values.map((v) => '$v').join(),
+      isNot(contains('buy this now')),
+    );
+    expect(alice.safety.isBlocked('bob'), isFalse);
+    expect(find.text('Reported as spam.'), findsOneWidget);
   });
 
   testWidgets('Requests screen lists a request and Accept / Ignore work', (

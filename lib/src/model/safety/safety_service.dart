@@ -5,13 +5,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:fireplace/src/db/secret_store.dart';
 
-/// Blocking and locally hiding message requests.
+/// Blocking, spam reports and locally hiding message requests.
 ///
 /// - **Block**: a document in `users/{me}/blocks/{peer}`. The Firestore rules refuse
 ///   chat creation and messages from a blocked person, and this device ignores
 ///   anything of theirs that is still in flight.
+/// - **Report spam**: a write-only document in `reports/{me}_{peer}` for the
+///   operator. It names the two accounts and nothing else. Message text is never
+///   copied into it.
 /// - **Hide**: a purely local "ignore" for message requests.
-/// Message text stays on the device. Nothing in this service sends it anywhere.
 class SafetyService {
   SafetyService(this._db, this._store, this.uid);
   final FirebaseFirestore _db;
@@ -64,6 +66,19 @@ class SafetyService {
     await _blocks.doc(peerUid).delete();
     _blocked = {..._blocked}..remove(peerUid);
     _blockedCtrl.add(_blocked);
+  }
+
+  /// Tells the operator that [peerUid] may be sending spam.
+  ///
+  /// The document is only the two account ids, the reason and the time. There
+  /// is no field for message text, and this method cannot add one.
+  Future<void> reportSpam(String peerUid) async {
+    await _db.collection('reports').doc('${uid}_$peerUid').set({
+      'reporter': uid,
+      'reported': peerUid,
+      'reason': 'spam',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
   }
 
   // ------------------------------------------------------------ hidden requests

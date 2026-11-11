@@ -204,13 +204,19 @@ void defineAccessibilityGuidelines() {
           300,
         );
         await t.tap(find.text('Block'));
-        await t.pump(const Duration(milliseconds: 350));
+        await t.pumpAndSettle();
         await t.ensureVisible(find.byKey(const Key('confirmBlock')));
         await t.pump();
+        final blockButton = find.byKey(const Key('confirmBlock'));
+        final top = t.getTopLeft(blockButton).dy;
+        final bottom = top + t.getSize(blockButton).height;
+        // The keyboard covers the bottom 300px of this 640px surface.
+        expect(top, greaterThanOrEqualTo(0));
+        expect(bottom, lessThanOrEqualTo(340));
         expect(t.takeException(), isNull);
-        await t.tap(find.byKey(const Key('confirmBlock')));
+        await t.tap(blockButton);
         await t.pumpAndSettle();
-        expect(find.textContaining('Block @'), findsNothing);
+        expect(find.text('Block long_username_here?'), findsNothing);
       },
     );
     for (final screen in ['list', 'settings', 'colors']) {

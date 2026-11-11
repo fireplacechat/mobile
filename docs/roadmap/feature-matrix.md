@@ -51,7 +51,7 @@ Where a common habit conflicts with privacy, privacy wins, and the app explains 
 | Voice and video calls | yes | not a priority (owner) | later |
 | Multi-device | yes | linked devices exist | have it |
 | Backup | yes | recovery key restores identity, not old messages | by design; explain clearly |
-| Block | yes | built | have it |
+| Block and report spam | yes | built on the profile; a spam report names the account and includes no message text | have it |
 | Wallpaper and bubble colours | yes | bubble colours built, kept on the device; your colour is the app's accent | wallpaper later |
 | Large text, screen readers | yes | built, needs phone testing | keep testing |
 
