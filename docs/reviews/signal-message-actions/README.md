@@ -15,12 +15,13 @@ Received and the time. It does not show delivery or read state. Pins are
 message ids on this device, in the encrypted chat preferences, and they are
 not synced.
 
-Select uses a circular mark in the account accent. Delete All clears the
-visible messages in that chat on this device. Forward opens a sheet of Recent
-Chats, then People. There is no Stories section.
+Select uses a circular mark in the account accent. Delete All removes the
+visible messages in that chat on this device, and deletes messages you sent
+for everyone. Messages the other person sent stay on their devices. Forward
+opens a sheet of Recent Chats, then People. There is no Stories section.
 
 The wire format, sender authorization and Firestore rules are unchanged.
-Decision 0023 records the deletion change.
+Decisions 0023 and 0025 record the deletion changes.
 
 Pressing send clears the composer and shows the message in the conversation
 at once, with its time. Encryption still runs afterwards. The send button
