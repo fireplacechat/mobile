@@ -27,6 +27,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
+import 'package:fireplace/src/view/safety/report_spam.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/view/chat/confirm_another_copy.dart';
 import 'package:fireplace/src/widgets/page.dart';
@@ -202,6 +203,30 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
+  /// The profile already confirmed. Leave the chat once the block is stored.
+  Future<void> _blockFromProfile(AppSession session, String peerUid) async {
+    await session.safety.block(peerUid);
+    if (!mounted) return;
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+
+  Future<void> _reportSpam(
+    AppSession session,
+    String peerUid,
+    ReportSpamChoice choice,
+  ) async {
+    await session.safety.reportSpam(peerUid);
+    if (!mounted) return;
+    if (choice == ReportSpamChoice.reportAndBlock) {
+      await session.safety.block(peerUid);
+      if (!mounted) return;
+      _snack('Reported as spam and blocked.');
+      Navigator.of(context).popUntil((r) => r.isFirst);
+      return;
+    }
+    _snack('Reported as spam.');
+  }
+
   bool _sameAccount(AppSession? session) =>
       session != null && (_ownerUid == null || _ownerUid == session.uid);
 
@@ -290,7 +315,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
     final activity = ref.watch(chatActivityProvider);
     final otherUnread = activity.otherUnread(widget.chatId);
-    final muted = activity.muted.contains(widget.chatId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _markSeen();
     });
@@ -354,8 +378,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             peerUid: peerUid!,
             chatId: widget.chatId,
             name: name,
-            onBlock: () => _blockPeer(session!, peerUid, name),
+            onMute: _mute,
+            onBlock: () => _blockFromProfile(session!, peerUid),
             onUnblock: () => session!.safety.unblock(peerUid),
+            onReportSpam: (choice) => _reportSpam(session!, peerUid, choice),
           ),
         ),
       ),
@@ -383,18 +409,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   builder: (_) =>
                       VerifyScreen(peerUid: peerUid, peerName: name),
                 ),
-              ),
-            ),
-          if (peerUid != null && session != null)
-            ChatOverflowMenu(
-              muted: muted,
-              blocked: blocked,
-              onMute: () => _mute(!muted),
-              onBlock: () => _contactController.contactAction(
-                () => _blockPeer(session, peerUid, name),
-              ),
-              onUnblock: () => _contactController.contactAction(
-                () => session.safety.unblock(peerUid),
               ),
             ),
         ],

@@ -148,7 +148,7 @@ void main() {
       expect(c.read(chatActivityProvider).unread['alice_fred'], 0);
     },
   );
-  testWidgets('list and chat menu mute and unmute the same local preference', (
+  testWidgets('list and profile mute and unmute the same local preference', (
     t,
   ) async {
     final f = UiFixture();
@@ -164,9 +164,9 @@ void main() {
     expect(c.read(chatActivityProvider).muted, contains('alice_fred'));
     await t.tap(find.byKey(const ValueKey('conversation-alice_fred')));
     await t.pumpAndSettle();
-    await t.tap(find.byKey(const Key('chatMenu')));
+    await t.tap(find.byKey(const Key('chatDetails')));
     await t.pumpAndSettle();
-    await t.tap(find.text('Unmute chat'));
+    await t.tap(find.byKey(const Key('detailsMute')));
     await t.pumpAndSettle();
     expect(c.read(chatActivityProvider).muted, isEmpty);
   });

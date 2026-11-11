@@ -1,6 +1,6 @@
 # 0004: Abuse controls (message requests, blocking, reporting)
 
-The report parts of this note are withdrawn. Message text is not uploaded. See the backend decision 0012. Block remains.
+The message-report parts of this note are withdrawn. A spam report names the account and does not include message text (decision 0024). Block remains.
 
 Date: 2026-10-03. Status: accepted. Responds to review R3 and the App Store requirement for user-generated-content safety (block + report).
 
@@ -17,7 +17,7 @@ Date: 2026-10-03. Status: accepted. Responds to review R3 and the App Store requ
 - Client side: a blocked peer's chats are not synced, anything still in flight is dropped on receipt, and sending/starting chats with someone you blocked is refused with a clear message.
 
 ## Reporting
-Withdrawn. The app does not upload a report, and message text is not copied off the device for this. See backend decision 0012. A later spam control, if one is added, will not attach message text.
+Message reports are withdrawn. A spam report from the profile names the account and does not include message text. See decision 0024.
 
 ## Costs and limits
 - Each message write now costs 3 rule-evaluation reads (chat doc, sender device doc, block check). Still within free-tier for friends & family; a public launch will need the Blaze plan anyway.

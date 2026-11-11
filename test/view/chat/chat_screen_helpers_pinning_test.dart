@@ -289,15 +289,15 @@ void main() {
       expect(find.text('Verified'), findsOneWidget);
     },
   );
-  for (final source in ['menu', 'composer']) {
+  for (final source in ['details', 'composer']) {
     testWidgets('$source unblock uses the contact guard', (t) async {
       final safety = RecordingSafety()..hold = Completer<void>();
       final f = UiFixture(safety: safety)..blocked = {'fred'};
       await host(t, f);
-      if (source == 'menu') {
-        await t.tap(find.byKey(const Key('chatMenu')));
+      if (source == 'details') {
+        await t.tap(find.byKey(const Key('chatDetails')));
         await t.pumpAndSettle();
-        await t.tap(find.byKey(const Key('menuBlock')));
+        await t.tap(find.byKey(const Key('detailsBlock')));
       } else {
         final action = t
             .widget<TextButton>(find.widgetWithText(TextButton, 'Unblock'))
