@@ -21,7 +21,6 @@ const _whatIsDeleted = <String>[
 
 const _whatRemains = <String>[
   'Messages you sent that other people already received stay on their devices.',
-  'Reports you filed or that were filed about you are kept to handle abuse.',
   'Your contacts see your account as "Deleted account", and your username can be taken by someone else.',
 ];
 

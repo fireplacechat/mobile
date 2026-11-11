@@ -1,5 +1,7 @@
 # 0004: Abuse controls (message requests, blocking, reporting)
 
+The report parts of this note are withdrawn. Message text is not uploaded. See the backend decision 0012. Block remains.
+
 Date: 2026-10-03. Status: accepted. Responds to review R3 and the App Store requirement for user-generated-content safety (block + report).
 
 ## Message requests
@@ -15,9 +17,8 @@ Date: 2026-10-03. Status: accepted. Responds to review R3 and the App Store requ
 - Client side: a blocked peer's chats are not synced, anything still in flight is dropped on receipt, and sending/starting chats with someone you blocked is refused with a clear message.
 
 ## Reporting
-- `reports/{reporter}_{reported}`: create/update by the reporter only, write-only for clients (read it in the Firebase console). Reason from a fixed list, optional note (<=500), optional chat id, optional context (<=20 lines, each trimmed to 1000 chars).
-- Messages are end-to-end encrypted. The only message text the operator can ever see is what the reporter chooses to attach (opt-in checkbox, default off). **It cannot be verified** (a reporter could fabricate it). Message franking would fix that and is future work.
+Withdrawn. The app does not upload a report, and message text is not copied off the device for this. See backend decision 0012. A later spam control, if one is added, will not attach message text.
 
 ## Costs and limits
 - Each message write now costs 3 rule-evaluation reads (chat doc, sender device doc, block check). Still within free-tier for friends & family; a public launch will need the Blaze plan anyway.
-- This does not stop a determined attacker from creating many accounts and many requests. Remaining items for public launch: App Check (needs the Apple account), per-account creation limits, operator tooling to act on reports (there is none yet), account deletion.
+- This does not stop a determined attacker from creating many accounts and many requests. Remaining items for public launch: App Check (needs the Apple account) and per-account creation limits. Account deletion exists.

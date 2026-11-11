@@ -7,12 +7,11 @@ class RequestBanner extends StatelessWidget {
     required this.name,
     required this.onAccept,
     required this.onBlock,
-    required this.onReport,
     this.busy = false,
   });
   final bool busy;
   final String name;
-  final VoidCallback onAccept, onBlock, onReport;
+  final VoidCallback onAccept, onBlock;
   @override
   Widget build(BuildContext context) => UiNotice(
     key: const Key('requestBanner'),
@@ -29,11 +28,6 @@ class RequestBanner extends StatelessWidget {
         key: const Key('blockRequest'),
         onPressed: busy ? null : onBlock,
         child: const Text('Block'),
-      ),
-      TextButton(
-        key: const Key('reportRequest'),
-        onPressed: busy ? null : onReport,
-        child: const Text('Report'),
       ),
     ],
   );

@@ -16,7 +16,7 @@ This repository is the mobile app (iOS and Android), written in Flutter.
 
 ## What is here
 
-- **Private by design.** Hybrid post-quantum key exchange (X25519 + ML-KEM-768), hybrid signatures (Ed25519 + ML-DSA-65) and a double ratchet. Chat message content is encrypted before upload. Reports can include selected message text only when the reporter chooses to share it.
+- **Private by design.** Hybrid post-quantum key exchange (X25519 + ML-KEM-768), hybrid signatures (Ed25519 + ML-DSA-65) and a double ratchet. Chat message content is encrypted before upload. The server does not receive message text.
 - **No phone number, no email.** Username and password, joined with an invite.
 - **Verifiable.** Safety numbers and QR codes; a changed key holds the conversation until you review it.
 - **Open.** AGPL-3.0, with the design decisions in [docs/decisions](docs/decisions) and the [threat model](docs/protocol/threat-model.md).

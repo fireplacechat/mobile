@@ -21,7 +21,6 @@ import 'chat_screen_pinning_test.dart' show host, send;
 class RecordingSafety extends FixtureSafety {
   final blocks = <String>[];
   final unblocks = <String>[];
-  final reports = <(String, String?)>[];
   Completer<void>? hold;
   @override
   Future<void> block(String peerUid) async {
@@ -34,15 +33,6 @@ class RecordingSafety extends FixtureSafety {
     unblocks.add(peerUid);
     await hold?.future;
   }
-
-  @override
-  Future<void> report({
-    required String peerUid,
-    required ReportReason reason,
-    String? chatId,
-    String? note,
-    List<String> context = const [],
-  }) async => reports.add((peerUid, chatId));
 }
 
 Future<void> customHost(
@@ -321,39 +311,28 @@ void main() {
       await settleUi(t);
     });
   }
-  for (final action in ['block', 'report']) {
-    testWidgets(
-      'incoming request $action reaches the correct contact and chat',
-      (t) async {
-        final safety = RecordingSafety();
-        final f = UiFixture(safety: safety);
-        f.chat.summaries = [
-          ChatSummary(
-            'alice_fred',
-            'fred',
-            fixtureTime,
-            initiator: 'fred',
-            accepted: false,
-          ),
-        ];
-        await host(t, f);
-        await t.ensureVisible(find.byKey(Key('${action}Request')));
-        await t.tap(find.byKey(Key('${action}Request')));
-        await t.pumpAndSettle();
-        if (action == 'block') {
-          await t.tap(find.byKey(const Key('confirmBlock')));
-          await t.pumpAndSettle();
-          expect(safety.blocks, ['fred']);
-        } else {
-          expect(find.byKey(const Key('reportInclude')), findsOneWidget);
-          await t.ensureVisible(find.byKey(const Key('sendReport')));
-          await t.tap(find.byKey(const Key('sendReport')));
-          await settleUi(t);
-          expect(safety.reports, [('fred', 'alice_fred')]);
-        }
-      },
-    );
-  }
+  testWidgets('incoming request block reaches the correct contact and chat', (
+    t,
+  ) async {
+    final safety = RecordingSafety();
+    final f = UiFixture(safety: safety);
+    f.chat.summaries = [
+      ChatSummary(
+        'alice_fred',
+        'fred',
+        fixtureTime,
+        initiator: 'fred',
+        accepted: false,
+      ),
+    ];
+    await host(t, f);
+    await t.ensureVisible(find.byKey(const Key('blockRequest')));
+    await t.tap(find.byKey(const Key('blockRequest')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('confirmBlock')));
+    await t.pumpAndSettle();
+    expect(safety.blocks, ['fred']);
+  });
   testWidgets(
     'a refused send empties the composer and waits as a failed bubble',
     (t) async {

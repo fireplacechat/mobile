@@ -1,4 +1,3 @@
-import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
@@ -11,17 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/ui_fixture.dart';
 
-class Safety extends FixtureSafety {
-  final reports = <(ReportReason, String?, List<String>)>[];
-  @override
-  Future<void> report({
-    required String peerUid,
-    required ReportReason reason,
-    String? chatId,
-    String? note,
-    List<String> context = const [],
-  }) async => reports.add((reason, note, List.of(context)));
-}
+class Safety extends FixtureSafety {}
 
 Future<void> openChat(WidgetTester t, UiFixture f) async {
   await t.pumpWidget(

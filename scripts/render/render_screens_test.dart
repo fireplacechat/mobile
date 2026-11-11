@@ -413,21 +413,6 @@ void main() {
         },
       ),
     CatalogCase(
-      'report-dialog',
-      ChatDetailsScreen(
-        peerUid: 'fred',
-        chatId: 'alice_fred',
-        name: 'fred',
-        onBlock: () async {},
-        onUnblock: () async {},
-      ),
-      act: (t, f) async {
-        await t.tap(find.byKey(const Key('detailsReport')));
-        await t.pump(const Duration(milliseconds: 350));
-        await settleUi(t);
-      },
-    ),
-    CatalogCase(
       'password-dialog',
       const SettingsScreen(),
       services: (f) => [authServiceProvider.overrideWithValue(ActionAuth())],
