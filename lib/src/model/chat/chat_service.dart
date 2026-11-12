@@ -10,7 +10,7 @@ import 'package:fireplace/src/crypto/session.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/db/secret_store.dart';
-import 'package:fireplace/src/model/chat/async_mutex.dart';
+import 'package:fireplace/src/model/common/async_mutex.dart';
 import 'package:fireplace/src/model/chat/chat_directory.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/chat_summary.dart';
