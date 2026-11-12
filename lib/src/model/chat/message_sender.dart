@@ -182,7 +182,8 @@ class MessageSender {
       'senderDevice': device.keys.deviceId,
       'ts': FieldValue.serverTimestamp(),
       'envelopes': sealed.envelopes,
-      // The server copy is deleted 30 days after sending (Firestore TTL policy on this field).
+      // After this the server copy may be deleted (backend decision 0010: an operator
+      // purge today; an automatic TTL is planned).
       'expireAt': Timestamp.fromDate(DateTime.now().add(messageRetention)),
     };
     final lastBump = (chat['lastMessageAt'] as Timestamp?)?.toDate();
