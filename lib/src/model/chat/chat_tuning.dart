@@ -20,5 +20,14 @@ class ChatTuning {
   /// Off in tests (test/flutter_test_config.dart), which have no server
   /// rules: sends never wait, and a refused send clock is not retried.
   static bool pacing = true;
+
+  /// After every form of the send clock was refused, the pauses before
+  /// trying them all again (decision 0032). A refusal that nothing was
+  /// committed for is safe to retry; most clear within a second (a window
+  /// that ended mid-attempt, a sign-in token being refreshed).
+  static List<Duration> refusalRetries = const [
+    Duration(milliseconds: 300),
+    Duration(seconds: 1),
+  ];
   static const pageCap = 500;
 }

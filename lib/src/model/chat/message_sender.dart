@@ -276,10 +276,14 @@ class MessageSender {
   /// limit) and, for requests, the chat change, in one atomic batch.
   ///
   /// The clock form comes from [SendAllowance]. A refused clock may be a
-  /// wrong guess (another device opened a window or day, the clocks differ),
-  /// so the other forms are tried at once. A refusal for another reason (a
-  /// block, the daily cap reached on another device) fails every form, and
-  /// the last refusal is reported.
+  /// wrong guess (a window ended during the attempt, another device opened a
+  /// window or day, the clocks differ), so the other forms are tried at once,
+  /// likeliest first. If every form is refused, all are tried again after
+  /// each of [ChatTuning.refusalRetries] (decision 0032): nothing was
+  /// committed, so this cannot send twice, and the next message waits its
+  /// turn, so the order holds. A refusal for another reason (a block, the
+  /// daily cap reached on another device) fails every round, and the last
+  /// refusal is reported.
   Future<void> _publishPaced(
     DocumentReference<Map<String, dynamic>> ref,
     Map<String, Object> doc,
@@ -313,31 +317,34 @@ class MessageSender {
           });
         case SendClock.next:
           batch.update(limit, {'at': at, 'sent': one, 'today': one});
+        case SendClock.dayInWindow:
+          batch.update(limit, {'at': at, 'day': at, 'today': 1, 'sent': one});
       }
       final change = mode.chatChange;
       if (change != null) batch.update(chatRef, change);
       return _commitBatch(batch);
     }
 
-    bool refused(FirebaseException e) =>
-        ChatTuning.pacing &&
-        (e.code == 'permission-denied' || e.code == 'not-found');
-
     final wait = _allowance.wait;
     if (wait > Duration.zero) await Future<void>.delayed(wait);
-    final startedAt = DateTime.now();
-    final guess = _allowance.next;
-    final forms = [guess, ...guess.others];
-    for (final clock in forms) {
-      try {
-        await publish(clock);
-        _allowance.published(clock, startedAt);
-        return;
-      } on FirebaseException catch (e) {
-        if (!refused(e) || clock == forms.last) rethrow;
-      }
-    }
+    await publishWithClock(
+      allowance: _allowance,
+      publish: publish,
+      // Codes after which nothing was committed and another try may pass.
+      retryable: (e) =>
+          ChatTuning.pacing &&
+          e is FirebaseException &&
+          _retryableRefusals.contains(e.code),
+      pauses: ChatTuning.refusalRetries,
+    );
   }
+
+  static const _retryableRefusals = {
+    'permission-denied', // the rules: a wrong clock form, or a real refusal
+    'not-found', // the clock does not exist yet for an update form
+    'unauthenticated', // the sign-in token is being refreshed
+    'failed-precondition',
+  };
 
   /// Moves the chat up the chat list at most once a minute. Requests already
   /// did that in their batch. The saved message is already in the

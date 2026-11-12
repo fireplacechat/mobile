@@ -4,8 +4,9 @@ import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/model/chat/chat_tuning.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+var refusalCode = 'permission-denied';
 FirebaseException refusal() =>
-    FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied');
+    FirebaseException(plugin: 'cloud_firestore', code: refusalCode);
 
 void main() {
   late FakeFirebaseFirestore db;
@@ -20,6 +21,8 @@ void main() {
     db = FakeFirebaseFirestore();
     attempts = 0;
     accept = (_) => true;
+    refusalCode = 'permission-denied';
+    ChatTuning.refusalRetries = const [Duration.zero, Duration.zero];
     for (final u in ['alice', 'bob']) {
       await db.collection('usernames').doc(u).set({'uid': u});
       await db.collection('users').doc(u).set({'username': u});
@@ -59,10 +62,29 @@ void main() {
     ChatTuning.sendBurst = 20;
     ChatTuning.sendWindow = const Duration(seconds: 10);
     ChatTuning.sendDailyCap = 2000;
+    ChatTuning.refusalRetries = const [
+      Duration(milliseconds: 300),
+      Duration(seconds: 1),
+    ];
   });
 
   Future<Map<String, dynamic>> clock() async =>
       (await db.doc('users/alice/limits/send').get()).data()!;
+
+  // A day that runs and a window that ended, as after earlier messages.
+  Future<void> seedClock() => db.doc('users/alice/limits/send').set({
+    'at': Timestamp.fromDate(
+      DateTime.now().subtract(const Duration(seconds: 20)),
+    ),
+    'window': Timestamp.fromDate(
+      DateTime.now().subtract(const Duration(seconds: 20)),
+    ),
+    'sent': 3,
+    'day': Timestamp.fromDate(
+      DateTime.now().subtract(const Duration(hours: 1)),
+    ),
+    'today': 3,
+  });
 
   test('the first message opens a day and the next ones count in it', () async {
     await alice.sendText(chatId, 'one');
@@ -109,33 +131,50 @@ void main() {
       'day': Timestamp.now(),
       'today': 4,
     });
-    accept = (attempt) => attempt != 1; // the server refuses a second day
+    // The rules refuse a second day, and a new day or window while one runs.
+    accept = (attempt) => attempt > 3;
     await alice.sendText(chatId, 'hi');
-    expect(attempts, 2);
+    expect(attempts, 4);
     expect((await clock())['today'], 5, reason: 'counted in that day');
+    expect((await clock())['sent'], 5, reason: 'and in that window');
+  });
+
+  test('refused in three forms, the fourth sends it', () async {
+    ChatTuning.pacing = true;
+    await seedClock();
+    accept = (attempt) => attempt > 3;
+    await alice.sendText(chatId, 'one');
+    expect(attempts, 4);
+    expect(
+      (await db.collection('chats/$chatId/messages').get()).docs,
+      hasLength(1),
+    );
+  });
+
+  test('refused in every form, it tries again and is sent', () async {
+    // The window ended during the attempts, or the sign-in token was being
+    // refreshed: "Send again" a moment later always worked.
+    ChatTuning.pacing = true;
+    await seedClock();
+    accept = (attempt) => attempt > 6;
+    await alice.sendText(chatId, 'patient');
+    expect(attempts, 7, reason: 'the second round');
+    expect(
+      (await db.collection('chats/$chatId/messages').get()).docs,
+      hasLength(1),
+    );
+  });
+
+  test('a sign-in token being refreshed is waited out', () async {
+    ChatTuning.pacing = true;
+    refusalCode = 'unauthenticated';
+    accept = (attempt) => attempt > 4;
+    await alice.sendText(chatId, 'after refresh');
+    expect(attempts, 5);
   });
 
   test(
-    'refused in every window form, the send fails without the older form',
-    () async {
-      ChatTuning.pacing = true;
-      // The rules refuse the older `{at}` form (backend #21), so trying it
-      // would only add a refused attempt.
-      accept = (attempt) => attempt > 3;
-      await expectLater(
-        alice.sendText(chatId, 'one'),
-        throwsA(isA<ChatException>()),
-      );
-      expect(attempts, 3, reason: 'the three window forms, nothing more');
-      expect(
-        (await db.collection('chats/$chatId/messages').get()).docs,
-        isEmpty,
-      );
-    },
-  );
-
-  test(
-    'a refusal for another reason fails every form and publishes nothing',
+    'a refusal that lasts fails every round and publishes nothing',
     () async {
       ChatTuning.pacing = true;
       accept = (_) => false;
@@ -143,13 +182,48 @@ void main() {
         alice.sendText(chatId, 'blocked'),
         throwsA(isA<ChatException>()),
       );
-      expect(attempts, 3);
+      expect(attempts, 12, reason: 'four forms, three rounds');
       expect(
         (await db.collection('chats/$chatId/messages').get()).docs,
         isEmpty,
       );
     },
   );
+
+  test('a refusal that cannot pass is not tried again', () async {
+    ChatTuning.pacing = true;
+    refusalCode = 'invalid-argument';
+    accept = (_) => false;
+    await expectLater(
+      alice.sendText(chatId, 'too big'),
+      throwsA(isA<SendRefusedException>()),
+    );
+    expect(attempts, 1);
+  });
+
+  test('an unknown outcome is never sent again by itself', () async {
+    ChatTuning.pacing = true;
+    refusalCode = 'unavailable'; // the message may have reached the server
+    accept = (_) => false;
+    await expectLater(
+      alice.sendText(chatId, 'maybe'),
+      throwsA(isA<SendNotConfirmedException>()),
+    );
+    expect(attempts, 1);
+  });
+
+  test('messages keep their order while one is retried', () async {
+    ChatTuning.pacing = true;
+    accept = (attempt) => attempt > 5;
+    await Future.wait([
+      alice.sendText(chatId, 'first'),
+      alice.sendText(chatId, 'second'),
+    ]);
+    final bodies = [
+      for (final m in await alice.watchMessages(chatId).first) m.body,
+    ];
+    expect(bodies, ['first', 'second']);
+  });
 
   test('a burst goes out without waiting', () async {
     ChatTuning.pacing = true;
