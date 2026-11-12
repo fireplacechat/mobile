@@ -329,6 +329,13 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.2.5"
+  fireplace_native:
+    dependency: "direct main"
+    description:
+      path: "packages/fireplace_native"
+      relative: true
+    source: path
+    version: "0.0.1"
   fixnum:
     dependency: transitive
     description:

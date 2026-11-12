@@ -1,0 +1,19 @@
+name: fireplace_native
+description: Fireplace's own native code that every Flutter engine needs, including the one that runs the background push handler. No third-party code.
+publish_to: none
+version: 0.0.1
+
+environment:
+  sdk: ^3.13.5
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.fireplacechat.fireplace_native
+        pluginClass: FireplaceNativePlugin

@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -11,6 +13,10 @@ import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/model/account/profile_ready.dart';
 import 'package:fireplace/src/model/chat/chat_sync_coordinator.dart';
 import 'package:fireplace/src/model/common/session_scope.dart';
+import 'package:fireplace/src/model/notifications/arrival_notifier.dart';
+import 'package:fireplace/src/model/notifications/preview_notifier.dart';
+import 'package:fireplace/src/model/push/push_chat_index.dart';
+import 'package:fireplace/src/model/safety/push_challenge.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 
 final authProvider = Provider<FirebaseAuth>((_) => FirebaseAuth.instance);
@@ -210,6 +216,10 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     // Decrypt in the background while the app is open, but only for chats that
     // should be live: not an unaccepted request from a stranger (so strangers
     // cannot burn through our one-time prekeys), not blocked, not hidden.
+    // The chats it receives are also the ones the push handler may receive.
+    final pushChats = messaging == null
+        ? null
+        : PushChatIndex(secrets, user.uid);
     final coordinator = ChatSyncCoordinator(
       uid: user.uid,
       safety: safety,
@@ -217,6 +227,9 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       chatPreferences: chatPreferences,
       store: store,
       isStopped: () => scope.stopped,
+      onLiveChats: pushChats == null
+          ? null
+          : (ids) => unawaited(pushChats.save(ids).catchError((Object _) {})),
     );
     scope.add(coordinator.stop);
     final chatsSub = chat.watchChats().listen(
@@ -228,6 +241,35 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       coordinator.blockedChanged();
     });
     scope.add(blockedSub.cancel);
+    if (messaging != null) {
+      // Android: while the app is alive but not on screen, it posts what it
+      // receives itself (decision 0030).
+      if (Platform.isAndroid) {
+        final arrivals = ArrivalNotifier(
+          arrivals: chat.arrivals,
+          uid: user.uid,
+          prefs: secrets,
+          store: store,
+          notifier: PreviewNotifier(const NativeNotificationPoster()),
+          onScreen: () =>
+              SchedulerBinding.instance.lifecycleState ==
+              AppLifecycleState.resumed,
+          usernameOf: (chatId) => chat.usernameOf(chat.peerOf(chatId)),
+        );
+        scope.add(arrivals.close);
+      }
+      // A push challenge (backend decision 0020) while the app is open.
+      final challenges = PushChallenge(db);
+      final onMessage = FirebaseMessaging.onMessage.listen(
+        (m) => unawaited(
+          challenges.answer({
+            for (final e in m.data.entries) e.key: '${e.value}',
+          }, user.uid),
+        ),
+        onError: (Object _) {},
+      );
+      scope.add(onMessage.cancel);
+    }
     // 10. Return the session with cleanup and local-data removal.
     final session = AppSession(
       uid: user.uid,

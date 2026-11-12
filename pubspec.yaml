@@ -49,6 +49,9 @@ dependencies:
   mobile_scanner: ^7.4.2
   firebase_messaging: ^16.7.0
   firebase_app_check: ^0.4.8
+  # Our own native notification code, in this repository (decision 0030).
+  fireplace_native:
+    path: packages/fireplace_native
 
 dev_dependencies:
   flutter_test:

@@ -1,30 +1,21 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
+import 'dart:io';
+
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:fireplace/firebase_options.dart';
 import 'package:fireplace/src/app.dart';
-import 'package:fireplace/src/app/app_check.dart';
+import 'package:fireplace/src/app/background_push_entry.dart';
+import 'package:fireplace/src/app/firebase_setup.dart';
+import 'package:fireplace/src/model/push/push_notification_service.dart';
 
-/// Run against local emulators with:
-///   flutter run --dart-define=USE_EMULATOR=true   (Android emulator uses 10.0.2.2)
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await activateAppCheck(
-    useEmulator: const bool.fromEnvironment('USE_EMULATOR'),
-    debugBuild: kDebugMode,
-  );
-  if (const bool.fromEnvironment('USE_EMULATOR')) {
-    const host = String.fromEnvironment(
-      'EMULATOR_HOST',
-      defaultValue: '10.0.2.2',
-    );
-    await FirebaseAuth.instance.useAuthEmulator(host, 9099);
-    FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
+  await setUpFirebase();
+  // Android posts its own notifications from a background isolate, after
+  // decrypting the push on the phone (decision 0030).
+  if (pushEnabled && Platform.isAndroid) {
+    FirebaseMessaging.onBackgroundMessage(fireplaceBackgroundMessage);
   }
   runApp(
     // Session errors (needs recovery, account deletion pending, offline) are
