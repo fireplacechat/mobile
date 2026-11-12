@@ -635,7 +635,10 @@ void main() {
       'settings-notifications',
       const SettingsScreen(),
       push: true,
-      overrides: [appleWordingProvider.overrideWithValue(true)],
+      overrides: [
+        appleWordingProvider.overrideWithValue(true),
+        notificationPreviewAvailableProvider.overrideWithValue(false),
+      ],
       act: (t, f) async {
         await t.runAsync(() => Future<void>.delayed(Duration.zero));
         await t.pumpAndSettle();
@@ -645,6 +648,26 @@ void main() {
           scrollable: find.byType(Scrollable).first,
         );
         // "In the app" and Notifications, one after the other, at the top.
+        await t.ensureVisible(find.text('In the app'));
+        await t.pumpAndSettle();
+      },
+    ),
+    CatalogCase(
+      'settings-notifications-android',
+      const SettingsScreen(),
+      push: true,
+      overrides: [
+        appleWordingProvider.overrideWithValue(false),
+        notificationPreviewAvailableProvider.overrideWithValue(true),
+      ],
+      act: (t, f) async {
+        await t.runAsync(() => Future<void>.delayed(Duration.zero));
+        await t.pumpAndSettle();
+        await t.scrollUntilVisible(
+          find.byKey(const Key('pushPreview')),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
         await t.ensureVisible(find.text('In the app'));
         await t.pumpAndSettle();
       },

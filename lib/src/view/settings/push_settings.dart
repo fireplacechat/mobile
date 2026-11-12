@@ -8,11 +8,19 @@ import 'package:fireplace/src/model/push/push_notification_service.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
 
 /// Settings → Notifications: alerts while Fireplace is closed, whether they
-/// show the sender's name and play the pop, and a shortcut to the system
-/// settings (banners, badges, lock screen), which the app cannot change.
+/// show the sender's name and the message and play the pop, and a shortcut to
+/// the system settings (banners, badges, lock screen), which the app cannot
+/// change.
 /// Whether to word settings for iOS. A provider so tests and renders can
 /// choose the wording independently of the machine they run on.
 final appleWordingProvider = Provider<bool>((_) => Platform.isIOS);
+
+/// Whether this device can show message previews in notifications. Android
+/// only until the iOS extension exists (decision 0030). A provider so tests
+/// and renders can show either.
+final notificationPreviewAvailableProvider = Provider<bool>(
+  (_) => Platform.isAndroid,
+);
 
 class PushSettingsSection extends ConsumerStatefulWidget {
   const PushSettingsSection({super.key, required this.service});
@@ -27,6 +35,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
   PushStatus? _status;
   bool _showName = true;
   bool _sound = true;
+  bool _preview = true;
   bool _busy = false;
   String? _error;
 
@@ -57,11 +66,13 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
       final status = await widget.service.status();
       final showName = await widget.service.showsName();
       final sound = await widget.service.playsSound();
+      final preview = await widget.service.showsPreview();
       if (!mounted) return;
       setState(() {
         _status = status;
         _showName = showName;
         _sound = sound;
+        _preview = preview;
         _error = null;
       });
     } catch (_) {
@@ -111,6 +122,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
   @override
   Widget build(BuildContext context) {
     final on = _status == PushStatus.on;
+    final previews = ref.watch(notificationPreviewAvailableProvider);
     return UiSettingsSection(
       title: 'Notifications',
       children: [
@@ -131,6 +143,16 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
               ? (value) => _change(() => widget.service.setShowName(value))
               : null,
         ),
+        if (previews)
+          SwitchListTile(
+            key: const Key('pushPreview'),
+            secondary: const Icon(Icons.chat_outlined),
+            title: const Text('Show message preview'),
+            value: _preview,
+            onChanged: on && !_busy
+                ? (value) => _change(() => widget.service.setShowPreview(value))
+                : null,
+          ),
         SwitchListTile(
           key: const Key('pushSound'),
           secondary: const Icon(Icons.volume_up_outlined),
