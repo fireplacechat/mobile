@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
+import 'package:fireplace/src/view/chat/message_actions_controls.dart';
 import 'package:fireplace/src/view/chat/message_menu_parts.dart';
 import 'package:fireplace/src/view/chat/message_menu_stack.dart';
 
@@ -214,162 +215,45 @@ class MessageActionsOverlay extends StatelessWidget {
                   MessageMenuId(
                     id: 'reactions',
                     child: fading(
-                      _HoldTracker(
+                      MessageReactionBar(
+                        animation: animation,
+                        panel: panel,
+                        reactions: reactions,
+                        targets: targets,
+                        gesture: gesture,
                         onPoint: (point) => highlight(reactionAt(point)),
                         onRelease: () {
                           final chosen = gesture?.highlighted.value;
                           gesture?.highlighted.value = null;
-                          if (chosen != null && chosen.reaction) choose(chosen);
+                          if (chosen != null && chosen.reaction) {
+                            choose(chosen);
+                          }
                         },
-                        child: Stack(
-                          key: const Key('messageReactionBar'),
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned.fill(
-                              child: FadeTransition(
-                                opacity: CurvedAnimation(
-                                  parent: animation,
-                                  curve: const Interval(0, .5),
-                                ),
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    color: panel,
-                                    borderRadius: const BorderRadius.all(
-                                      Radius.circular(
-                                        MessageMenuMetrics.barHeight / 2,
-                                      ),
-                                    ),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: Color(0x4D000000),
-                                        blurRadius: 12,
-                                        offset: Offset(0, 4),
-                                      ),
-                                      BoxShadow(
-                                        color: Color(0x0D000000),
-                                        blurRadius: 4,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              clipBehavior: Clip.none,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: MessageMenuMetrics.barPadding,
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    for (final (index, reaction)
-                                        in reactions.indexed)
-                                      ReactionEntrance(
-                                        animation: animation,
-                                        index: index,
-                                        child: SizedBox(
-                                          key: targets[reaction],
-                                          width:
-                                              MessageMenuMetrics.reactionCell,
-                                          height: MessageMenuMetrics.barHeight,
-                                          child: MessageActionHighlight(
-                                            action: reaction,
-                                            gesture: gesture,
-                                            lift: true,
-                                            child: ReactionBarButton(
-                                              reaction: reaction,
-                                              onPressed: () => choose(reaction),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        onChoose: choose,
                       ),
                     ),
                   ),
                 MessageMenuId(
                   id: 'menu',
                   child: fading(
-                    FadeTransition(
-                      opacity: CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeInOut,
-                      ),
-                      child: ScaleTransition(
-                        scale: Tween(begin: .2, end: 1.0).animate(grow),
-                        alignment: alignEnd
-                            ? Alignment.topRight
-                            : Alignment.topLeft,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              MessageMenuMetrics.menuRadius,
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x33000000),
-                                blurRadius: 64,
-                                offset: Offset(0, 32),
-                              ),
-                            ],
-                          ),
-                          child: KeyedSubtree(
-                            key: panelKey,
-                            child: Material(
-                              key: const Key('messageActionsPanel'),
-                              // Solid. A translucent panel, or a blur of its
-                              // own, paints the bubble colour through the rows.
-                              color: panel,
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                              borderRadius: BorderRadius.circular(
-                                MessageMenuMetrics.menuRadius,
-                              ),
-                              clipBehavior: Clip.antiAlias,
-                              child: _HoldTracker(
-                                onPoint: (point) => highlight(rowAt(point)),
-                                onRelease: () {
-                                  final chosen = gesture?.highlighted.value;
-                                  gesture?.highlighted.value = null;
-                                  if (chosen != null && !chosen.reaction) {
-                                    choose(chosen);
-                                  }
-                                },
-                                child: SingleChildScrollView(
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      for (final (index, action)
-                                          in actions.indexed)
-                                        MessageActionHighlight(
-                                          key: targets[action],
-                                          action: action,
-                                          gesture: gesture,
-                                          child: MessageMenuRow(
-                                            action: action,
-                                            autofocus: index == 0,
-                                            divider:
-                                                index != actions.length - 1,
-                                            onPressed: () => choose(action),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
+                    MessageActionsPanel(
+                      animation: animation,
+                      grow: grow,
+                      alignEnd: alignEnd,
+                      panel: panel,
+                      panelKey: panelKey,
+                      actions: actions,
+                      targets: targets,
+                      gesture: gesture,
+                      onPoint: (point) => highlight(rowAt(point)),
+                      onRelease: () {
+                        final chosen = gesture?.highlighted.value;
+                        gesture?.highlighted.value = null;
+                        if (chosen != null && !chosen.reaction) {
+                          choose(chosen);
+                        }
+                      },
+                      onChoose: choose,
                     ),
                   ),
                 ),
@@ -378,55 +262,6 @@ class MessageActionsOverlay extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// A press that starts on a control after the menu is open.
-///
-/// Signal follows that finger with a zero-duration press: the emoji under it
-/// grows, or the row under it fills, and releasing on it selects it.
-class _HoldTracker extends StatefulWidget {
-  const _HoldTracker({
-    required this.onPoint,
-    required this.onRelease,
-    required this.child,
-  });
-
-  final ValueChanged<Offset> onPoint;
-  final VoidCallback onRelease;
-  final Widget child;
-
-  @override
-  State<_HoldTracker> createState() => _HoldTrackerState();
-}
-
-class _HoldTrackerState extends State<_HoldTracker> {
-  int? _pointer;
-
-  @override
-  Widget build(BuildContext context) {
-    return Listener(
-      onPointerDown: (event) {
-        if (_pointer != null) return;
-        _pointer = event.pointer;
-        widget.onPoint(event.position);
-      },
-      onPointerMove: (event) {
-        if (event.pointer != _pointer) return;
-        widget.onPoint(event.position);
-      },
-      onPointerUp: (event) {
-        if (event.pointer != _pointer) return;
-        _pointer = null;
-        widget.onRelease();
-      },
-      onPointerCancel: (event) {
-        if (event.pointer != _pointer) return;
-        _pointer = null;
-        widget.onPoint(const Offset(double.nan, double.nan));
-      },
-      child: widget.child,
     );
   }
 }
