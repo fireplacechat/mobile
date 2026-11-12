@@ -16,6 +16,11 @@
 //      storage failure before publishing) never appears anywhere.
 //   5. The conversation is not stuck: afterwards each device can send and everyone gets it.
 //
+// A "background" step runs a second ChatService for one device over the same stores, with
+// its own caches, as the Android push handler's isolate does (decision 0030). It receives
+// while the app sends and syncs; the account lock and its generation keep them apart, so the
+// checks above must still hold.
+//
 // Reproduce a failure:
 //   flutter test test/services/chat_simulation_test.dart --dart-define=SIM_SEED=<seed>
 // Run more / longer:  --dart-define=SIM_RUNS=60 --dart-define=SIM_STEPS=60
@@ -163,6 +168,13 @@ class Phone {
   int linkedAtMessage =
       0; // number of messages published before this device existed
 
+  /// Stands in for the isolate name server and the generation file, which the app and the
+  /// background handler share.
+  final lockHub = MemoryLockHub();
+  SharedLock newLock() =>
+      SharedLock(gate: MemoryLockGate(lockHub), generation: lockHub.generation);
+  late SharedLock lock;
+
   static Future<Phone> first(FakeFirebaseFirestore db, String uid) async {
     final secrets = FlakySecrets();
     final p = Phone(
@@ -223,8 +235,34 @@ class Phone {
     final gs = _gs = GuardedSecrets(secrets);
     final gm = _gm = GuardedMessages(messages);
     keys = KeyService(db, gs);
-    prekeys = PreKeyService(db, gs);
+    lock = newLock();
+    prekeys = PreKeyService(db, gs, lock: lock);
     chat = _service(gs, gm);
+  }
+
+  /// The push handler: a second service over the same stores, receiving the chat once.
+  Future<bool> backgroundReceive(String chatId) async {
+    final gs = GuardedSecrets(secrets);
+    final gm = GuardedMessages(messages);
+    final bgLock = newLock();
+    final background = ChatService(
+      db: db,
+      uid: uid,
+      device: device,
+      keys: KeyService(db, gs),
+      prekeys: PreKeyService(db, gs, lock: bgLock),
+      secrets: gs,
+      messages: gm,
+      lock: bgLock,
+      commitBatch: (_) => throw StateError('the background never sends'),
+    );
+    try {
+      return await background.receiveOnce(chatId, upkeep: false);
+    } catch (_) {
+      return false; // storage or network trouble: the app receives it later
+    } finally {
+      await background.close();
+    }
   }
 
   ChatService _service(GuardedSecrets gs, GuardedMessages gm) => ChatService(
@@ -235,6 +273,7 @@ class Phone {
     prekeys: prekeys,
     secrets: gs,
     messages: gm,
+    lock: lock,
     commitBatch: (b) async {
       switch (mode) {
         case PublishMode.normal:
@@ -468,6 +507,21 @@ Future<void> simulate(int seed) async {
           p.startSyncing(chatId);
           trace.add('link(${p.label} after ${published.length} messages)');
         }
+      } else if (r < 95) {
+        // A push wakes the background handler. Most often the app is not syncing (closed or
+        // in the background), so the handler receives first and the app later works on
+        // with what it has cached; sometimes the app is busy at the same moment.
+        final offline = phones.where((p) => !p.online).toList();
+        final p = offline.isNotEmpty && rnd.nextInt(3) > 0
+            ? offline[rnd.nextInt(offline.length)]
+            : pick();
+        final finished = Future.wait([
+          p.backgroundReceive(chatId),
+          if (rnd.nextBool()) send(pick()),
+          if (rnd.nextBool()) p.chat.retryDeferred(),
+        ]);
+        trace.add('background(${p.label})');
+        await finished;
       } else {
         await Future<void>.delayed(Duration(milliseconds: 5 + rnd.nextInt(40)));
         trace.add('pause');

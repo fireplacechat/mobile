@@ -10,6 +10,7 @@ import 'package:fireplace/src/model/common/async_mutex.dart';
 import 'package:fireplace/src/model/common/daily_counter.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/db/secret_store.dart';
+import 'package:fireplace/src/db/shared_lock.dart';
 
 class PreKeyException implements Exception {
   PreKeyException(this.message);
@@ -28,11 +29,20 @@ class PreKeyException implements Exception {
 ///
 /// Deleting private prekeys is what gives sessions forward secrecy.
 class PreKeyService {
-  PreKeyService(this._db, this._store, {DateTime Function()? clock})
-    : _now = clock ?? DateTime.now;
+  PreKeyService(
+    this._db,
+    this._store, {
+    DateTime Function()? clock,
+    SharedLock? lock,
+  }) : _now = clock ?? DateTime.now,
+       _lock = lock ?? SharedLock();
 
   final FirebaseFirestore _db;
   final SecretStore _store;
+
+  /// The account lock: a background isolate may consume a one-time prekey
+  /// while the app refills the pool (decision 0030).
+  final SharedLock _lock;
   final DateTime Function() _now;
 
   static const signedLifetime = Duration(days: 7);
@@ -106,15 +116,18 @@ class PreKeyService {
   final _state = AsyncMutex();
 
   /// Loads the private prekeys, applies [change] and saves them if it returns
-  /// true, all under [_state].
+  /// true, all under the account lock and then [_state]. Always in that
+  /// order: a receive holds the account lock when it consumes a prekey.
   Future<void> _update(
     String uid,
     String deviceId,
     bool Function(_Secrets s) change,
-  ) => _state.run(() async {
-    final s = await _load(uid, deviceId);
-    if (change(s)) await _save(uid, deviceId, s);
-  });
+  ) => _lock.run(
+    () => _state.run(() async {
+      final s = await _load(uid, deviceId);
+      if (change(s)) await _save(uid, deviceId, s);
+    }),
+  );
 
   /// True once this device holds a signed prekey, which upkeep publishes as
   /// it makes it. False on a new device: nobody can start a conversation with

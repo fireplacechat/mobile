@@ -10,8 +10,9 @@ import 'package:fireplace/src/model/keys/prekey_service.dart';
 import 'package:fireplace/src/model/safety/safety_service.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/secret_store.dart';
-import 'package:fireplace/src/model/common/async_mutex.dart';
+import 'package:fireplace/src/db/shared_lock.dart';
 import 'package:fireplace/src/model/chat/session_store.dart';
+import 'package:fireplace/src/model/chat/receive_cursor.dart';
 import 'package:fireplace/src/model/chat/receive_journal.dart';
 import 'package:fireplace/src/model/chat/send_recovery.dart';
 import 'package:fireplace/src/model/chat/identity_alerts.dart';
@@ -31,7 +32,7 @@ class MessageReceiver {
     SafetyService? safety,
     required String uid,
     required LocalDevice device,
-    required AsyncMutex lock,
+    required SharedLock lock,
     required WorkTracker work,
     required DeferredQueue queue,
     required IdentityAlerts alerts,
@@ -85,7 +86,7 @@ class MessageReceiver {
   final SafetyService? _safety;
   final String uid;
   final LocalDevice device;
-  final AsyncMutex _lock;
+  final SharedLock _lock;
   final WorkTracker _work;
   final DeferredQueue _queue;
   final IdentityAlerts _alerts;
@@ -99,12 +100,20 @@ class MessageReceiver {
   final Map<String, int> syncPagesOpened = {};
   void Function(String chatId, List<String> ids)? syncObserver;
 
+  /// Called with each message from someone else once it is saved: decrypted,
+  /// or stored as unreadable. Never for a message already in history, so a
+  /// message is reported by whichever isolate received it (decision 0030).
+  void Function(LocalMessage message)? onArrival;
+
+  /// No prekey upkeep from here (the background push handler).
+  bool upkeep = true;
+
   DateTime? _lastRepair;
 
   /// A peer used a prekey we cannot answer: drop orphaned published prekeys and
   /// refill the pool (at most once a minute, in the background).
   void _repairPrekeys() {
-    if (_work.closed) return;
+    if (_work.closed || !upkeep) return;
     final now = DateTime.now();
     if (_lastRepair != null &&
         now.difference(_lastRepair!) < const Duration(minutes: 1)) {
@@ -114,29 +123,14 @@ class MessageReceiver {
     _work.track(_prekeys.maintain(uid, device, isStopped: () => _work.closed));
   }
 
-  String _cursorKey(String chatId) => 'cursor:${device.keys.deviceId}:$chatId';
-
-  Future<Timestamp?> _cursor(String chatId) async {
-    final raw = await _secrets.read(_cursorKey(chatId));
-    if (raw == null) return null;
-    final parts = raw.split(':');
-    if (parts.length != 2) return null;
-    final sec = int.tryParse(parts[0]), ns = int.tryParse(parts[1]);
-    return sec == null || ns == null ? null : Timestamp(sec, ns);
-  }
-
-  Future<void> _advanceCursor(String chatId, Timestamp to) async {
-    final cur = await _cursor(chatId);
-    if (cur != null && cur.compareTo(to) >= 0) return;
-    await _secrets.write(_cursorKey(chatId), '${to.seconds}:${to.nanoseconds}');
-  }
+  late final _cursors = ReceiveCursor(_secrets, device.keys.deviceId);
 
   /// Decrypts new messages of a chat. The first run looks at the newest
   /// [limit] messages; afterwards it resumes from a persisted cursor, so
   /// everything received while the app was closed is fetched, however many.
   ///
   /// Two different positions are kept apart on purpose:
-  ///  * the durable **cursor** (see [_advanceCursor]) is a recovery watermark: it never passes a
+  ///  * the durable **cursor** (see [ReceiveCursor]) is a recovery watermark: it never passes a
   ///    message that is not finished, so that after a restart unfinished messages are re-read;
   ///  * the **page position** (`pageAfter`, in memory only) is where the NEXT page of a long
   ///    backlog starts. It always moves to just after the last document of the page just read, so
@@ -155,7 +149,7 @@ class MessageReceiver {
     Future<void> listen() async {
       if (cancelled || _work.closed) return;
       final mine = ++generation;
-      final cursor = await _cursor(chatId);
+      final cursor = await _cursors.read(chatId);
       if (cancelled || _work.closed || mine != generation) return;
       Query<Map<String, dynamic>> q;
       if (cursor == null) {
@@ -202,7 +196,9 @@ class MessageReceiver {
               !_work.closed &&
               mine == generation) {
             try {
-              await _advanceCursor(chatId, advanceTo);
+              // Under the lock: a background isolate moves it too, and a
+              // stale cached cursor must not move it back.
+              await _lock.run(() => _cursors.advance(chatId, advanceTo!));
             } catch (_) {
               // Only an optimisation: without it the next run re-reads these messages, and
               // messages already stored are skipped. Must not escape the listener.
@@ -233,6 +229,46 @@ class MessageReceiver {
     };
     _work.track(listen());
     return subscription;
+  }
+
+  /// Reads a chat's new messages once, without listening, and receives them
+  /// as [startSync] does. For the background push handler, which has a few
+  /// seconds (decision 0030). Returns true when every message read was
+  /// finished and there is no more to read; false when one was deferred or a
+  /// full page was read. Fetch errors are thrown.
+  Future<bool> receiveOnce(String chatId, {GetOptions? options}) async {
+    if (_work.closed) throw StateError('Chat service is closed.');
+    final col = _db.collection('chats').doc(chatId).collection('messages');
+    final cursor = await _cursors.read(chatId);
+    final q = cursor == null
+        ? col.orderBy('ts', descending: true).limit(50)
+        : col
+              .where('ts', isGreaterThanOrEqualTo: cursor)
+              .orderBy('ts')
+              .limit(ChatTuning.pageCap);
+    final snap = await q.get(options);
+    final docs = snap.docs.toList()..sort((a, b) => _ts(a).compareTo(_ts(b)));
+    for (final d in docs) {
+      final t = d.data()['ts'];
+      _queue.registerUnfinished(chatId, d.id, t is Timestamp ? t : null);
+    }
+    var finished = true;
+    Timestamp? advanceTo;
+    for (final d in docs) {
+      if (_work.closed) return false;
+      if (!await _handle(chatId, d.id, d.data())) finished = false;
+      final ts = d.data()['ts'];
+      if (finished && ts is Timestamp) advanceTo = ts;
+    }
+    advanceTo = _queue.clampCursor(chatId, advanceTo);
+    if (advanceTo != null && !_work.closed) {
+      try {
+        await _lock.run(() => _cursors.advance(chatId, advanceTo!));
+      } catch (_) {
+        // As in startSync: the next run re-reads, and stored ones are skipped.
+      }
+    }
+    return finished && (cursor == null || docs.length < ChatTuning.pageCap);
   }
 
   /// Returns false if the message was deferred.
@@ -310,8 +346,8 @@ class MessageReceiver {
         ? (data['ts'] as Timestamp).toDate()
         : DateTime.now();
 
-    Future<void> store(String body, MessageStatus status) => _messages.add(
-      LocalMessage(
+    Future<void> store(String body, MessageStatus status) async {
+      final message = LocalMessage(
         id: msgId,
         chatId: chatId,
         senderUid: su,
@@ -320,8 +356,10 @@ class MessageReceiver {
         sentAt: sentAt,
         body: body,
         status: status,
-      ),
-    );
+      );
+      await _messages.add(message);
+      if (su != uid) onArrival?.call(message);
+    }
 
     if (sd is! String) {
       await store('Malformed message.', MessageStatus.undecryptable);
@@ -441,5 +479,21 @@ class MessageReceiver {
     };
     await _journal.writeJournal(journal);
     await _journal.applyJournal(journal);
+    if (su != uid) {
+      onArrival?.call(
+        LocalMessage(
+          id: msgId,
+          chatId: chatId,
+          senderUid: su,
+          senderDevice: sd,
+          outgoing: false,
+          sentAt: sentAt,
+          body: body,
+          status: status,
+          mutation: mutation,
+          quote: quote,
+        ),
+      );
+    }
   }
 }
