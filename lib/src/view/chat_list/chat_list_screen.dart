@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/model/chat/chat_preview.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/brand/logo.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
@@ -136,6 +137,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     for (final c in live)
                       if (c.isIncomingRequest(me)) c,
                   ];
+                  // Newest first, by the newest message this phone knows of: a
+                  // message just sent or received moves its chat up at once.
+                  final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+                  final activity = {
+                    for (final c in live)
+                      c.chatId:
+                          latestActivity(
+                            c.lastMessageAt,
+                            ref.watch(chatPreviewProvider(c.chatId)),
+                          ) ??
+                          epoch,
+                  };
                   final sorted =
                       [
                         for (final c in live)
@@ -152,12 +165,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                             c,
                       ]..sort(
                         (a, b) =>
-                            (b.lastMessageAt ??
-                                    DateTime.fromMillisecondsSinceEpoch(0))
-                                .compareTo(
-                                  a.lastMessageAt ??
-                                      DateTime.fromMillisecondsSinceEpoch(0),
-                                ),
+                            activity[b.chatId]!.compareTo(activity[a.chatId]!),
                       );
                   final namesPending =
                       _query.isNotEmpty &&

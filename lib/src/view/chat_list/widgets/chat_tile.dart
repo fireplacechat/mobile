@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/model/chat/chat_preview.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_controls.dart';
@@ -83,10 +84,11 @@ class ChatTile extends ConsumerWidget {
       // the other person deleted their account: tidy up this conversation
       ref.watch(peerDeletedCleanupProvider(chat.chatId));
     }
-    final msgs = ref.watch(messagesProvider(chat.chatId)).value ?? const [];
-    // A remote delete stays in history so it cannot be replayed, and the
-    // conversation shows the previous message instead of a placeholder.
-    final last = msgs.where((message) => !message.remotelyDeleted).lastOrNull;
+    // The newest saved message, or a send still on its way: a message shows
+    // here the moment it is sent. A remote delete stays in history so it
+    // cannot be replayed, and the row shows the message before it instead.
+    final latest = ref.watch(chatPreviewProvider(chat.chatId));
+    final last = latest?.message;
     final t = FireplaceUiTokens.of(context);
     final scheme = Theme.of(context).colorScheme;
     final preview = held
@@ -97,7 +99,9 @@ class ChatTile extends ConsumerWidget {
               : 'Encrypted chat')
         // "(not confirmed)" comes first so the ellipsis never hides it.
         : (last.outgoing
-                  ? (last.status == MessageStatus.unconfirmed
+                  ? (latest!.notSent
+                        ? 'You (not sent): '
+                        : last.status == MessageStatus.unconfirmed
                         ? 'You (not confirmed): '
                         : 'You: ')
                   : '') +

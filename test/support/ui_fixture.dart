@@ -242,6 +242,9 @@ class UiFixture {
   final FixtureSafety safety;
   final bool overrideAuth;
   bool hasBackup = false, verified = false;
+
+  /// The app's clock in this fixture; a test may move it on.
+  DateTime now = fixtureTime;
   Map<String, List<int>> alerts = {};
   List<String> freshDevices = [];
   Set<String> blocked = {};
@@ -252,7 +255,7 @@ class UiFixture {
   final MemorySecretStore secrets;
   List<Override> get overrides => [
     appSessionProvider.overrideWithValue(AsyncData(session)),
-    messageControlNowProvider.overrideWithValue(() => fixtureTime),
+    messageControlNowProvider.overrideWithValue(() => now),
     secretStoreProvider.overrideWithValue(secrets),
     peerUsernameProvider.overrideWith(
       (ref, peer) => names[peer] ?? Future.value(peer),
