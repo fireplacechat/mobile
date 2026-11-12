@@ -53,6 +53,51 @@ All app imports use `package:fireplace/...`. Top-level startup wiring can assemb
 4. `model/chat/message_receiver.dart` decrypts, reads the plaintext with `message_payload.dart`, journals through `model/chat/receive_journal.dart`, and saves the message in `db/encrypted_message_store.dart` (a snapshot per chat plus, for long chats, `db/history_log.dart`).
 5. Screens read local history. The server receives ciphertext for messaging. Message text is not copied into a report.
 
+```mermaid
+flowchart TD
+  screen["view/chat/chat_screen.dart"]
+  send["model/chat/send_controller.dart"]
+  limits["model/chat/message_limits.dart"]
+  reactions["model/chat/pending_reactions.dart"]
+  service["model/chat/chat_service.dart"]
+  sender["model/chat/message_sender.dart"]
+  mode["send_mode.dart"]
+  devices["device_cache.dart"]
+  payload["message_payload.dart"]
+  envelope["envelope_encryption.dart"]
+  session["crypto/session.dart"]
+  store["session_store.dart"]
+  errors["publish_errors.dart"]
+  uncertain["uncertain send, kept for confirmation or retry"]
+  server["server receives ciphertext"]
+  receiver["model/chat/message_receiver.dart"]
+  journal["model/chat/receive_journal.dart"]
+  saved["db/encrypted_message_store.dart"]
+  history["db/history_log.dart"]
+  screens["screens read local history"]
+
+  screen --> send
+  screen --> reactions
+  send --> limits
+  send --> service
+  service --> sender
+  sender --> mode
+  sender --> devices
+  sender --> payload
+  payload --> envelope
+  envelope --> session
+  sender --> store
+  sender --> errors
+  errors --> uncertain
+  errors --> server
+  server --> receiver
+  receiver --> payload
+  receiver --> journal
+  receiver --> saved
+  saved --> history
+  saved --> screens
+```
+
 Firestore stores public keys, ciphertext and account/chat metadata. Secure storage holds device keys and ratchet state. Encrypted local files hold history and preferences. Providers assemble these resources and manage their lifecycle.
 
 ## Session lifecycle
