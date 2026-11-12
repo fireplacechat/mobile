@@ -18,6 +18,14 @@ Future<void> drain() async {
   }
 }
 
+/// Waits until [done] holds, for at most five seconds. A fixed wait failed
+/// on a busy CI machine before the unread counts had been worked out.
+Future<void> until(bool Function() done) async {
+  for (var i = 0; i < 500 && !done(); i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+  }
+}
+
 void main() {
   for (final raw in [
     '!!!bad!!!',
@@ -113,7 +121,9 @@ void main() {
     final c = ProviderContainer(overrides: f.overrides);
     addTearDown(c.dispose);
     c.listen(chatActivityProvider, (_, _) {});
-    await drain();
+    await until(
+      () => c.read(chatActivityProvider).unread['alice_fred'] != null,
+    );
     expect(c.read(chatActivityProvider).unread['alice_fred'], 0);
     await f.chat.store.add(
       message(
@@ -122,7 +132,7 @@ void main() {
         at: fixtureTime.subtract(const Duration(days: 90)),
       ),
     );
-    await drain();
+    await until(() => c.read(chatActivityProvider).unread['alice_fred'] == 1);
     expect(c.read(chatActivityProvider).unread['alice_fred'], 1);
     expect(c.read(chatActivityProvider).arrivals.single.id, 'new-old-time');
     // A concurrent initial snapshot/reopen must never absorb a later arrival.
@@ -139,13 +149,13 @@ void main() {
     await prefs.mute('alice_fred', true);
     await prefs.previews(false);
     await c.read(chatActivityProvider.notifier).resetPreferences();
-    await drain();
+    await until(() => c.read(chatActivityProvider).unread['alice_fred'] == 0);
     expect(c.read(chatActivityProvider).unread['alice_fred'], 0);
     expect(prefs.muted, isEmpty);
     expect(prefs.previewText, isTrue);
     expect(await f.chat.store.get('alice_fred', 'new-old-time'), isNotNull);
     await f.chat.store.add(message(id: 'after-reset', body: 'later'));
-    await drain();
+    await until(() => c.read(chatActivityProvider).unread['alice_fred'] == 1);
     expect(c.read(chatActivityProvider).unread['alice_fred'], 1);
     await prefs.close();
   });
