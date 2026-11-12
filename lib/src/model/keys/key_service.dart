@@ -85,6 +85,15 @@ class KeyService {
   CollectionReference<Map<String, dynamic>> _devices(String uid) =>
       _db.collection('users').doc(uid).collection('devices');
 
+  /// This device's keys if it has them, or null; never creates a device. For
+  /// the background push handler, which must not register anything.
+  Future<LocalDevice?> existingDevice(String uid) async {
+    for (final name in ['identity:$uid', 'device:$uid', 'bundle:$uid']) {
+      if (await _store.read(name) == null) return null;
+    }
+    return ensureDevice(uid);
+  }
+
   /// Loads this device's keys, or generates and publishes them on first run.
   Future<LocalDevice> ensureDevice(String uid) async {
     _bindAccount(uid);

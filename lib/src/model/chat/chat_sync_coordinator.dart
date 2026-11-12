@@ -13,7 +13,12 @@ class ChatSyncCoordinator {
     required this.chatPreferences,
     required this.store,
     required this.isStopped,
+    this.onLiveChats,
   });
+
+  /// Called with the chats being received after each change, so the push
+  /// handler knows which chats it may receive (decision 0030).
+  final void Function(Set<String> chatIds)? onLiveChats;
 
   final String uid;
   final SafetyService safety;
@@ -76,6 +81,7 @@ class ChatSyncCoordinator {
       }
       _syncs.putIfAbsent(id, () => chat.startSync(id));
     }
+    if (!isStopped()) onLiveChats?.call(_syncs.keys.toSet());
   }
 
   Future<void> stop() async {
