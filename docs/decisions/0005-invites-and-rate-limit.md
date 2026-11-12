@@ -12,6 +12,7 @@ Date: 2026-10-03. Status: accepted. Responds to the cost/abuse analysis in `docs
 ## Send pacing
 - Every message is written in a batch together with the sender's clock `users/{uid}/limits/send` set to the server time. The rules require the previous value to be at least 500 ms older, **per account across all chats**, and the new value to equal `request.time` (cannot be forged or skipped).
 - Honest use never gets close: the app waits 700 ms between sends and retries once if the server still refuses.
+- *Since decision 0028 (backend 0015): up to 20 messages per 10-second window and 2,000 a day, instead of the 500 ms gap; the app sends a burst without waiting.*
 - Bound: at most 2 messages/second per account = 172,800/day. Combined with invites, total possible write volume is (number of accounts) x that, and the operator controls the number of accounts and can ban any one.
 - Cost for honest users: one extra write per message (the clock); the chat list timestamp is now bumped at most once per minute, which removes most of the old second write.
 

@@ -31,12 +31,13 @@ import 'package:fireplace/src/model/safety/safety_service.dart';
 export 'package:fireplace/src/model/chat/chat_exceptions.dart';
 export 'package:fireplace/src/model/chat/chat_summary.dart';
 
-/// Encrypts/decrypts messages and moves ciphertext through Firestore.
-/// Plaintext never leaves this class except into the on-device [LocalMessageStore].
-/// How long the server keeps a message. Each message carries an `expireAt` this far ahead, and a
-/// Firestore TTL policy on that field deletes it. Messages live on in the recipients' own phones.
+/// How long the server keeps a message. Each message carries an `expireAt` this far ahead,
+/// after which the server copy may be deleted (backend decision 0010: an operator purge
+/// today; an automatic TTL is planned). Messages live on in the recipients' own phones.
 const messageRetention = Duration(days: 30);
 
+/// Encrypts/decrypts messages and moves ciphertext through Firestore.
+/// Plaintext never leaves this class except into the on-device [LocalMessageStore].
 class ChatService {
   ChatService({
     required FirebaseFirestore db,
@@ -315,9 +316,9 @@ class ChatService {
   static Session? pickSession(List<Session> sessions) =>
       SessionStore.pickSession(sessions);
 
-  static Duration get sendGap => ChatTuning.sendGap;
-  static set sendGap(Duration value) {
-    ChatTuning.sendGap = value;
+  static bool get pacing => ChatTuning.pacing;
+  static set pacing(bool value) {
+    ChatTuning.pacing = value;
   }
 
   /// Contacts whose changed identity is blocking messages, with the NEW identity key.

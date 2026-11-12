@@ -16,6 +16,7 @@ import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_payload.dart';
 import 'package:fireplace/src/model/chat/publish_errors.dart';
 import 'package:fireplace/src/model/chat/receive_journal.dart';
+import 'package:fireplace/src/model/chat/send_allowance.dart';
 import 'package:fireplace/src/model/chat/send_mode.dart';
 import 'package:fireplace/src/model/chat/session_store.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
@@ -76,9 +77,7 @@ class MessageSender {
   final String Function(String chatId) peerOf;
   final Duration messageRetention;
 
-  Duration get sendGap => ChatTuning.sendGap;
-
-  DateTime? _lastPublish;
+  final _allowance = SendAllowance();
 
   /// When this device last started a chat-list bump. The server timestamp can
   /// still be the old one when the next message is sent, and a second bump
@@ -138,6 +137,9 @@ class MessageSender {
       uid: uid,
       changesMessage: mutation != null || quote != null,
     );
+    if (_allowance.capReached) {
+      throw ChatException(dailyLimitText(_allowance.dayEnds!));
+    }
 
     // 3. Encrypt for every device.
     final List<DeviceBundle> peerDevices;
@@ -180,17 +182,16 @@ class MessageSender {
       'senderDevice': device.keys.deviceId,
       'ts': FieldValue.serverTimestamp(),
       'envelopes': sealed.envelopes,
-      // The server copy is deleted 30 days after sending (Firestore TTL policy on this field).
+      // After this the server copy may be deleted (backend decision 0010: an operator
+      // purge today; an automatic TTL is planned).
       'expireAt': Timestamp.fromDate(DateTime.now().add(messageRetention)),
     };
     final lastBump = (chat['lastMessageAt'] as Timestamp?)?.toDate();
 
     // 4. Save ahead, then 5. publish.
     final undo = await _sess.saveAhead(sealed.advanced);
-    await _pace();
     try {
       await _publishPaced(ref, doc, chatRef, mode);
-      _lastPublish = DateTime.now();
     } on FirebaseException catch (e) {
       if (!definitelyNotPublished.contains(e.code)) {
         // Network lost, timeout: the message may exist.
@@ -271,44 +272,84 @@ class MessageSender {
     return (await chatRef.get()).data() ?? const {};
   }
 
-  /// Waits until this device's previous publish is [sendGap] old, to stay
-  /// under the server's pacing rule.
-  Future<void> _pace() async {
-    final last = _lastPublish;
-    if (last == null) return;
-    final wait = sendGap - DateTime.now().difference(last);
-    if (wait > Duration.zero) await Future<void>.delayed(wait);
-  }
-
-  /// Publishes the message, this account's send clock (the rules' rate limit)
-  /// and, for requests, the chat change, in one atomic batch. A refusal may
-  /// be the pacing rule (clock skew, a second device), so it is tried once
-  /// more after a pause.
+  /// Publishes the message, this account's send clock (the rules' rate
+  /// limit) and, for requests, the chat change, in one atomic batch.
+  ///
+  /// The clock form comes from [SendAllowance]. A refused clock may be a
+  /// wrong guess (another device opened a window or day, the clocks differ),
+  /// so the other forms are tried at once. If the server refuses them all, it
+  /// may still be on the older rule: the older form is tried after its gap,
+  /// and used from then on. A refusal for another reason (a block, the daily
+  /// cap reached on another device) fails every form and is reported as
+  /// before.
   Future<void> _publishPaced(
     DocumentReference<Map<String, dynamic>> ref,
     Map<String, Object> doc,
     DocumentReference<Map<String, dynamic>> chatRef,
     SendMode mode,
   ) async {
-    Future<void> publish() {
-      final batch = _db.batch()
-        ..set(ref, doc)
-        ..set(
-          _db.collection('users').doc(uid).collection('limits').doc('send'),
-          {'at': FieldValue.serverTimestamp()},
-        );
+    final limit = _db
+        .collection('users')
+        .doc(uid)
+        .collection('limits')
+        .doc('send');
+    Future<void> publish(SendClock clock) {
+      final at = FieldValue.serverTimestamp();
+      final one = FieldValue.increment(1);
+      final batch = _db.batch()..set(ref, doc);
+      switch (clock) {
+        case SendClock.day:
+          batch.set(limit, {
+            'at': at,
+            'window': at,
+            'sent': 1,
+            'day': at,
+            'today': 1,
+          });
+        case SendClock.window:
+          batch.update(limit, {
+            'at': at,
+            'window': at,
+            'sent': 1,
+            'today': one,
+          });
+        case SendClock.next:
+          batch.update(limit, {'at': at, 'sent': one, 'today': one});
+        case SendClock.legacy:
+          batch.set(limit, {'at': at});
+      }
       final change = mode.chatChange;
       if (change != null) batch.update(chatRef, change);
       return _commitBatch(batch);
     }
 
-    try {
-      await publish();
-    } on FirebaseException catch (e) {
-      if (e.code != 'permission-denied' || sendGap == Duration.zero) rethrow;
-      await Future<void>.delayed(const Duration(milliseconds: 900));
-      await publish();
+    bool refused(FirebaseException e) =>
+        ChatTuning.pacing &&
+        (e.code == 'permission-denied' || e.code == 'not-found');
+
+    final wait = _allowance.wait;
+    if (wait > Duration.zero) await Future<void>.delayed(wait);
+    final startedAt = DateTime.now();
+    final guess = _allowance.next;
+    for (final clock in [guess, ...guess.others]) {
+      try {
+        await publish(clock);
+        _allowance.published(clock, startedAt);
+        return;
+      } on FirebaseException catch (e) {
+        if (!refused(e)) rethrow;
+      }
     }
+    // Every form was refused. The older form is tried once more after a
+    // pause (pacing, clock skew), or for the first time on a server that may
+    // still be on the older rule.
+    await Future<void>.delayed(
+      guess == SendClock.legacy
+          ? const Duration(milliseconds: 900)
+          : ChatTuning.legacySendGap,
+    );
+    await publish(SendClock.legacy);
+    _allowance.published(SendClock.legacy, startedAt);
   }
 
   /// Moves the chat up the chat list at most once a minute. Requests already

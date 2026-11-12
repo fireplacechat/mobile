@@ -1,15 +1,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:fireplace/fireplace_services.dart';
+import 'package:fireplace/src/model/chat/chat_tuning.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+FirebaseException refusal() =>
+    FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied');
 
 void main() {
   late FakeFirebaseFirestore db;
   late ChatService alice;
   const chatId = 'alice_bob';
+  // Decides each publish attempt: true lets it commit, false refuses it as
+  // the server's rules would.
+  late bool Function(int attempt) accept;
+  var attempts = 0;
 
   setUp(() async {
     db = FakeFirebaseFirestore();
+    attempts = 0;
+    accept = (_) => true;
     for (final u in ['alice', 'bob']) {
       await db.collection('usernames').doc(u).set({'uid': u});
       await db.collection('users').doc(u).set({'username': u});
@@ -28,6 +38,10 @@ void main() {
         prekeys: prekeys,
         secrets: secrets,
         messages: MemoryMessageStore(),
+        commitBatch: (batch) {
+          attempts++;
+          return accept(attempts) ? batch.commit() : Future.error(refusal());
+        },
       );
     }
 
@@ -40,37 +54,132 @@ void main() {
       'lastMessageAt': Timestamp.now(),
     });
   });
-  tearDown(() => ChatService.sendGap = Duration.zero);
+  tearDown(() {
+    ChatTuning.pacing = false;
+    ChatTuning.sendBurst = 20;
+    ChatTuning.sendWindow = const Duration(seconds: 10);
+    ChatTuning.legacySendGap = const Duration(milliseconds: 700);
+    ChatTuning.sendDailyCap = 2000;
+  });
+
+  Future<Map<String, dynamic>> clock() async =>
+      (await db.doc('users/alice/limits/send').get()).data()!;
+
+  test('the first message opens a day and the next ones count in it', () async {
+    await alice.sendText(chatId, 'one');
+    final opened = await clock();
+    expect(opened.keys.toSet(), {'at', 'window', 'sent', 'day', 'today'});
+    expect(opened['sent'], 1);
+    expect(opened['today'], 1);
+    await alice.sendText(chatId, 'two');
+    await alice.sendText(chatId, 'three');
+    final now = await clock();
+    expect(now['sent'], 3);
+    expect(now['today'], 3);
+    expect(now['window'], opened['window'], reason: 'the same window');
+    expect(now['day'], opened['day'], reason: 'the same day');
+  });
 
   test(
-    'every message is published together with the sender\'s send clock',
+    'at this device\'s daily cap a send stops before anything is sent',
     () async {
+      ChatTuning.sendDailyCap = 2;
       await alice.sendText(chatId, 'one');
-      final clock = await db.doc('users/alice/limits/send').get();
-      expect(clock.exists, isTrue);
-      expect(clock.data()!.keys, ['at']);
-      expect(clock.data()!['at'], isNotNull);
+      await alice.sendText(chatId, 'two');
+      await expectLater(
+        alice.sendText(chatId, 'three'),
+        throwsA(
+          isA<ChatException>().having(
+            (e) => e.message,
+            'message',
+            contains('most messages allowed in a day'),
+          ),
+        ),
+      );
+      expect(attempts, 2, reason: 'nothing published for the third');
     },
   );
 
-  test('sends are spaced out so the server\'s 500 ms rule is never hit', () async {
-    // A long gap keeps wide margins: the first send's own work (key agreement,
-    // encryption) can take a few hundred ms on a cold or slow machine.
-    ChatService.sendGap = const Duration(milliseconds: 1500);
+  test('a wrong guess is corrected at once by another form', () async {
+    ChatTuning.pacing = true;
+    // Another device of this account opened a day a moment ago.
+    await db.doc('users/alice/limits/send').set({
+      'at': Timestamp.now(),
+      'window': Timestamp.now(),
+      'sent': 4,
+      'day': Timestamp.now(),
+      'today': 4,
+    });
+    accept = (attempt) => attempt != 1; // the server refuses a second day
+    await alice.sendText(chatId, 'hi');
+    expect(attempts, 2);
+    expect((await clock())['today'], 5, reason: 'counted in that day');
+  });
+
+  test(
+    'a server still on the older rule gets the older form from then on',
+    () async {
+      ChatTuning.pacing = true;
+      ChatTuning.legacySendGap = const Duration(milliseconds: 10);
+      accept = (attempt) => attempt > 3; // all three new forms are refused
+      await alice.sendText(chatId, 'one');
+      expect(attempts, 4);
+      expect((await clock()).keys, ['at']);
+      await alice.sendText(chatId, 'two');
+      expect(attempts, 5, reason: 'no new form tried again');
+      expect((await clock()).keys, ['at']);
+    },
+  );
+
+  test(
+    'a refusal for another reason fails every form and publishes nothing',
+    () async {
+      ChatTuning.pacing = true;
+      ChatTuning.legacySendGap = const Duration(milliseconds: 10);
+      accept = (_) => false;
+      await expectLater(
+        alice.sendText(chatId, 'blocked'),
+        throwsA(isA<ChatException>()),
+      );
+      expect(attempts, 4);
+      expect(
+        (await db.collection('chats/$chatId/messages').get()).docs,
+        isEmpty,
+      );
+    },
+  );
+
+  test('a burst goes out without waiting', () async {
+    ChatTuning.pacing = true;
     final sw = Stopwatch()..start();
-    await alice.sendText(chatId, 'one');
-    final afterFirst = sw.elapsedMilliseconds;
-    await alice.sendText(chatId, 'two');
-    await alice.sendText(chatId, 'three');
-    expect(
-      afterFirst,
-      lessThan(1200),
-    ); // the first send never waits for the gap
-    expect(
-      sw.elapsedMilliseconds,
-      greaterThanOrEqualTo(2900),
-    ); // two gaps of ~1500 ms
+    for (var i = 0; i < 5; i++) {
+      await alice.sendText(chatId, 'quick $i');
+    }
+    // The older rule needed at least four gaps of 700 ms here.
+    expect(sw.elapsed, lessThan(const Duration(milliseconds: 2800)));
   }, tags: 'timing');
+
+  test(
+    'once a burst is used up, the next message waits for the window to end',
+    () async {
+      ChatTuning.pacing = true;
+      ChatTuning.sendBurst = 2;
+      ChatTuning.sendWindow = const Duration(milliseconds: 1500);
+      final sw = Stopwatch()..start();
+      await alice.sendText(chatId, 'one');
+      await alice.sendText(chatId, 'two');
+      expect(sw.elapsed, lessThan(const Duration(milliseconds: 1500)));
+      await alice.sendText(chatId, 'three');
+      expect(
+        sw.elapsed,
+        greaterThanOrEqualTo(const Duration(milliseconds: 1500)),
+      );
+      final now = await clock();
+      expect(now['sent'], 1, reason: 'a new window');
+      expect(now['today'], 3, reason: 'in the same day');
+    },
+    tags: 'timing',
+  );
 
   test('the chat list timestamp is not rewritten for every message', () async {
     final before = (await db.doc('chats/$chatId').get())
