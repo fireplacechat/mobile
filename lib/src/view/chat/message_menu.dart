@@ -1,4 +1,5 @@
 import 'package:fireplace/src/model/chat/message_compose_target.dart';
+import 'package:fireplace/src/model/chat/pending_reactions.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
@@ -82,7 +83,7 @@ List<MessageAction> messageMenuActions(
           selected: message.reactions[owner?.uid]?.emoji == emoji,
           onSelected: () => run(
             () => ref
-                .read(messageControlsProvider(chatId()).notifier)
+                .read(pendingReactionsProvider(chatId()).notifier)
                 .react(message.id, emoji),
           ),
         ),
@@ -94,7 +95,7 @@ List<MessageAction> messageMenuActions(
         recentEmoji: _recentReactions(ref, chatId(), owner?.uid),
         onEmoji: (emoji) => run(
           () => ref
-              .read(messageControlsProvider(chatId()).notifier)
+              .read(pendingReactionsProvider(chatId()).notifier)
               .react(message.id, emoji),
         ),
         onSelected: () {},

@@ -26,8 +26,6 @@ class MessageControls extends Notifier<MessageControlState> {
   Future<bool> edit(String id, String body) =>
       _run((chat) => chat.editMessage(chatId, id, body));
 
-  Future<void> react(String id, String emoji) =>
-      _run((chat) => chat.react(chatId, id, emoji));
   Future<bool> delete(String id) =>
       _run((chat) => chat.deleteForEveryone(chatId, id));
 

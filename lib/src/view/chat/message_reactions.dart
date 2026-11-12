@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/model/chat/pending_reactions.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_controls.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
@@ -107,7 +108,7 @@ class MessageReactions extends ConsumerWidget {
                       builder: (ctx) => Consumer(
                         builder: (ctx, sheetRef, _) {
                           final current = sheetRef
-                              .watch(messagesProvider(message.chatId))
+                              .watch(shownMessagesProvider(message.chatId))
                               .value
                               ?.where((m) => m.id == message.id)
                               .firstOrNull;
@@ -155,7 +156,7 @@ class MessageReactions extends ConsumerWidget {
                                                 Navigator.pop(ctx);
                                                 ref
                                                     .read(
-                                                      messageControlsProvider(
+                                                      pendingReactionsProvider(
                                                         message.chatId,
                                                       ).notifier,
                                                     )
