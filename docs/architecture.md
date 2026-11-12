@@ -63,7 +63,7 @@ Firestore stores public keys, ciphertext and account/chat metadata. Secure stora
 
 ## Feature responsibilities
 
-Shared presentation widgets live in `widgets/`; the message bubble and day separator live in `view/chat/widgets/`.
+Shared presentation widgets live in `widgets/`; the message bubble and day separator live in `view/chat/widgets/`. `message_bubble_body.dart` draws the quote, text and time inside the bubble.
 
 Recovery-key, device-linking and password-change flows live in `view/recovery/`, `view/devices/` and `view/account/`.
 
