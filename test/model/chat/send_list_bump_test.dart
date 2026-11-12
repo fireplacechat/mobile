@@ -14,9 +14,9 @@ void main() {
   var bumps = 0;
 
   setUp(() async {
-    final previousGap = ChatService.sendGap;
-    ChatService.sendGap = Duration.zero;
-    addTearDown(() => ChatService.sendGap = previousGap);
+    final previousPacing = ChatService.pacing;
+    ChatService.pacing = false;
+    addTearDown(() => ChatService.pacing = previousPacing);
     db = FakeFirebaseFirestore();
     messages = MemoryMessageStore();
     for (final u in ['alice', 'bob']) {

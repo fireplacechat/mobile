@@ -315,9 +315,9 @@ class ChatService {
   static Session? pickSession(List<Session> sessions) =>
       SessionStore.pickSession(sessions);
 
-  static Duration get sendGap => ChatTuning.sendGap;
-  static set sendGap(Duration value) {
-    ChatTuning.sendGap = value;
+  static bool get pacing => ChatTuning.pacing;
+  static set pacing(bool value) {
+    ChatTuning.pacing = value;
   }
 
   /// Contacts whose changed identity is blocking messages, with the NEW identity key.
