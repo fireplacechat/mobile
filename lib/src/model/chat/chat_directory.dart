@@ -3,6 +3,7 @@ import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/safety/safety_service.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/chat_summary.dart';
+import 'package:fireplace/src/model/common/daily_counter.dart';
 
 class ChatDirectory {
   ChatDirectory(this._db, this._messages, this.uid, this._safety);
@@ -11,6 +12,9 @@ class ChatDirectory {
   final LocalMessageStore _messages;
   final SafetyService? _safety;
   final String uid;
+
+  /// New chats started per day (backend decision 0017: at most 50).
+  late final _newChats = DailyCounter(_db, uid, 'chats');
 
   static String chatIdFor(String a, String b) {
     final s = [a, b]..sort();
@@ -43,17 +47,25 @@ class ChatDirectory {
     final ref = _db.collection('chats').doc(chatId);
     if (!(await ref.get()).exists) {
       try {
-        await ref.set({
-          'participants': [uid, peerUid]..sort(),
-          'initiator': uid,
-          'accepted': false,
-          'requestCount': 0,
-          'createdAt': FieldValue.serverTimestamp(),
-          'lastMessageAt': FieldValue.serverTimestamp(),
+        await _newChats.withCount((add) {
+          final batch = _db.batch()
+            ..set(ref, {
+              'participants': [uid, peerUid]..sort(),
+              'initiator': uid,
+              'accepted': false,
+              'requestCount': 0,
+              'createdAt': FieldValue.serverTimestamp(),
+              'lastMessageAt': FieldValue.serverTimestamp(),
+            });
+          add(CounterWrite.batch(batch));
+          return batch.commit();
         });
       } on FirebaseException catch (e) {
-        if (e.code == 'permission-denied') {
-          throw ChatException('You cannot start a chat with @$name.');
+        if (e.code == 'permission-denied' || e.code == 'not-found') {
+          throw ChatException(
+            'You cannot start a chat with @$name. If you have started many '
+            'new chats today, try again tomorrow.',
+          );
         }
         rethrow;
       }
