@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:fireplace/src/styles/brand/fireflies.dart';
 import 'package:fireplace/src/styles/brand/logo.dart';
 import 'package:fireplace/src/styles/brand/lockup_data.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
@@ -224,6 +225,15 @@ class FireplaceSplash extends StatelessWidget {
       body: Stack(
         fit: StackFit.expand,
         children: [
+          // Decoration while loading only; an error screen stays calm.
+          if (actions.isEmpty)
+            Fireflies(
+              style: dark ? FireflyStyle.dark : FireflyStyle.light,
+              clearOf: Size(
+                lockupLogicalWidth,
+                FireplaceLockup.heightFor(lockupLogicalWidth),
+              ),
+            ),
           // Match the centered native lockup on iOS and Android <= 11. Android 12+
           // shows a system flame-only splash. These outlines come from the approved
           // wallpaper artwork, without decoding or caching its roughly 17 MiB bitmap.
