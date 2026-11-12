@@ -251,6 +251,25 @@ void main() {
         },
       );
 
+      test(
+        'message previews are on by default, stay on the device and persist',
+        () async {
+          final s = service();
+          await s.startAtLaunch();
+          expect(await s.showsPreview(), isTrue);
+          final before = (await db.doc(doc).get()).data();
+          await s.setShowPreview(false);
+          expect(await s.showsPreview(), isFalse);
+          // The server is never told: the registration is unchanged.
+          expect((await db.doc(doc).get()).data(), before);
+          expect(before!.containsKey('preview'), isFalse);
+          // Another instance (the next launch) reads the same choice.
+          expect(await service().showsPreview(), isFalse);
+          await s.setShowPreview(true);
+          expect(await service().showsPreview(), isTrue);
+        },
+      );
+
       test('changing the name preference while off writes nothing', () async {
         final s = service();
         await s.setShowName(false);

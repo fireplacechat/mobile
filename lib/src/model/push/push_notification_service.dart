@@ -115,6 +115,7 @@ class PushNotificationService {
        _askedKey = 'pushasked:$uid',
        _hideNameKey = 'pushhidename:$uid',
        _silentKey = 'pushsilent:$uid',
+       _noPreviewKey = 'pushnopreview:$uid',
        _isApplePlatform = isApplePlatform ?? Platform.isIOS,
        _platform = platform ?? (Platform.isIOS ? 'ios' : 'android'),
        _apnsTokenWait = apnsTokenWait,
@@ -128,7 +129,7 @@ class PushNotificationService {
   // Device-local choices. They are not secrets, but this store is already
   // per-install, survives restarts and is wiped with the account.
   final SecretStore _prefs;
-  final String _optOutKey, _askedKey, _hideNameKey, _silentKey;
+  final String _optOutKey, _askedKey, _hideNameKey, _silentKey, _noPreviewKey;
   final bool _isApplePlatform;
   final String _platform;
   final Duration _apnsTokenWait;
@@ -285,6 +286,14 @@ class PushNotificationService {
   Future<bool> playsSound() async => await _prefs.read(_silentKey) == null;
 
   Future<void> setSound(bool value) => _setFlag(_silentKey, off: !value);
+
+  /// Whether alerts on this device show what arrived (default) instead of
+  /// "New Message" (decision 0030). The phone decides this after decrypting,
+  /// so it stays on the device: the server is never told.
+  Future<bool> showsPreview() async => await _prefs.read(_noPreviewKey) == null;
+
+  Future<void> setShowPreview(bool value) =>
+      value ? _prefs.delete(_noPreviewKey) : _prefs.write(_noPreviewKey, '1');
 
   Future<void> _setFlag(String key, {required bool off}) async {
     if (off) {

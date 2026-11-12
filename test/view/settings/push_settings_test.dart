@@ -70,12 +70,13 @@ void main() {
     addTearDown(messaging.refresh.close);
   });
 
-  Future<void> pump(WidgetTester tester) async {
+  Future<void> pump(WidgetTester tester, {bool previews = false}) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           systemNotificationsProvider.overrideWithValue(system),
-          appleWordingProvider.overrideWithValue(true),
+          appleWordingProvider.overrideWithValue(!previews),
+          notificationPreviewAvailableProvider.overrideWithValue(previews),
         ],
         child: MaterialApp(
           home: Scaffold(
@@ -134,6 +135,40 @@ void main() {
       (await db.doc('users/alice/pushTokens/alice-device-1').get())
           .data()?['sound'],
       isFalse,
+    );
+  });
+
+  testWidgets('message previews: on by default, Android only, kept', (
+    tester,
+  ) async {
+    await pump(tester);
+    expect(find.byKey(const Key('pushPreview')), findsNothing);
+
+    await pump(tester, previews: true);
+    expect(find.text('Show message preview'), findsOneWidget);
+    expect(switchValue(tester, 'pushPreview'), isTrue, reason: 'default on');
+    expect(
+      enabled(tester, 'pushPreview'),
+      isFalse,
+      reason: 'off until allowed',
+    );
+    await tester.tap(find.byKey(const Key('pushSwitch')));
+    await settle(tester);
+    expect(enabled(tester, 'pushPreview'), isTrue);
+    final registration = (await tester.runAsync(
+      () => db.doc('users/alice/pushTokens/alice-device-1').get(),
+    ))!.data();
+
+    await tester.tap(find.byKey(const Key('pushPreview')));
+    await settle(tester);
+    expect(switchValue(tester, 'pushPreview'), isFalse);
+    expect(await tester.runAsync(service.showsPreview), isFalse);
+    // Stored on the device only: the server's copy did not change.
+    expect(
+      (await tester.runAsync(
+        () => db.doc('users/alice/pushTokens/alice-device-1').get(),
+      ))!.data(),
+      registration,
     );
   });
 
