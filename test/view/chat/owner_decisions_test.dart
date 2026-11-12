@@ -252,6 +252,14 @@ void main() {
       );
       await t.ensureVisible(find.byKey(const Key('notificationPreviews')));
       await t.pumpAndSettle();
+      // The owner's name for it (v0.3.6).
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('notificationPreviews')),
+          matching: find.text('In-App Notifications'),
+        ),
+        findsOneWidget,
+      );
       await t.tap(find.byKey(const Key('notificationPreviews')));
       await settleUi(t);
       expect(container(t).read(chatActivityProvider).previewText, isFalse);

@@ -166,7 +166,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     SwitchListTile(
                       key: const Key('notificationPreviews'),
                       secondary: const Icon(Icons.chat_bubble_outline),
-                      title: const Text('Show message text'),
+                      title: const Text('In-App Notifications'),
                       value: ref.watch(chatActivityProvider).previewText,
                       onChanged: _busy || !activity.preferencesAvailable
                           ? null

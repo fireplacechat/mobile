@@ -204,9 +204,9 @@ Someone who takes a phone in that state and can attack it while locked faces a
 weaker barrier than today. A phone that was turned off, or restarted and not
 yet unlocked, is as protected as now.
 
-- Still open, low priority: for everyone, or only while "Show message preview"
-  is on. Recommendation: only while it is on. To be asked when the iOS work
-  starts.
+- **For everyone** (owner, 2026-11-12), not only while "Show message preview"
+  is on: one keychain class, one migration, the same protection for every
+  install.
 - It fits the optional passphrase lock (#77, modelled on the Molly fork of
   Signal) and the encrypted database (#78). "After first unlock" is the default
   protection. With the passphrase lock on, the keys are wrapped with
