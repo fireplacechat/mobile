@@ -14,6 +14,10 @@ class _ChangedKeys extends Fake implements KeyService {
   @override
   Future<List<DeviceBundle>> fetchDevices(String uid) =>
       Future.error(IdentityChangedException(uid, List.filled(64, 1)));
+
+  @override
+  Stream<List<DeviceBundle>> watchDevices(String uid) =>
+      Stream.error(IdentityChangedException(uid, List.filled(64, 1)));
 }
 
 void main() {

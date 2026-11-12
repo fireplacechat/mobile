@@ -1,4 +1,5 @@
 import 'package:fireplace/src/view/chat/quote_navigation.dart';
+import 'package:fireplace/src/model/chat/pending_reactions.dart';
 import 'package:fireplace/src/view/chat/composer/message_composer_context.dart';
 import 'package:fireplace/src/model/chat/message_compose_target.dart';
 import 'package:fireplace/src/view/chat/chat_unavailable.dart';
@@ -61,6 +62,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    // The first message then finds the devices it encrypts to ready.
+    ref.read(appSessionProvider).value?.chat.prepareToSend(widget.chatId);
     _text = ChatDraftController(
       drafts: ref.read(chatDraftsProvider.notifier),
       chatId: widget.chatId,
@@ -252,7 +255,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final name = peerUid == null
         ? ''
         : ref.watch(peerUsernameProvider(peerUid)).value ?? '';
-    final messageState = ref.watch(messagesProvider(widget.chatId));
+    // Pending reactions show at once, before their send finishes.
+    final messageState = ref.watch(shownMessagesProvider(widget.chatId));
     final stored = messageState.value ?? const <LocalMessage>[];
     final blockState = ref.watch(blockedUidsProvider);
     if (blockState.isLoading || blockState.hasError || !blockState.hasValue) {

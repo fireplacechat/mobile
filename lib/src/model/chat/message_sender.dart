@@ -1,90 +1,72 @@
-import 'package:fireplace/src/model/chat/message_content.dart';
-import 'package:fireplace/src/db/message_quote.dart';
-
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import 'package:fireplace/src/crypto/device.dart';
-import 'package:fireplace/src/crypto/session.dart';
+import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/db/message_mutation.dart';
+import 'package:fireplace/src/db/message_quote.dart';
+import 'package:fireplace/src/model/chat/async_mutex.dart';
+import 'package:fireplace/src/model/chat/chat_exceptions.dart';
+import 'package:fireplace/src/model/chat/chat_tuning.dart';
+import 'package:fireplace/src/model/chat/envelope_encryption.dart';
+import 'package:fireplace/src/model/chat/identity_alerts.dart';
+import 'package:fireplace/src/model/chat/message_content.dart';
+import 'package:fireplace/src/model/chat/message_limits.dart';
+import 'package:fireplace/src/model/chat/message_payload.dart';
+import 'package:fireplace/src/model/chat/publish_errors.dart';
+import 'package:fireplace/src/model/chat/receive_journal.dart';
+import 'package:fireplace/src/model/chat/send_mode.dart';
+import 'package:fireplace/src/model/chat/session_store.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/keys/prekey_service.dart';
 import 'package:fireplace/src/model/safety/safety_service.dart';
-import 'package:fireplace/src/db/local_messages.dart';
-import 'package:fireplace/src/db/message_mutation.dart';
-import 'package:fireplace/src/db/secret_store.dart';
-import 'package:fireplace/src/model/chat/message_limits.dart';
-import 'package:fireplace/src/model/chat/async_mutex.dart';
-import 'package:fireplace/src/model/chat/chat_exceptions.dart';
-import 'package:fireplace/src/model/chat/session_store.dart';
-import 'package:fireplace/src/model/chat/receive_journal.dart';
-import 'package:fireplace/src/model/chat/identity_alerts.dart';
-import 'package:fireplace/src/model/chat/chat_tuning.dart';
 
+/// Sends messages and controls (reactions, edits, deletes). One send, under
+/// the session lock:
+///
+/// 1. finish any open receive journal, then prepare the content;
+/// 2. check the chat allows it ([SendMode]);
+/// 3. encrypt for the peer's and this account's other devices
+///    ([encryptForDevices]);
+/// 4. save the advanced ratchets ahead of publishing
+///    ([SessionStore.saveAhead]);
+/// 5. publish one batch, paced for the server's rate rule;
+/// 6. record the message in local history.
+///
+/// A definite refusal puts the ratchets back and says nothing was sent. An
+/// ambiguous failure keeps them and records the message as unconfirmed; it is
+/// never resent automatically.
 class MessageSender {
   MessageSender({
-    required FirebaseFirestore db,
+    required this._db,
     required KeyService keys,
-    required PreKeyService prekeys,
-    required SecretStore secrets,
-    required LocalMessageStore messages,
-    SafetyService? safety,
-    Future<void> Function(WriteBatch batch)? commitBatch,
-    Future<void> Function()? beforeChatListBump,
-    required String uid,
-    required LocalDevice device,
-    required AsyncMutex lock,
-    required SessionStore sess,
-    required ReceiveJournal journal,
-    required IdentityAlerts alerts,
-    required String Function(String chatId) peerOf,
-    required Duration messageRetention,
-  }) : this._(
-         db,
-         keys,
-         prekeys,
-         secrets,
-         messages,
-         safety,
-         commitBatch,
-         beforeChatListBump,
-         uid,
-         device,
-         lock,
-         sess,
-         journal,
-         alerts,
-         peerOf,
-         messageRetention,
-       );
-
-  MessageSender._(
-    this._db,
-    this._keys,
-    this._prekeys,
-    this._secrets,
-    this._messages,
+    required this._prekeys,
+    required this._messages,
     this._safety,
-    this._commitBatch,
+    Future<void> Function(WriteBatch batch)? commitBatch,
     this._beforeChatListBump,
-    this.uid,
-    this.device,
-    this._lock,
-    this._sess,
-    this._journal,
-    this._alerts,
-    this.peerOf,
-    this.messageRetention,
-  );
+    Future<List<DeviceBundle>> Function(String uid)? devices,
+    this._knownChat,
+    required this.uid,
+    required this.device,
+    required this._lock,
+    required this._sess,
+    required this._journal,
+    required this._alerts,
+    required this.peerOf,
+    required this.messageRetention,
+  }) : _commitBatch = commitBatch ?? ((b) => b.commit()),
+       _devicesOf = devices ?? keys.fetchDevices;
 
   final FirebaseFirestore _db;
-  final KeyService _keys;
   final PreKeyService _prekeys;
-  final SecretStore _secrets;
   final LocalMessageStore _messages;
   final SafetyService? _safety;
-  final Future<void> Function(WriteBatch batch)? _commitBatch;
+  final Future<void> Function(WriteBatch batch) _commitBatch;
   final Future<void> Function()? _beforeChatListBump;
+  final Future<List<DeviceBundle>> Function(String uid) _devicesOf;
+  final Map<String, dynamic>? Function(String chatId)? _knownChat;
   final String uid;
   final LocalDevice device;
   final AsyncMutex _lock;
@@ -127,7 +109,7 @@ class MessageSender {
     MessageQuote? quote,
     String? replyTarget,
   }) => _lock.run(() async {
-    // A received message may have left a journal that was not fully applied. It holds a
+    // 1. A received message may have left a journal that was not fully applied. It holds a
     // snapshot of the session; replaying it AFTER this send would roll the ratchet back and
     // reuse a counter. So finish it first (if storage is still failing, the send fails
     // safely instead).
@@ -147,31 +129,20 @@ class MessageSender {
     if (_safety?.isBlocked(peerUid) ?? false) {
       throw ChatException('You blocked this person. Unblock them to message.');
     }
+
+    // 2. What the chat allows.
     final chatRef = _db.collection('chats').doc(chatId);
-    final chatData = (await chatRef.get()).data() ?? const {};
-    final initiator = chatData['initiator'] as String?;
-    final accepted = (chatData['accepted'] as bool?) ?? true;
-    if ((mutation != null || quote != null) && !accepted) {
-      throw ChatException(
-        'Accept this conversation before reacting or deleting for everyone.',
-      );
-    }
-    final sentInRequest = (chatData['requestCount'] as int?) ?? 0;
-    // 'request'  : I started it and they have not accepted yet (max 3 messages)
-    // 'accepting': they started it; replying accepts
-    // 'normal'   : accepted (or created before requests existed)
-    final mode = accepted
-        ? 'normal'
-        : (initiator == uid ? 'request' : 'accepting');
-    if (mode == 'request' && sentInRequest >= ChatTuning.requestLimit) {
-      throw ChatException(
-        'Waiting for them to accept your message request before you can '
-        'send more.',
-      );
-    }
+    final chat = await _chatState(chatId, chatRef);
+    final mode = SendMode.check(
+      chat,
+      uid: uid,
+      changesMessage: mutation != null || quote != null,
+    );
+
+    // 3. Encrypt for every device.
     final List<DeviceBundle> peerDevices;
     try {
-      peerDevices = await _keys.fetchDevices(peerUid);
+      peerDevices = await _devicesOf(peerUid);
     } on IdentityChangedException catch (e) {
       _alerts.set(e);
       rethrow;
@@ -179,184 +150,67 @@ class MessageSender {
     if (peerDevices.isEmpty) {
       throw ChatException('This user has no active devices yet.');
     }
-    final own = (await _keys.fetchDevices(uid))
+    final own = (await _devicesOf(uid))
         .where((d) => d.deviceId != device.keys.deviceId);
-    final plain = utf8.encode(
-      jsonEncode({
-        'v': quote != null || mutation?.kind == MessageMutationKind.edit
-            ? 3
-            : mutation == null
-            ? 1
-            : 2,
-        if (mutation == null) ...{
-          'type': 'text',
-          'body': text,
-          if (quote != null) 'quote': quote!.toJson(),
-        } else
-          ...mutation!.toJson(),
-        'ts': DateTime.now().millisecondsSinceEpoch,
-      }),
+    final sealed = await encryptForDevices(
+      sessions: _sess,
+      prekeys: _prekeys,
+      device: device,
+      targets: [...peerDevices, ...own],
+      plain: encodeMessagePayload(
+        text: text,
+        now: DateTime.now(),
+        quote: quote,
+        mutation: mutation,
+      ),
+      chatId: chatId,
     );
-
-    // Encrypt for every target but do NOT persist the advanced ratchets yet: if
-    // publishing fails, the keys must not be consumed.
-    final envelopes = <String, dynamic>{};
-    final skipped = <String>[];
-    final advanced = <(String, String, List<Session>)>[];
-    for (final target in [...peerDevices, ...own]) {
-      final sessions = await _sess.loadSessions(target.uid, target.deviceId);
-      var preferred = SessionStore.pickSession(sessions);
-      final stale =
-          preferred != null &&
-          !preferred.acknowledged &&
-          DateTime.now().difference(preferred.createdAt) >
-              ChatTuning.staleSessionAfter;
-      if (preferred == null || stale) {
-        try {
-          final bundle = await _prekeys.fetchBundle(target);
-          final (s, _) = await Session.initiate(
-            local: device.keys,
-            localBundle: device.bundle,
-            remote: bundle,
-          );
-          sessions.add(s);
-          preferred = s;
-        } on PreKeyException catch (e) {
-          // A device that never published prekeys (old install, never opened)
-          // must not block delivery to the contact's other devices.
-          if (preferred == null) {
-            skipped.add(e.message);
-            continue;
-          }
-          // otherwise keep using the older session
-        }
-        // forget long-dead unanswered sessions
-        sessions.removeWhere(
-          (x) =>
-              x != preferred &&
-              !x.acknowledged &&
-              DateTime.now().difference(x.createdAt) > ChatTuning.pruneAfter,
-        );
-      }
-      final env = await preferred.encrypt(plain, chatId: chatId);
-      advanced.add((target.uid, target.deviceId, sessions));
-      envelopes[target.deviceId] = env.toJson();
-    }
-
-    final reachedPeer = peerDevices.any(
-      (d) => envelopes.containsKey(d.deviceId),
-    );
-    if (!reachedPeer) {
+    if (!peerDevices.any((d) => sealed.envelopes.containsKey(d.deviceId))) {
       throw ChatException(
-        skipped.isNotEmpty
-            ? skipped.first
+        sealed.skipped.isNotEmpty
+            ? sealed.skipped.first
             : 'This user has no active devices yet.',
       );
     }
 
-    final ref = _db
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .doc();
+    final ref = chatRef.collection('messages').doc();
     final sentAt = DateTime.now();
     final doc = {
       'senderUid': uid,
       'senderDevice': device.keys.deviceId,
       'ts': FieldValue.serverTimestamp(),
-      'envelopes': envelopes,
+      'envelopes': sealed.envelopes,
       // The server copy is deleted 30 days after sending (Firestore TTL policy on this field).
       'expireAt': Timestamp.fromDate(DateTime.now().add(messageRetention)),
     };
-    final lastBump = (chatData['lastMessageAt'] as Timestamp?)?.toDate();
-    final bumpNow =
-        lastBump == null ||
-        DateTime.now().difference(lastBump) > const Duration(minutes: 1);
+    final lastBump = (chat['lastMessageAt'] as Timestamp?)?.toDate();
 
-    Future<void> publish() async {
-      // The message, this account's send clock (the rules' rate limit) and, for
-      // requests, the chat state change all go in one atomic batch.
-      final batch = _db.batch();
-      batch.set(ref, doc);
-      batch.set(
-        _db.collection('users').doc(uid).collection('limits').doc('send'),
-        {'at': FieldValue.serverTimestamp()},
-      );
-      if (mode != 'normal') {
-        batch.update(chatRef, {
-          'lastMessageAt': FieldValue.serverTimestamp(),
-          if (mode == 'request') 'requestCount': FieldValue.increment(1),
-          if (mode == 'accepting') 'accepted': true,
-        });
-      }
-      await (_commitBatch ?? (b) => b.commit())(batch);
-    }
-
-    // Write-ahead: persist the advanced ratchets BEFORE publishing. If we published first
-    // and the save then failed, the next message would be encrypted at a reused counter
-    // under the same key. Saving first can at worst leave a harmless gap in the counter
-    // (receivers tolerate gaps); a definitive publish failure rolls the state back.
-    final undo = <(String, String, String?)>[];
+    // 4. Save ahead, then 5. publish.
+    final undo = await _sess.saveAhead(sealed.advanced);
+    await _pace();
     try {
-      for (final (u, d, sessions) in advanced) {
-        undo.add((u, d, await _secrets.read(_sess.sessKey(u, d))));
-        await _sess.saveSessions(u, d, sessions);
-      }
-    } catch (_) {
-      await _sess.restoreSessions(undo); // nothing was published
-      rethrow;
-    }
-
-    // Stay under the server's pacing rule.
-    final wait = _lastPublish == null
-        ? Duration.zero
-        : sendGap - DateTime.now().difference(_lastPublish!);
-    if (wait > Duration.zero) await Future<void>.delayed(wait);
-    try {
-      try {
-        await publish();
-      } on FirebaseException catch (e) {
-        if (e.code != 'permission-denied' || sendGap == Duration.zero) rethrow;
-        // Could be the pacing rule (clock skew, a second device): wait and try once more.
-        await Future<void>.delayed(const Duration(milliseconds: 900));
-        await publish();
-      }
+      await _publishPaced(ref, doc, chatRef, mode);
       _lastPublish = DateTime.now();
     } on FirebaseException catch (e) {
-      // These codes mean the batch definitely did NOT commit, so the counters were not
-      // used and the stored ratchets can be put back. Anything else (network lost,
-      // timeout) is ambiguous: the message may exist, so the advanced state stays.
-      if (const {
-        'permission-denied',
-        'invalid-argument',
-        'failed-precondition',
-        'not-found',
-        'already-exists',
-        'resource-exhausted',
-        'unauthenticated',
-      }.contains(e.code)) {
-        await _sess.restoreSessions(undo);
-      }
-      if (e.code == 'permission-denied') {
-        throw ChatException(
-          'This message could not be sent. You may be sending too fast, or the '
-          'other person may have blocked you or is not accepting messages.',
+      if (!definitelyNotPublished.contains(e.code)) {
+        // Network lost, timeout: the message may exist.
+        throw await _unknownOutcome(
+          chatId,
+          ref.id,
+          text,
+          sentAt,
+          mutation,
+          quote,
         );
       }
-      if (_definitelyNotPublished.contains(e.code)) {
-        // The server refused the write, so nothing exists. Say so in plain words: a raw
-        // FirebaseException would be shown as "may have reached them", which is wrong here.
-        throw SendRefusedException(_refusedText(e.code));
+      // Nothing was committed, so the counters were not used.
+      await _sess.restoreSessions(undo);
+      if (e.code == 'permission-denied') {
+        throw ChatException(permissionDeniedText);
       }
-      // Anything else (network lost, timeout): the message may exist.
-      throw await _unknownOutcome(
-        chatId,
-        ref.id,
-        text,
-        sentAt,
-        mutation,
-        quote,
-      );
+      // A raw FirebaseException would be shown as "may have reached them",
+      // which is wrong here.
+      throw SendRefusedException(refusedText(e.code));
     } catch (_) {
       // A non-Firebase failure while publishing (for example a timeout) is ambiguous as well.
       throw await _unknownOutcome(
@@ -368,7 +222,8 @@ class MessageSender {
         quote,
       );
     }
-    // Published. The ratchets were saved before publishing, so record the message.
+
+    // 6. Published. The ratchets were saved before publishing, so record the message.
     var localSaveFailed = false;
     try {
       await _messages.add(
@@ -387,18 +242,7 @@ class MessageSender {
     } catch (_) {
       localSaveFailed = true;
     }
-    final listQuiet =
-        _lastListBump == null ||
-        DateTime.now().difference(_lastListBump!) > const Duration(minutes: 1);
-    if (mode == 'normal' && bumpNow && listQuiet) {
-      // The saved message is already in the conversation. Waiting for this
-      // ordering write kept that row on screen twice: once from history and
-      // once from the optimistic send, for the whole round trip. The write
-      // still happens at most once a minute and never decides whether the
-      // send succeeded.
-      _lastListBump = DateTime.now();
-      unawaited(_orderChatList(chatRef));
-    }
+    _maybeOrderChatList(chatRef, mode, lastBump);
     if (localSaveFailed) {
       // The message IS on the server. Say so, and do not let it look like a failure.
       throw SendNotConfirmedException(
@@ -414,36 +258,85 @@ class MessageSender {
     }
   });
 
-  Future<void> _orderChatList(
+  /// The chat document's fields. A chat can become accepted but never go
+  /// back, so an accepted copy from the chat-list listener is final and saves
+  /// a read. A request is read fresh: its counter decides whether this
+  /// message may be sent at all.
+  Future<Map<String, dynamic>> _chatState(
+    String chatId,
     DocumentReference<Map<String, dynamic>> chatRef,
   ) async {
+    final known = _knownChat?.call(chatId);
+    if (known != null && (known['accepted'] as bool? ?? true)) return known;
+    return (await chatRef.get()).data() ?? const {};
+  }
+
+  /// Waits until this device's previous publish is [sendGap] old, to stay
+  /// under the server's pacing rule.
+  Future<void> _pace() async {
+    final last = _lastPublish;
+    if (last == null) return;
+    final wait = sendGap - DateTime.now().difference(last);
+    if (wait > Duration.zero) await Future<void>.delayed(wait);
+  }
+
+  /// Publishes the message, this account's send clock (the rules' rate limit)
+  /// and, for requests, the chat change, in one atomic batch. A refusal may
+  /// be the pacing rule (clock skew, a second device), so it is tried once
+  /// more after a pause.
+  Future<void> _publishPaced(
+    DocumentReference<Map<String, dynamic>> ref,
+    Map<String, Object> doc,
+    DocumentReference<Map<String, dynamic>> chatRef,
+    SendMode mode,
+  ) async {
+    Future<void> publish() {
+      final batch = _db.batch()
+        ..set(ref, doc)
+        ..set(
+          _db.collection('users').doc(uid).collection('limits').doc('send'),
+          {'at': FieldValue.serverTimestamp()},
+        );
+      final change = mode.chatChange;
+      if (change != null) batch.update(chatRef, change);
+      return _commitBatch(batch);
+    }
+
     try {
-      await _beforeChatListBump?.call();
-      await chatRef.update({'lastMessageAt': FieldValue.serverTimestamp()});
-    } catch (_) {
-      // Only affects chat-list ordering; the message itself is already sent.
+      await publish();
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied' || sendGap == Duration.zero) rethrow;
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      await publish();
     }
   }
 
-  static String _refusedText(String code) => switch (code) {
-    'resource-exhausted' => 'The server is busy or its free usage limit has been reached, so nothing was sent. Try again later.',
-    'invalid-argument' => 'This message could not be sent (it may be too large), so nothing was sent. Try a shorter message.',
-    'unauthenticated' =>
-      'Your sign-in has expired, so nothing was sent. Sign in again and retry.',
-    _ =>
-      'This message could not be sent, so nothing was sent. Please try again.',
-  };
-
-  /// Error codes that mean the batch definitely did NOT commit.
-  static const _definitelyNotPublished = {
-    'permission-denied',
-    'invalid-argument',
-    'failed-precondition',
-    'not-found',
-    'already-exists',
-    'resource-exhausted',
-    'unauthenticated',
-  };
+  /// Moves the chat up the chat list at most once a minute. Requests already
+  /// did that in their batch. The saved message is already in the
+  /// conversation, so this is not awaited: waiting kept the row on screen
+  /// twice, from history and from the pending send, for the whole round trip.
+  /// It never decides whether the send succeeded.
+  void _maybeOrderChatList(
+    DocumentReference<Map<String, dynamic>> chatRef,
+    SendMode mode,
+    DateTime? lastBump,
+  ) {
+    const quiet = Duration(minutes: 1);
+    final now = DateTime.now();
+    final serverQuiet = lastBump == null || now.difference(lastBump) > quiet;
+    final localQuiet =
+        _lastListBump == null || now.difference(_lastListBump!) > quiet;
+    if (mode != SendMode.normal || !serverQuiet || !localQuiet) return;
+    _lastListBump = now;
+    unawaited(() async {
+      try {
+        await _beforeChatListBump?.call();
+        await chatRef.update({'lastMessageAt': FieldValue.serverTimestamp()});
+      } catch (_) {
+        // Only affects chat-list ordering; the message itself is already sent.
+      }
+    }());
+  }
 
   /// Keeps an "unconfirmed" entry in the encrypted on-device history (so the warning survives a
   /// restart) and returns the exception to throw. The advanced ratchet state is deliberately kept.

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -149,7 +151,7 @@ void main() {
     );
   });
 
-  testWidgets('unknown reaction outcome offers a check and does not retry', (
+  testWidgets('unknown reaction outcome says nothing and is not retried', (
     t,
   ) async {
     final f = UiFixture();
@@ -168,9 +170,46 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(action('react-❤️'));
     await t.pumpAndSettle();
-    expect(find.textContaining('It may have reached them'), findsOneWidget);
-    expect(find.text('Check status'), findsOneWidget);
+    expect(find.textContaining('It may have reached them'), findsNothing);
+    expect(find.text('Check status'), findsNothing);
+    expect(find.byKey(const ValueKey('reaction-5-❤️')), findsNothing);
     expect(f.chat.reactions, isEmpty);
     expect(f.chat.controlAttempts, 1);
+  });
+
+  testWidgets('a reaction shows at once, before its send finishes', (t) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    f.chat.controlHold = Completer<void>();
+    await openChat(t, f);
+    await t.longPress(bubble('5'));
+    await t.pumpAndSettle();
+    await t.tap(action('react-❤️'));
+    await t.pumpAndSettle();
+    expect(f.chat.reactions, isEmpty, reason: 'still sending');
+    expect(find.byKey(const ValueKey('reaction-5-❤️')), findsOneWidget);
+    f.chat.controlHold!.complete();
+    await t.pumpAndSettle();
+    expect(f.chat.reactions, [('5', '❤️')]);
+    expect(find.byKey(const ValueKey('reaction-5-❤️')), findsOneWidget);
+  });
+
+  testWidgets('a reaction that fails is quietly gone', (t) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    f.chat.controlHold = Completer<void>();
+    f.chat.controlError = ChatException('Reaction refused for this test.');
+    await openChat(t, f);
+    await t.longPress(bubble('5'));
+    await t.pumpAndSettle();
+    await t.tap(action('react-❤️'));
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reaction-5-❤️')), findsOneWidget);
+    f.chat.controlHold!.complete();
+    await t.pumpAndSettle();
+    expect(find.byKey(const ValueKey('reaction-5-❤️')), findsNothing);
+    expect(find.textContaining('Reaction refused'), findsNothing);
   });
 }

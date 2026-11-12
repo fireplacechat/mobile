@@ -16,6 +16,7 @@ import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/chat_summary.dart';
 import 'package:fireplace/src/model/chat/chat_tuning.dart';
 import 'package:fireplace/src/model/chat/deferred_queue.dart';
+import 'package:fireplace/src/model/chat/device_cache.dart';
 import 'package:fireplace/src/model/chat/identity_alerts.dart';
 import 'package:fireplace/src/model/chat/message_receiver.dart';
 import 'package:fireplace/src/model/chat/message_sender.dart';
@@ -51,10 +52,11 @@ class ChatService {
   }) : _db = db,
        _keys = keys,
        _prekeys = prekeys,
-       _secrets = secrets,
+       // Sessions, the receive journal and sync positions are read on every
+       // message; only this service uses those keys, so it may remember them.
+       _secrets = CachedSecretStore(secrets),
        _messages = messages,
        _safety = safety,
-       _sess = SessionStore(secrets, device),
        _directory = ChatDirectory(db, messages, uid, safety),
        _commitBatch = commitBatch,
        _beforeChatListBump = beforeChatListBump {
@@ -71,7 +73,7 @@ class ChatService {
   final Future<void> Function()? _beforeChatListBump;
   final SecretStore _secrets;
   final LocalMessageStore _messages;
-  final SessionStore _sess;
+  late final _sess = SessionStore(_secrets, device);
   final ChatDirectory _directory;
   late final _recovery = SendRecovery(
     _db,
@@ -94,11 +96,12 @@ class ChatService {
     db: _db,
     keys: _keys,
     prekeys: _prekeys,
-    secrets: _secrets,
     messages: _messages,
     safety: _safety,
     commitBatch: _commitBatch,
     beforeChatListBump: _beforeChatListBump,
+    devices: _deviceCache.devices,
+    knownChat: _directory.knownChat,
     uid: uid,
     device: device,
     lock: _lock,
@@ -130,6 +133,8 @@ class ChatService {
 
   final AsyncMutex _lock = AsyncMutex(); // serializes all session-state changes
 
+  late final _deviceCache = DeviceCache(_keys);
+
   final _work = WorkTracker();
 
   /// Messages that could not be processed yet (identity change awaiting the
@@ -145,6 +150,7 @@ class ChatService {
     await _lock.run(() async {});
     _queue.clearDeferred();
     _queue.clearUnfinished();
+    await _deviceCache.close();
     unawaited(_alerts.close());
   });
 
@@ -155,6 +161,20 @@ class ChatService {
   Future<String> startChat(String username) => _directory.startChat(username);
 
   Future<void> acceptRequest(String chatId) => _directory.acceptRequest(chatId);
+
+  /// Starts keeping the devices this chat sends to current, so the first
+  /// message does not wait to read them. Call when the chat opens.
+  void prepareToSend(String chatId) {
+    final String peer;
+    try {
+      peer = peerOf(chatId);
+    } on ChatException {
+      return;
+    }
+    _deviceCache
+      ..warm(peer)
+      ..warm(uid);
+  }
 
   Stream<List<ChatSummary>> watchChats() => _directory.watchChats();
 

@@ -225,11 +225,9 @@ void main() {
       );
       expect(await bob.bodies(chatId), ['m1', 'm2', 'm3']);
       expect(
-        jsonDecode(
-          (await bob.secrets.read('journals:${bob.device.keys.deviceId}')) ??
-              '[]',
-        ),
-        isEmpty,
+        await bob.secrets.read('journal:${bob.device.keys.deviceId}'),
+        isNull,
+        reason: 'no journal left open',
       );
     });
 
@@ -244,10 +242,9 @@ void main() {
       await bob.sub?.cancel();
       expect(await bob.bodies(chatId), ['m1'], reason: 'history was written');
       expect(
-        jsonDecode(
-          (await bob.secrets.read('journals:${bob.device.keys.deviceId}'))!,
-        ),
-        isNotEmpty,
+        await bob.secrets.read('journal:${bob.device.keys.deviceId}'),
+        isNotNull,
+        reason: 'the journal is still open',
       );
 
       bob.secrets.times = 0; // storage is fine again after the restart

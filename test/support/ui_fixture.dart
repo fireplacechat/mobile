@@ -56,6 +56,7 @@ class FixtureChat extends Fake implements ChatService {
   final starts = <String>[];
   Completer<void>? sendHold;
   Completer<String>? startHold;
+  Completer<void>? controlHold;
   Object? sendError;
   Object? controlError;
   int controlAttempts = 0;
@@ -64,6 +65,8 @@ class FixtureChat extends Fake implements ChatService {
 
   @override
   String peerOf(String chatId) => chatId.split('_').last;
+  @override
+  void prepareToSend(String chatId) {}
   @override
   Stream<List<ChatSummary>> watchChats() => Stream.value(summaries);
   @override
@@ -138,6 +141,7 @@ class FixtureChat extends Fake implements ChatService {
   @override
   Future<void> react(String chatId, String targetId, String emoji) async {
     controlAttempts++;
+    if (controlHold != null) await controlHold!.future;
     if (controlError != null) throw controlError!;
     reactions.add((targetId, emoji));
     final target = await store.get(chatId, targetId);

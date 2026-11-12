@@ -139,9 +139,20 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       pushNotifications?.startAtLaunch().catchError((Object _) {}) ??
           Future<void>.value(),
     );
-    // 5. Maintain prekeys.
+    // 5. Maintain prekeys. A new device has published nothing yet, so nobody
+    // could start a conversation with it: wait for its first keys. Otherwise
+    // rotating and refilling runs in the background (it is safe alongside
+    // receiving) instead of holding up the chat list.
     final prekeys = PreKeyService(db, secrets);
-    await prekeys.maintain(user.uid, device); // rotate/replenish prekeys
+    if (!await prekeys.hasSignedPreKey(user.uid, device.keys.deviceId)) {
+      await prekeys.maintain(user.uid, device);
+    } else {
+      unawaited(
+        prekeys
+            .maintain(user.uid, device, isStopped: () => scope.stopped)
+            .catchError((Object _) {}),
+      );
+    }
     scope.checkActive();
     // 6. Open local history and preferences.
     final docs = await getApplicationDocumentsDirectory();
@@ -176,13 +187,9 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       safety: safety,
     );
     scope.add(chat.close);
-    // 8. Resolve the display username.
+    // 8. Resolve the display username from the profile read in step 2.
     final username =
-        (await db.collection('users').doc(user.uid).get()).data()?['username']
-            as String? ??
-        user.email?.split('@').first ??
-        '';
-    scope.checkActive();
+        profile['username'] as String? ?? user.email?.split('@').first ?? '';
 
     // 9. Coordinate background sync and subscribe to eligibility changes.
     // Decrypt in the background while the app is open, but only for chats that

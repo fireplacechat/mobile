@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fireplace/src/crypto/device.dart';
 import 'package:fireplace/src/crypto/prekeys.dart';
 import 'package:fireplace/src/crypto/session.dart';
+import 'package:fireplace/src/model/chat/async_mutex.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 
@@ -84,18 +85,62 @@ class PreKeyService {
 
   /// Call on every app start: rotates the signed prekey if due and tops up the
   /// one-time pool. Cheap when nothing is needed (one query for the pool size).
-  Future<void> maintain(String uid, LocalDevice dev) async {
-    final deviceId = dev.keys.deviceId;
+  ///
+  /// Safe to run in the background while messages are received: every change
+  /// to the private prekeys is one load, change and save under [_state], never
+  /// held across a network call, so a one-time prekey consumed meanwhile stays
+  /// consumed. Two calls at once share one run. [isStopped] ends the run early
+  /// (the session closed) before it writes anything more.
+  Future<void> maintain(
+    String uid,
+    LocalDevice dev, {
+    bool Function()? isStopped,
+  }) => _maintaining ??= _maintain(
+    uid,
+    dev,
+    isStopped ?? () => false,
+  ).whenComplete(() => _maintaining = null);
+
+  Future<void>? _maintaining;
+  final _state = AsyncMutex();
+
+  /// Loads the private prekeys, applies [change] and saves them if it returns
+  /// true, all under [_state].
+  Future<void> _update(
+    String uid,
+    String deviceId,
+    bool Function(_Secrets s) change,
+  ) => _state.run(() async {
     final s = await _load(uid, deviceId);
+    if (change(s)) await _save(uid, deviceId, s);
+  });
+
+  /// True once this device holds a signed prekey, which upkeep publishes as
+  /// it makes it. False on a new device: nobody can start a conversation with
+  /// it until upkeep has run once.
+  Future<bool> hasSignedPreKey(String uid, String deviceId) async =>
+      (await _load(uid, deviceId)).signed.isNotEmpty;
+
+  Future<void> _maintain(
+    String uid,
+    LocalDevice dev,
+    bool Function() isStopped,
+  ) async {
+    final deviceId = dev.keys.deviceId;
     final now = _now();
 
     // --- signed prekey
-    final cur = s.signed.isEmpty ? null : s.signed.last;
+    final signed = (await _load(uid, deviceId)).signed;
+    final cur = signed.isEmpty ? null : signed.last;
     if (cur == null || now.difference(cur.createdAt) >= signedLifetime) {
       final rec = await PreKeyRecord.generate(now: now);
       final pub = await PreKeys.sign(rec, dev.identity, uid, deviceId);
-      s.signed.add(rec);
-      await _save(uid, deviceId, s); // keep the private half BEFORE publishing
+      if (isStopped()) return;
+      // keep the private half BEFORE publishing
+      await _update(uid, deviceId, (s) {
+        s.signed.add(rec);
+        return true;
+      });
       await _col(uid, deviceId).doc(rec.id).set({
         ...pub.toFirestore(),
         'createdAt': FieldValue.serverTimestamp(),
@@ -105,25 +150,31 @@ class PreKeyService {
         await _col(uid, deviceId).doc(cur.id).delete();
       }
     }
+    if (isStopped()) return;
     // retire old private halves
-    final before = s.signed.length;
-    s.signed.removeWhere(
-      (r) =>
-          r != s.signed.last && now.difference(r.createdAt) > signedRetention,
-    );
+    await _update(uid, deviceId, (s) {
+      final before = s.signed.length;
+      s.signed.removeWhere(
+        (r) =>
+            r != s.signed.last && now.difference(r.createdAt) > signedRetention,
+      );
+      return s.signed.length != before;
+    });
 
     // --- one-time pool
     final col = _col(uid, deviceId);
     var have =
         (await col.where('kind', isEqualTo: 'onetime').count().get()).count ??
         0;
+    final held = (await _load(uid, deviceId)).oneTime.keys.toSet();
     // More published than we hold private halves for means some published keys can
     // never be used (lost or restored device state). Remove those orphans, otherwise
-    // peers would keep picking prekeys we cannot answer.
-    if (have > s.oneTime.length) {
+    // peers would keep picking prekeys we cannot answer. (A key consumed meanwhile
+    // has had its public document deleted already.)
+    if (have > held.length) {
       for (final d
           in (await col.where('kind', isEqualTo: 'onetime').get()).docs) {
-        if (!s.oneTime.containsKey(d.id)) {
+        if (!held.contains(d.id)) {
           await d.reference.delete();
           have--;
         }
@@ -132,32 +183,41 @@ class PreKeyService {
     // Private halves whose public document is long gone were claimed by someone who
     // never completed a session: forget them instead of keeping the key forever.
     final cutoff = now.subtract(oneTimeRetention);
-    final stale = s.oneTime.values
+    final stale = (await _load(uid, deviceId)).oneTime.values
         .where((r) => r.createdAt.isBefore(cutoff))
+        .map((r) => r.id)
         .toList();
     if (stale.isNotEmpty) {
       final published = (await col.where('kind', isEqualTo: 'onetime').get())
           .docs
           .map((d) => d.id)
           .toSet();
-      for (final r in stale) {
-        if (!published.contains(r.id)) s.oneTime.remove(r.id);
-      }
+      if (isStopped()) return;
+      await _update(uid, deviceId, (s) {
+        var changed = false;
+        for (final id in stale) {
+          if (!published.contains(id)) changed |= s.oneTime.remove(id) != null;
+        }
+        return changed;
+      });
     }
     if (have < poolLowWater) {
       for (var i = 0; i < poolTarget - have; i++) {
         final rec = await PreKeyRecord.generate(now: now);
-        s.oneTime[rec.id] = rec;
-        await _save(uid, deviceId, s);
+        if (isStopped()) return;
+        await _update(uid, deviceId, (s) {
+          s.oneTime[rec.id] = rec;
+          return true;
+        });
         await _col(uid, deviceId).doc(rec.id).set({
           ...PreKeys.oneTime(rec).toFirestore(),
           'createdAt': FieldValue.serverTimestamp(),
         });
       }
-    } else if (s.signed.length != before) {
-      await _save(uid, deviceId, s);
     }
-    await _save(uid, deviceId, s);
+    if (isStopped()) return;
+    // Saving once more drops any damaged records the loads skipped.
+    await _update(uid, deviceId, (_) => true);
   }
 
   // ------------------------------------------------------------------ claiming
@@ -242,8 +302,7 @@ class PreKeyService {
 
   /// Deletes a used one-time prekey (private half first, then the public doc).
   Future<void> consumeOneTime(String uid, String deviceId, String opkId) async {
-    final s = await _load(uid, deviceId);
-    if (s.oneTime.remove(opkId) != null) await _save(uid, deviceId, s);
+    await _update(uid, deviceId, (s) => s.oneTime.remove(opkId) != null);
     try {
       await _col(uid, deviceId).doc(opkId).delete();
     } catch (_) {
