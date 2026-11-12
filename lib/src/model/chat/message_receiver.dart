@@ -114,7 +114,7 @@ class MessageReceiver {
       return;
     }
     _lastRepair = now;
-    _work.track(_prekeys.maintain(uid, device));
+    _work.track(_prekeys.maintain(uid, device, isStopped: () => _work.closed));
   }
 
   String _cursorKey(String chatId) => 'cursor:${device.keys.deviceId}:$chatId';
