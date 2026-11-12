@@ -277,11 +277,9 @@ class MessageSender {
   ///
   /// The clock form comes from [SendAllowance]. A refused clock may be a
   /// wrong guess (another device opened a window or day, the clocks differ),
-  /// so the other forms are tried at once. If the server refuses them all, it
-  /// may still be on the older rule: the older form is tried after its gap,
-  /// and used from then on. A refusal for another reason (a block, the daily
-  /// cap reached on another device) fails every form and is reported as
-  /// before.
+  /// so the other forms are tried at once. A refusal for another reason (a
+  /// block, the daily cap reached on another device) fails every form, and
+  /// the last refusal is reported.
   Future<void> _publishPaced(
     DocumentReference<Map<String, dynamic>> ref,
     Map<String, Object> doc,
@@ -315,8 +313,6 @@ class MessageSender {
           });
         case SendClock.next:
           batch.update(limit, {'at': at, 'sent': one, 'today': one});
-        case SendClock.legacy:
-          batch.set(limit, {'at': at});
       }
       final change = mode.chatChange;
       if (change != null) batch.update(chatRef, change);
@@ -331,25 +327,16 @@ class MessageSender {
     if (wait > Duration.zero) await Future<void>.delayed(wait);
     final startedAt = DateTime.now();
     final guess = _allowance.next;
-    for (final clock in [guess, ...guess.others]) {
+    final forms = [guess, ...guess.others];
+    for (final clock in forms) {
       try {
         await publish(clock);
         _allowance.published(clock, startedAt);
         return;
       } on FirebaseException catch (e) {
-        if (!refused(e)) rethrow;
+        if (!refused(e) || clock == forms.last) rethrow;
       }
     }
-    // Every form was refused. The older form is tried once more after a
-    // pause (pacing, clock skew), or for the first time on a server that may
-    // still be on the older rule.
-    await Future<void>.delayed(
-      guess == SendClock.legacy
-          ? const Duration(milliseconds: 900)
-          : ChatTuning.legacySendGap,
-    );
-    await publish(SendClock.legacy);
-    _allowance.published(SendClock.legacy, startedAt);
   }
 
   /// Moves the chat up the chat list at most once a minute. Requests already

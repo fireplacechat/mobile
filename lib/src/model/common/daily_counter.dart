@@ -35,45 +35,44 @@ class DailyCounter {
 
   /// Runs [action], which must add the counter with the `add` callback it is
   /// given (to its batch or transaction). Tries the likelier form first and
-  /// the other one if the server refuses. If both are refused, it tries once
-  /// without the counter: a server before decision 0017 refuses counters, and
-  /// the newer rules allow leaving it out only for an account that has never
-  /// counted, so this is no way round the cap. The last refusal is rethrown
-  /// (the cap, or a refusal of the action itself).
+  /// the other one if the server refuses. If both are refused, the last
+  /// refusal is rethrown (the cap, or a refusal of the action itself). The
+  /// rules refuse an action without its counter (backend #21), so there is
+  /// no attempt without one.
   Future<T> withCount<T>(
     Future<T> Function(void Function(CounterWrite write) add) action,
   ) async {
     final first = _opensDay;
-    for (final opensDay in <bool?>[first, !first, null]) {
+    for (final opensDay in [first, !first]) {
       final startedAt = _now();
       try {
         void add(CounterWrite write) {
-          switch (opensDay) {
-            case true:
-              write.set(_ref, {
-                'at': FieldValue.serverTimestamp(),
-                'day': FieldValue.serverTimestamp(),
-                'today': 1,
-              });
-            case false:
-              write.update(_ref, {
-                'at': FieldValue.serverTimestamp(),
-                'today': FieldValue.increment(1),
-              });
-            case null:
-              break; // no counter at all
+          if (opensDay) {
+            write.set(_ref, {
+              'at': FieldValue.serverTimestamp(),
+              'day': FieldValue.serverTimestamp(),
+              'today': 1,
+            });
+          } else {
+            write.update(_ref, {
+              'at': FieldValue.serverTimestamp(),
+              'today': FieldValue.increment(1),
+            });
           }
         }
 
         final result = await action(add);
-        if (opensDay == true) _dayOpened = startedAt;
-        // A day another device opened runs; when it began is unknown, so
-        // assume now and let the server correct a wrong guess.
-        if (opensDay == false) _dayOpened ??= startedAt;
+        if (opensDay) {
+          _dayOpened = startedAt;
+        } else {
+          // A day another device opened runs; when it began is unknown, so
+          // assume now and let the server correct a wrong guess.
+          _dayOpened ??= startedAt;
+        }
         return result;
       } on FirebaseException catch (e) {
         final refused = e.code == 'permission-denied' || e.code == 'not-found';
-        if (!refused || opensDay == null) rethrow;
+        if (!refused || opensDay != first) rethrow;
       }
     }
     throw StateError('unreachable');

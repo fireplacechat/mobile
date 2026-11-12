@@ -1,5 +1,10 @@
 # 0028: Send in bursts, within a daily cap
 
+*Update (v0.3.6): the backend now refuses the older `{at}` form (backend #21,
+deployed), so the app no longer has it: three forms, and when all three are
+refused the send fails with the last refusal. "Release order" below describes
+v0.3.3 to v0.3.5.*
+
 Status: requested by the owner, 2026-11-12. Goes with backend decision 0015,
 which changes the Firestore rules. No change to message payloads, the ratchet
 or keys.
@@ -58,10 +63,10 @@ attempts.
 ## Tests
 
 `send_allowance_test` covers the decisions with a fake clock: forms, margins,
-the waits, the cap and its end, a window or day opened by another device, the
-older form. `pacing_test` covers the clock's fields, the local cap stopping a
-send before it is published, a wrong guess corrected by another form, the
-fallback to the older form and staying on it, a refusal that fails every form,
+the waits, the cap and its end, a window or day opened by another device.
+`pacing_test` covers the clock's fields, the local cap stopping a send before
+it is published, a wrong guess corrected by another form, no older form tried
+once the window forms are refused, a refusal that fails every form,
 and (tagged `timing`) a burst going out without waiting and a used-up burst
 waiting for its window. The backend's rules tests check the same write shapes
 against the real rules.
