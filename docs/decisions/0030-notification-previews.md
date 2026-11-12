@@ -143,7 +143,7 @@ background run uses the same code and the same stores, so it holds across
 isolates as long as both take the **same lock** and **neither trusts a cache
 the other may have outdated**:
 
-- **The account lock** (`SharedLock`, `lib/src/model/common/`), taken around
+- **The account lock** (`SharedLock`, `lib/src/db/shared_lock.dart`), taken around
   every session change, every history write, the receive cursor and every
   change to the private prekeys. It is re-entrant within one call chain (a
   receive saves history and consumes a prekey while holding it).

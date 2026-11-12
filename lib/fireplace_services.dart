@@ -10,4 +10,5 @@ export 'package:fireplace/src/model/push/push_notification_service.dart';
 export 'package:fireplace/src/model/keys/recovery_service.dart';
 export 'package:fireplace/src/model/safety/safety_service.dart';
 export 'package:fireplace/src/db/secret_store.dart';
+export 'package:fireplace/src/db/shared_lock.dart';
 export 'package:fireplace/src/model/keys/verify_payload.dart';

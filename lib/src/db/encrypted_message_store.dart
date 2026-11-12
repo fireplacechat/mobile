@@ -10,6 +10,7 @@ import 'package:fireplace/src/db/history_log.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/message_projection.dart';
 import 'package:fireplace/src/db/secret_store.dart';
+import 'package:fireplace/src/db/shared_lock.dart';
 
 /// Disk-backed message history, encrypted at rest with AES-256-GCM.
 /// The 256-bit key lives in the platform secure store (Keychain/Keystore);
@@ -17,8 +18,14 @@ import 'package:fireplace/src/db/secret_store.dart';
 /// atomically plus, for longer chats, an append-only [HistoryLog] of what
 /// changed since (decision 0027). Anything that erases content rewrites the
 /// snapshot, so deleted text does not stay behind in the log.
+///
+/// Every change runs under the account [SharedLock], so the app and a
+/// background isolate never write a chat at the same time. When the other
+/// one wrote meanwhile, the memory caches are dropped first (decision 0030).
 class EncryptedFileMessageStore implements LocalMessageStore {
-  EncryptedFileMessageStore._(this._dir, this._key);
+  EncryptedFileMessageStore._(this._dir, this._key, this._lock) {
+    _lock.onInvalidate(_reload);
+  }
 
   /// Chats with fewer records than this are rewritten whole on every change:
   /// that is cheap at this size.
@@ -31,6 +38,7 @@ class EncryptedFileMessageStore implements LocalMessageStore {
 
   final Directory _dir;
   final SecretKey _key;
+  final SharedLock _lock;
   static final _aead = AesGcm.with256bits();
   final Map<String, Map<String, LocalMessage>> _cache = {};
   final Map<String, HistoryLog> _logs = {};
@@ -42,6 +50,7 @@ class EncryptedFileMessageStore implements LocalMessageStore {
     required Directory dir,
     required SecretStore secrets,
     required String uid,
+    SharedLock? lock,
   }) async {
     final keyName = 'msgkey:$uid';
     var raw = await secrets.read(keyName);
@@ -50,7 +59,11 @@ class EncryptedFileMessageStore implements LocalMessageStore {
       await secrets.write(keyName, raw);
     }
     await dir.create(recursive: true);
-    return EncryptedFileMessageStore._(dir, SecretKey(unb64(raw)));
+    return EncryptedFileMessageStore._(
+      dir,
+      SecretKey(unb64(raw)),
+      lock ?? SharedLock(),
+    );
   }
 
   Future<File> _file(String chatId) async {
@@ -160,9 +173,34 @@ class EncryptedFileMessageStore implements LocalMessageStore {
   Future<bool> has(String chatId, String messageId) async =>
       (await _load(chatId)).containsKey(messageId);
 
+  /// Queues [write] behind earlier ones, holding the lock. The lock is taken
+  /// first: a caller that already holds it (a receive saving its message)
+  /// must not wait behind a write that waits for the lock.
+  Future<void> _write(Future<void> Function() write) => _lock.run(() {
+    final done = _writes.then((_) => write());
+    _writes = done.catchError((_) {});
+    return done;
+  });
+
+  /// Another isolate wrote: read every chat from disk again, and show the
+  /// chats someone is watching as they are now.
+  Future<void> _reload() async {
+    _cache.clear();
+    _logs.clear();
+    _snapshotRecords.clear();
+    for (final entry in _ctrls.entries.toList()) {
+      if (!entry.value.hasListener) continue;
+      try {
+        entry.value.add(_sorted(await _load(entry.key)));
+      } catch (_) {
+        // The next change to that chat shows it, or reports the damage.
+      }
+    }
+  }
+
   @override
   Future<void> add(LocalMessage m) {
-    final done = _writes.then((_) async {
+    return _write(() async {
       // Readers and journal replay must only observe durably committed history.
       final current = await _load(m.chatId);
       if (current[m.id]?.locallyDeleted == true) return;
@@ -172,8 +210,6 @@ class EncryptedFileMessageStore implements LocalMessageStore {
         projectMessageRecords({...current, m.id: m}),
       );
     });
-    _writes = done.catchError((_) {});
-    return done;
   }
 
   @override
@@ -184,7 +220,7 @@ class EncryptedFileMessageStore implements LocalMessageStore {
 
   @override
   Future<void> remove(String chatId, String messageId) {
-    final done = _writes.then((_) async {
+    return _write(() async {
       final current = await _load(chatId);
       // A deletion erases content: always a new snapshot, never a log entry.
       await _save(
@@ -197,13 +233,11 @@ class EncryptedFileMessageStore implements LocalMessageStore {
         rewrite: true,
       );
     });
-    _writes = done.catchError((_) {});
-    return done;
   }
 
   @override
   Future<void> deleteChat(String chatId) {
-    final done = _writes.then((_) async {
+    return _write(() async {
       final f = await _file(chatId);
       final log = _logOf(f);
       if (await log.exists()) await log.delete();
@@ -213,8 +247,6 @@ class EncryptedFileMessageStore implements LocalMessageStore {
       _cache[chatId] = {};
       _ctrls[chatId]?.add(const []);
     });
-    _writes = done.catchError((_) {});
-    return done;
   }
 
   @override

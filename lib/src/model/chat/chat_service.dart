@@ -10,7 +10,7 @@ import 'package:fireplace/src/crypto/session.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/db/secret_store.dart';
-import 'package:fireplace/src/model/common/async_mutex.dart';
+import 'package:fireplace/src/db/shared_lock.dart';
 import 'package:fireplace/src/model/chat/chat_directory.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/chat_summary.dart';
@@ -48,6 +48,7 @@ class ChatService {
     required SecretStore secrets,
     required LocalMessageStore messages,
     SafetyService? safety,
+    SharedLock? lock,
     @visibleForTesting Future<void> Function(WriteBatch batch)? commitBatch,
     @visibleForTesting Future<void> Function()? beforeChatListBump,
   }) : _db = db,
@@ -56,12 +57,15 @@ class ChatService {
        // Sessions, the receive journal and sync positions are read on every
        // message; only this service uses those keys, so it may remember them.
        _secrets = CachedSecretStore(secrets),
+       _lock = lock ?? SharedLock(),
        _messages = messages,
        _safety = safety,
        _directory = ChatDirectory(db, messages, uid, safety),
        _commitBatch = commitBatch,
        _beforeChatListBump = beforeChatListBump {
     keys.bindLocalDevice(uid, device);
+    // Another isolate (the push handler) may have received meanwhile.
+    _lock.onInvalidate(_secrets.forget);
   }
 
   final FirebaseFirestore _db;
@@ -72,7 +76,7 @@ class ChatService {
   final SafetyService? _safety;
   final Future<void> Function(WriteBatch batch)? _commitBatch;
   final Future<void> Function()? _beforeChatListBump;
-  final SecretStore _secrets;
+  final CachedSecretStore _secrets;
   final LocalMessageStore _messages;
   late final _sess = SessionStore(_secrets, device);
   final ChatDirectory _directory;
@@ -132,7 +136,9 @@ class ChatService {
     peerOf: peerOf,
   );
 
-  final AsyncMutex _lock = AsyncMutex(); // serializes all session-state changes
+  /// Serializes all session-state changes, also with a background isolate
+  /// that shares this account's stores (decision 0030).
+  final SharedLock _lock;
 
   late final _deviceCache = DeviceCache(_keys);
 
@@ -153,6 +159,7 @@ class ChatService {
     _queue.clearUnfinished();
     await _deviceCache.close();
     unawaited(_alerts.close());
+    unawaited(_arrivals.close());
   });
 
   static String chatIdFor(String a, String b) => ChatDirectory.chatIdFor(a, b);
@@ -339,5 +346,26 @@ class ChatService {
 
   StreamSubscription<void> startSync(String chatId, {int limit = 50}) =>
       _receiver.startSync(chatId, limit: limit);
+
+  /// Messages from the other person as they are saved by this service. For
+  /// notifications; see [MessageReceiver.onArrival].
+  Stream<LocalMessage> get arrivals => _arrivals.stream;
+  late final StreamController<LocalMessage> _arrivals =
+      StreamController<LocalMessage>.broadcast(
+        onListen: () => _receiver.onArrival = _arrivals.add,
+        onCancel: () => _receiver.onArrival = null,
+      );
+
+  /// Receives a chat's new messages once (the background push handler).
+  /// With [upkeep] off, an unknown prekey does not start prekey repair.
+  Future<bool> receiveOnce(
+    String chatId, {
+    GetOptions? options,
+    bool upkeep = true,
+  }) {
+    _receiver.upkeep = upkeep;
+    return _receiver.receiveOnce(chatId, options: options);
+  }
+
   Future<void> retryDeferred() => _receiver.retryDeferred();
 }

@@ -44,6 +44,14 @@ final authUserProvider = StreamProvider<User?>(
   (ref) => ref.watch(authProvider).authStateChanges(),
 );
 
+/// The lock this account's stores share between the app and the background
+/// push handler: a name in the isolate name server, and a generation file next
+/// to the history (decision 0030).
+SharedLock accountLock(String uid, Directory historyDir) => SharedLock(
+  gate: IsolateLockGate('fireplace.account.$uid'),
+  generation: FileLockGeneration(File('${historyDir.path}/lock.gen')),
+);
+
 /// Signed in, but the account is mid-deletion (or half deleted): finish deleting.
 class AccountDeletionPending implements Exception {
   AccountDeletionPending(this.uid);
@@ -139,11 +147,18 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       pushNotifications?.startAtLaunch().catchError((Object _) {}) ??
           Future<void>.value(),
     );
-    // 5. Maintain prekeys. A new device has published nothing yet, so nobody
-    // could start a conversation with it: wait for its first keys. Otherwise
-    // rotating and refilling runs in the background (it is safe alongside
-    // receiving) instead of holding up the chat list.
-    final prekeys = PreKeyService(db, secrets);
+    // 5. The account lock, shared with the background push handler's isolate
+    // (decision 0030), and prekey upkeep. A new device has published nothing
+    // yet, so nobody could start a conversation with it: wait for its first
+    // keys. Otherwise rotating and refilling runs in the background (it is
+    // safe alongside receiving) instead of holding up the chat list.
+    final docs = await getApplicationDocumentsDirectory();
+    scope.checkActive();
+    final historyDir = Directory('${docs.path}/messages_${user.uid}');
+    await historyDir.create(recursive: true);
+    final lock = accountLock(user.uid, historyDir);
+    scope.add(() async => lock.close());
+    final prekeys = PreKeyService(db, secrets, lock: lock);
     if (!await prekeys.hasSignedPreKey(user.uid, device.keys.deviceId)) {
       await prekeys.maintain(user.uid, device);
     } else {
@@ -155,12 +170,11 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     }
     scope.checkActive();
     // 6. Open local history and preferences.
-    final docs = await getApplicationDocumentsDirectory();
-    scope.checkActive();
     final store = await EncryptedFileMessageStore.open(
-      dir: Directory('${docs.path}/messages_${user.uid}'),
+      dir: historyDir,
       secrets: secrets,
       uid: user.uid,
+      lock: lock,
     );
     scope.add(store.close);
     scope.checkActive();
@@ -185,6 +199,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       secrets: secrets,
       messages: store,
       safety: safety,
+      lock: lock,
     );
     scope.add(chat.close);
     // 8. Resolve the display username from the profile read in step 2.

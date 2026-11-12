@@ -58,7 +58,7 @@ class MemorySecretStore implements SecretStore {
 /// Writes still go to the store every time. A value is remembered only after
 /// the store confirmed it; a failed write forgets the key, so the next read
 /// asks the store again. Only one instance may own a key: changes made
-/// through another instance or the store itself are not seen.
+/// through another instance or the store itself are not seen until [forget].
 class CachedSecretStore implements SecretStore {
   CachedSecretStore(this._store);
   final SecretStore _store;
@@ -68,12 +68,17 @@ class CachedSecretStore implements SecretStore {
   /// no other change to that key started meanwhile.
   final _changes = <String, int>{};
 
+  /// Raised by [forget]: a read or change that started before it does not
+  /// remember its result.
+  int _epoch = 0;
+
   @override
   Future<String?> read(String key) async {
     if (_values.containsKey(key)) return _values[key];
     final seen = _changes[key] ?? 0;
+    final epoch = _epoch;
     final value = await _store.read(key);
-    if ((_changes[key] ?? 0) == seen) _values[key] = value;
+    if ((_changes[key] ?? 0) == seen && _epoch == epoch) _values[key] = value;
     return value;
   }
 
@@ -92,9 +97,18 @@ class CachedSecretStore implements SecretStore {
   ) async {
     final mine = (_changes[key] ?? 0) + 1;
     _changes[key] = mine;
+    final epoch = _epoch;
     _values.remove(key);
     await store();
-    if (_changes[key] == mine) _values[key] = value;
+    if (_changes[key] == mine && _epoch == epoch) _values[key] = value;
+  }
+
+  /// Forgets everything remembered, so the next reads go to the store. Called
+  /// when another isolate may have changed the store (decision 0030). A read
+  /// already under way does not remember its result either.
+  void forget() {
+    _epoch++;
+    _values.clear();
   }
 
   @override
