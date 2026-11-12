@@ -10,7 +10,7 @@ import 'package:fireplace/src/model/keys/prekey_service.dart';
 import 'package:fireplace/src/model/safety/safety_service.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/secret_store.dart';
-import 'package:fireplace/src/model/chat/async_mutex.dart';
+import 'package:fireplace/src/model/common/async_mutex.dart';
 import 'package:fireplace/src/model/chat/session_store.dart';
 import 'package:fireplace/src/model/chat/receive_journal.dart';
 import 'package:fireplace/src/model/chat/send_recovery.dart';
