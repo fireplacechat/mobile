@@ -7,6 +7,7 @@ import 'package:fireplace/src/crypto/device.dart';
 import 'package:fireplace/src/crypto/prekeys.dart';
 import 'package:fireplace/src/crypto/session.dart';
 import 'package:fireplace/src/model/chat/async_mutex.dart';
+import 'package:fireplace/src/model/common/daily_counter.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 
@@ -222,9 +223,21 @@ class PreKeyService {
 
   // ------------------------------------------------------------------ claiming
 
+  /// One-time prekeys this account claimed per day (backend decision 0017:
+  /// at most 200), by claiming account.
+  final _claims = <String, DailyCounter>{};
+
   /// Fetches a verified signed prekey and (if available) a random one-time
   /// prekey of [target]. Forged or malformed prekeys are ignored.
-  Future<PreKeyBundle> fetchBundle(DeviceBundle target) async {
+  ///
+  /// The app passes [claimer], its own account: each claim is counted, and
+  /// once the day's claims are used up the session simply uses the signed
+  /// prekey alone, so a pool cannot be drained. Without it nothing is counted
+  /// (tests and tools; the rules refuse that once an account has counted).
+  Future<PreKeyBundle> fetchBundle(
+    DeviceBundle target, {
+    String? claimer,
+  }) async {
     final col = _col(target.uid, target.deviceId);
     PublishedPreKey? best;
     DateTime bestAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -256,20 +269,31 @@ class PreKeyService {
             .docs
             .toList()
           ..shuffle(Random.secure());
+    final counter = claimer == null
+        ? null
+        : _claims[claimer] ??= DailyCounter(_db, claimer, 'claims');
     PublishedPreKey? claimed;
     for (final c in candidates) {
+      Future<PublishedPreKey?> claim(void Function(CounterWrite)? count) =>
+          _db.runTransaction<PublishedPreKey?>((tx) async {
+            final snap = await tx.get(c.reference);
+            if (!snap.exists) return null; // somebody else took it
+            final key = PublishedPreKey.fromFirestore(snap.id, snap.data()!);
+            tx.delete(c.reference);
+            count?.call(CounterWrite.transaction(tx));
+            return key;
+          });
       try {
-        claimed = await _db.runTransaction<PublishedPreKey?>((tx) async {
-          final snap = await tx.get(c.reference);
-          if (!snap.exists) return null; // somebody else took it
-          final key = PublishedPreKey.fromFirestore(snap.id, snap.data()!);
-          tx.delete(c.reference);
-          return key;
-        });
+        claimed = counter == null
+            ? await claim(null)
+            : await counter.withCount(claim);
       } on FormatException {
         continue; // malformed document: skip it
-      } on FirebaseException {
-        continue; // lost a race or rules refused: try another
+      } on FirebaseException catch (e) {
+        // Refused in both counter forms: this account's claims for the day
+        // are used up. The signed prekey alone still starts the session.
+        if (counter != null && e.code == 'permission-denied') break;
+        continue; // lost a race: try another
       }
       if (claimed != null) break;
     }

@@ -44,7 +44,10 @@ Future<SealedMessage> encryptForDevices({
             ChatTuning.staleSessionAfter;
     if (preferred == null || stale) {
       try {
-        final bundle = await prekeys.fetchBundle(target);
+        final bundle = await prekeys.fetchBundle(
+          target,
+          claimer: device.bundle.uid,
+        );
         final (s, _) = await Session.initiate(
           local: device.keys,
           localBundle: device.bundle,
