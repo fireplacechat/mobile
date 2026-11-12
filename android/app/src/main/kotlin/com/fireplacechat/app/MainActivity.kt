@@ -1,14 +1,10 @@
 package com.fireplacechat.app
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.ContentResolver
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
 import android.media.SoundPool
-import android.net.Uri
-import android.os.Bundle
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -18,11 +14,6 @@ class MainActivity : FlutterActivity() {
     private var sounds: SoundPool? = null
     private var sendSound = 0
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        createMessageChannels()
-    }
-
     override fun onDestroy() {
         sounds?.release()
         sounds = null
@@ -30,6 +21,8 @@ class MainActivity : FlutterActivity() {
     }
 
     // `fireplace/notifications`; see lib/src/model/notifications/system_notifications.dart.
+    // The notification channels and the alerts themselves are in the in-repo
+    // plugin packages/fireplace_native, which every Flutter engine loads.
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         loadSendSound()
@@ -79,50 +72,5 @@ class MainActivity : FlutterActivity() {
         val audio = getSystemService(AudioManager::class.java) ?: return
         if (audio.ringerMode != AudioManager.RINGER_MODE_NORMAL) return
         sounds?.play(sendSound, 0.8f, 0.8f, 1, 0, 1f)
-    }
-
-    // A channel's sound cannot change after it is created, so there are two:
-    // the sender picks "messages" (the pop) or "messages_silent" per device,
-    // following Settings → Notifications → Notification sound. The ids are
-    // also named in the push sender and the manifest.
-    private fun createMessageChannels() {
-        val manager = getSystemService(NotificationManager::class.java) ?: return
-        val pop = Uri.Builder()
-            .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
-            .authority(packageName)
-            .appendPath("raw")
-            .appendPath(resources.getResourceEntryName(R.raw.notification_pop))
-            .build()
-        val alert = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-        manager.createNotificationChannel(
-            NotificationChannel(
-                MESSAGES_CHANNEL,
-                "Messages",
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                description = "New messages. Shows who wrote, never what they wrote."
-                setSound(pop, alert)
-                setShowBadge(true)
-            },
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(
-                SILENT_CHANNEL,
-                "Messages without sound",
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                description = "New messages, when Notification sound is off in Fireplace."
-                setSound(null, null)
-                setShowBadge(true)
-            },
-        )
-    }
-
-    private companion object {
-        const val MESSAGES_CHANNEL = "messages"
-        const val SILENT_CHANNEL = "messages_silent"
     }
 }

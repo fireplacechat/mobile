@@ -29,6 +29,34 @@ enum PushStatus {
   blockedBySystem,
 }
 
+/// This device's notification choices, read together. The background push
+/// handler and the app read them the same way (decision 0030).
+class PushChoices {
+  const PushChoices({
+    required this.alerts,
+    required this.preview,
+    required this.showName,
+    required this.sound,
+  });
+
+  /// False after the person turned notifications off in Fireplace.
+  final bool alerts;
+  final bool preview;
+  final bool showName;
+  final bool sound;
+
+  /// The Android channel the server would pick for these choices.
+  String get channel => sound ? 'messages' : 'messages_silent';
+
+  static Future<PushChoices> read(SecretStore prefs, String uid) async =>
+      PushChoices(
+        alerts: await prefs.read('pushoff:$uid') == null,
+        preview: await prefs.read('pushnopreview:$uid') == null,
+        showName: await prefs.read('pushhidename:$uid') == null,
+        sound: await prefs.read('pushsilent:$uid') == null,
+      );
+}
+
 /// Small seam around the platform plugin so token lifecycle can be unit tested.
 abstract interface class PushMessagingClient {
   /// Reads the current permission. Never shows a prompt.
@@ -108,6 +136,7 @@ class PushNotificationService {
     SecretStore? preferences,
     bool? isApplePlatform,
     String? platform,
+    bool? dataPush,
     Duration apnsTokenWait = const Duration(seconds: 5),
   }) : _messaging = messaging,
        _prefs = preferences ?? MemorySecretStore(),
@@ -118,6 +147,11 @@ class PushNotificationService {
        _noPreviewKey = 'pushnopreview:$uid',
        _isApplePlatform = isApplePlatform ?? Platform.isIOS,
        _platform = platform ?? (Platform.isIOS ? 'ios' : 'android'),
+       // Android apps decrypt the push and show it themselves (decision
+       // 0030); iOS waits for its extension.
+       _dataPush =
+           dataPush ??
+           (platform ?? (Platform.isIOS ? 'ios' : 'android')) == 'android',
        _apnsTokenWait = apnsTokenWait,
        _tokenRef = db
            .collection('users')
@@ -132,6 +166,7 @@ class PushNotificationService {
   final String _optOutKey, _askedKey, _hideNameKey, _silentKey, _noPreviewKey;
   final bool _isApplePlatform;
   final String _platform;
+  final bool _dataPush;
   final Duration _apnsTokenWait;
   final DocumentReference<Map<String, dynamic>> _tokenRef;
   StreamSubscription<String>? _tokenSubscription;
@@ -237,6 +272,7 @@ class PushNotificationService {
           'platform': _platform,
           'showName': showName,
           'sound': sound,
+          if (_dataPush) 'dataPush': true,
           'updatedAt': FieldValue.serverTimestamp(),
         });
         // A write already sent cannot be cancelled; remove its stale result.
