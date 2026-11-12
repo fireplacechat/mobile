@@ -179,6 +179,23 @@ class KeyService {
     return out;
   }
 
+  /// [fetchDevices], kept up to date by a listener. Only server snapshots are
+  /// used: one from the offline cache could miss a device added since. A
+  /// changed identity arrives as an [IdentityChangedException] error event;
+  /// a listener failure ends the stream with its error.
+  Stream<List<DeviceBundle>> watchDevices(String uid) =>
+      _devices(uid)
+          .snapshots()
+          .where((snap) => !snap.metadata.isFromCache)
+          .asyncMap((snap) async {
+            final out = <DeviceBundle>[];
+            for (final d in snap.docs) {
+              final b = await _bundleFrom(uid, d);
+              if (b != null) out.add(b);
+            }
+            return out;
+          });
+
   Future<DeviceBundle?> fetchDevice(String uid, String deviceId) async {
     final d = await _devices(uid).doc(deviceId).get();
     if (!d.exists) return null;

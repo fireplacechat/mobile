@@ -31,6 +31,8 @@ class MessageSender {
     SafetyService? safety,
     Future<void> Function(WriteBatch batch)? commitBatch,
     Future<void> Function()? beforeChatListBump,
+    Future<List<DeviceBundle>> Function(String uid)? devices,
+    Map<String, dynamic>? Function(String chatId)? knownChat,
     required String uid,
     required LocalDevice device,
     required AsyncMutex lock,
@@ -48,6 +50,8 @@ class MessageSender {
          safety,
          commitBatch,
          beforeChatListBump,
+         devices,
+         knownChat,
          uid,
          device,
          lock,
@@ -67,6 +71,8 @@ class MessageSender {
     this._safety,
     this._commitBatch,
     this._beforeChatListBump,
+    this._devicesOf,
+    this._knownChat,
     this.uid,
     this.device,
     this._lock,
@@ -85,6 +91,8 @@ class MessageSender {
   final SafetyService? _safety;
   final Future<void> Function(WriteBatch batch)? _commitBatch;
   final Future<void> Function()? _beforeChatListBump;
+  final Future<List<DeviceBundle>> Function(String uid)? _devicesOf;
+  final Map<String, dynamic>? Function(String chatId)? _knownChat;
   final String uid;
   final LocalDevice device;
   final AsyncMutex _lock;
@@ -148,7 +156,13 @@ class MessageSender {
       throw ChatException('You blocked this person. Unblock them to message.');
     }
     final chatRef = _db.collection('chats').doc(chatId);
-    final chatData = (await chatRef.get()).data() ?? const {};
+    // A chat can become accepted but never go back, so an accepted copy from
+    // the chat-list listener is final and saves a read. A request is read
+    // fresh: its counter decides whether this message may be sent at all.
+    final known = _knownChat?.call(chatId);
+    final chatData = known != null && (known['accepted'] as bool? ?? true)
+        ? known
+        : (await chatRef.get()).data() ?? const {};
     final initiator = chatData['initiator'] as String?;
     final accepted = (chatData['accepted'] as bool?) ?? true;
     if ((mutation != null || quote != null) && !accepted) {
@@ -171,7 +185,7 @@ class MessageSender {
     }
     final List<DeviceBundle> peerDevices;
     try {
-      peerDevices = await _keys.fetchDevices(peerUid);
+      peerDevices = await (_devicesOf ?? _keys.fetchDevices)(peerUid);
     } on IdentityChangedException catch (e) {
       _alerts.set(e);
       rethrow;
@@ -179,7 +193,7 @@ class MessageSender {
     if (peerDevices.isEmpty) {
       throw ChatException('This user has no active devices yet.');
     }
-    final own = (await _keys.fetchDevices(uid))
+    final own = (await (_devicesOf ?? _keys.fetchDevices)(uid))
         .where((d) => d.deviceId != device.keys.deviceId);
     final plain = utf8.encode(
       jsonEncode({

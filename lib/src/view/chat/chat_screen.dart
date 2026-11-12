@@ -61,6 +61,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    // The first message then finds the devices it encrypts to ready.
+    ref.read(appSessionProvider).value?.chat.prepareToSend(widget.chatId);
     _text = ChatDraftController(
       drafts: ref.read(chatDraftsProvider.notifier),
       chatId: widget.chatId,

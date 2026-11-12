@@ -65,6 +65,8 @@ class FixtureChat extends Fake implements ChatService {
   @override
   String peerOf(String chatId) => chatId.split('_').last;
   @override
+  void prepareToSend(String chatId) {}
+  @override
   Stream<List<ChatSummary>> watchChats() => Stream.value(summaries);
   @override
   Stream<List<LocalMessage>> watchMessages(String chatId) {

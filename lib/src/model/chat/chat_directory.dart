@@ -70,10 +70,24 @@ class ChatDirectory {
     });
   }
 
+  final _known = <String, Map<String, dynamic>>{};
+
+  /// The chat document as the chat-list listener last saw it from the server,
+  /// or null. Lets a send skip reading it again.
+  Map<String, dynamic>? knownChat(String chatId) => _known[chatId];
+
   Stream<List<ChatSummary>> watchChats() => _db
       .collection('chats')
       .where('participants', arrayContains: uid)
       .snapshots()
+      .map((s) {
+        if (!s.metadata.isFromCache) {
+          _known
+            ..clear()
+            ..addAll({for (final d in s.docs) d.id: d.data()});
+        }
+        return s;
+      })
       .map(
         (s) => [
           for (final d in s.docs)
