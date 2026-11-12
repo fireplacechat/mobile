@@ -129,6 +129,28 @@ void main() {
     expect(seen.last, ['m1', 'm2']);
   });
 
+  test('the push handler never makes a history key', () async {
+    await expectLater(
+      EncryptedFileMessageStore.open(
+        dir: dir,
+        secrets: secrets,
+        uid: 'alice',
+        createKey: false,
+      ),
+      throwsStateError,
+    );
+    expect(await secrets.read('msgkey:alice'), isNull);
+    await open(SharedLock()); // the app makes it
+    final background = await EncryptedFileMessageStore.open(
+      dir: dir,
+      secrets: secrets,
+      uid: 'alice',
+      createKey: false,
+    );
+    await background.add(_m(1));
+    expect(await onDisk(), ['m1']);
+  });
+
   group('CachedSecretStore.forget', () {
     test('reads go to the store again', () async {
       final store = MemorySecretStore();

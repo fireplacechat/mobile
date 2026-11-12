@@ -260,6 +260,27 @@ ones showing. Swift joins it with the iOS extension.
    against its 24 MB limit, or a Swift port with every protocol test vector
    run against both).
 
+## As built for Android (v0.3.6)
+
+- `lib/src/app/background_push_entry.dart`: the `@pragma('vm:entry-point')`
+  handler, registered in `main.dart` on Android. It sets up Firebase and App
+  Check as the app does (`firebase_setup.dart`), answers push challenges
+  (backend 0020) and hands Fireplace pushes to `BackgroundPush`
+  (`lib/src/model/push/background_push.dart`).
+- The app keeps the list of chats it receives in `pushchats:<uid>` in the
+  secure store (`PushChatIndex`), written only when it changes.
+- Stores open without creating anything: `KeyService.existingDevice` and
+  `EncryptedFileMessageStore.open(createKey: false)`.
+- `PreviewNotifier` applies the formats; `ArrivalNotifier` posts from the app
+  while it is alive but not on screen, and only with previews on, so the plain
+  alert of a push with previews off never sounds twice.
+- `packages/fireplace_native` (Kotlin) creates the channels in every engine
+  (MainActivity no longer does), posts with a lock-screen version that shows
+  "New Message" when the person hides sensitive content, keeps the message id
+  in the alert's extras, and updates an alert posted under the same tag in the
+  last 20 seconds silently, whichever isolate posted it.
+- The registration carries `dataPush: true` on Android.
+
 Follow-ups, not in v0.3.6: a separate "Reactions" channel so reactions can be
 silenced on their own, and honouring a chat's mute in the system alert now
 that the device decides what to show.
