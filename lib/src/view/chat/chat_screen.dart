@@ -9,7 +9,9 @@ import 'package:fireplace/src/model/chat/pinned_messages.dart';
 import 'package:fireplace/src/view/chat/chat_timeline.dart';
 import 'package:fireplace/src/view/chat/pinned_bar.dart';
 import 'package:fireplace/src/view/chat/chat_app_bar_parts.dart';
+import 'package:fireplace/src/view/chat/chat_safety_actions.dart';
 import 'package:fireplace/src/view/chat/chat_safety_notices.dart';
+import 'package:fireplace/src/view/chat/timeline_messages.dart';
 import 'package:fireplace/src/view/chat/review_chat_identity.dart';
 import 'package:fireplace/src/view/chat/chat_composer.dart';
 import 'package:fireplace/src/view/chat/message_menu.dart';
@@ -28,8 +30,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
-import 'package:fireplace/src/view/safety/confirm_block.dart';
-import 'package:fireplace/src/view/safety/report_spam.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/view/chat/confirm_another_copy.dart';
 import 'package:fireplace/src/widgets/page.dart';
@@ -198,38 +198,37 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
-  Future<void> _blockPeer(
-    AppSession session,
-    String peerUid,
-    String name,
-  ) async {
-    if (!await confirmBlock(context, name) || !mounted) return;
-    await session.safety.block(peerUid);
-    if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
-  }
-
-  /// The profile already confirmed. Leave the chat once the block is stored.
-  Future<void> _blockFromProfile(AppSession session, String peerUid) async {
-    await session.safety.block(peerUid);
-    if (!mounted) return;
-    Navigator.of(context).popUntil((r) => r.isFirst);
-  }
-
-  Future<void> _reportSpam(
-    AppSession session,
-    String peerUid,
-    ReportSpamChoice choice,
-  ) async {
-    await session.safety.reportSpam(peerUid);
-    if (!mounted) return;
-    if (choice == ReportSpamChoice.reportAndBlock) {
-      await session.safety.block(peerUid);
-      if (!mounted) return;
-      _snack('Reported as spam and blocked.');
-      Navigator.of(context).popUntil((r) => r.isFirst);
-      return;
+  /// Sends that were not confirmed yet: drop the ones history now shows as
+  /// sent (after this frame), and keep the others in memory so they stay on
+  /// screen.
+  void _reconcilePending(
+    List<LocalMessage> stored,
+    Iterable<SendNotConfirmedException> pending,
+  ) {
+    for (final send in pending) {
+      if (send.chatId != widget.chatId) continue;
+      final confirmed = stored.any(
+        (m) =>
+            m.id == send.messageId &&
+            m.outgoing &&
+            m.status == MessageStatus.ok,
+      );
+      if (confirmed) {
+        _sendController.dropMemoryPending(send.messageId);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            ref
+                .read(pendingLocalSendsProvider.notifier)
+                .remove(widget.chatId, send.messageId);
+          }
+        });
+      } else {
+        _sendController.rememberMemoryPending(
+          send.messageId,
+          () => MemoryPending(send),
+        );
+      }
     }
-    _snack('Reported as spam.');
   }
 
   bool _sameAccount(AppSession? session) =>
@@ -265,55 +264,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         onRetry: () => ref.invalidate(blockedUidsProvider),
       );
     }
-    final pending = ref.watch(pendingLocalSendsProvider);
-    for (final send in pending.values) {
-      if (send.chatId != widget.chatId) continue;
-      final confirmed = stored.any(
-        (m) =>
-            m.id == send.messageId &&
-            m.outgoing &&
-            m.status == MessageStatus.ok,
-      );
-      if (confirmed) {
-        _sendController.dropMemoryPending(send.messageId);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ref
-                .read(pendingLocalSendsProvider.notifier)
-                .remove(widget.chatId, send.messageId);
-          }
-        });
-      } else {
-        _sendController.rememberMemoryPending(
-          send.messageId,
-          () => MemoryPending(send),
-        );
-      }
-    }
-    final allMessages =
-        [
-          ...stored,
-          for (final m in _sendController.memoryPending.values)
-            if (!stored.any((x) => x.id == m.messageId))
-              m.asLocalMessage(session),
-        ]..sort((a, b) {
-          final byTime = a.sentAt.compareTo(b.sentAt);
-          return byTime != 0 ? byTime : a.id.compareTo(b.id);
-        });
-    final history = [
-      for (final message in allMessages)
-        if (!message.remotelyDeleted) message,
-    ];
-    final target = !_showAll && _location != null
-        ? history.indexWhere((m) => m.id == _location)
-        : -1;
-    final outgoing = {
-      for (final send in ref.watch(outgoingSendsProvider))
-        if (send.chatId == widget.chatId) send.id: send,
-    };
-    final msgs = target < 0
-        ? [...history, ...outgoingBubbles(outgoing.values, stored, session)]
-        : history.take(target + 1).toList();
+    _reconcilePending(stored, ref.watch(pendingLocalSendsProvider).values);
+    final (:history, :target, :outgoing, shown: msgs) = timelineMessages(
+      chatId: widget.chatId,
+      stored: stored,
+      pending: _sendController.memoryPending.values,
+      session: session,
+      location: _location,
+      showAll: _showAll,
+      outgoingSends: ref.watch(outgoingSendsProvider),
+    );
     reviewIdentityOnFailedSend(
       ref,
       widget.chatId,
@@ -339,26 +299,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final identityHeld =
         peerUid != null &&
         ref.watch(identityAlertsProvider).value?.containsKey(peerUid) == true;
-    ref.listen(messagesProvider(widget.chatId), (previous, next) {
-      if (!_timeline.controller.hasClients || next.hasError) return;
-      if (_timeline.controller.offset > 96 && !_timeline.returningToLatest) {
-        final anchor = _timeline.readingAnchor();
-        if (anchor != null) _timeline.keepReadingAnchor(anchor);
-        return;
-      }
-      final before = previous?.value;
-      final after = next.value;
-      if (after == null ||
-          after.isEmpty ||
-          (before != null &&
-              before.isNotEmpty &&
-              before.last.id == after.last.id)) {
-        return;
-      }
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _timeline.jumpToLatestIfNear();
-      });
-    });
+    ref.listen(
+      messagesProvider(widget.chatId),
+      (previous, next) => _timeline.historyChanged(previous?.value, next),
+    );
     final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final verified =
         peerUid != null &&
@@ -385,9 +329,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             chatId: widget.chatId,
             name: name,
             onMute: _mute,
-            onBlock: () => _blockFromProfile(session!, peerUid),
+            onBlock: () => blockConfirmed(context, session!, peerUid),
             onUnblock: () => session!.safety.unblock(peerUid),
-            onReportSpam: (choice) => _reportSpam(session!, peerUid, choice),
+            onReportSpam: (choice) =>
+                reportSpam(context, session!, peerUid, choice, notice: _snack),
           ),
         ),
       ),
@@ -449,7 +394,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 () => session!.chat.acceptRequest(widget.chatId),
               ),
               onBlock: () => _contactController.contactAction(
-                () => _blockPeer(session!, peerUid!, name),
+                () => blockAfterConfirming(context, session!, peerUid!, name),
               ),
             ),
             if (pinned.isNotEmpty)

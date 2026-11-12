@@ -6,7 +6,7 @@ import 'package:fireplace/src/crypto/device.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/db/message_quote.dart';
-import 'package:fireplace/src/model/chat/async_mutex.dart';
+import 'package:fireplace/src/model/common/async_mutex.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/chat_tuning.dart';
 import 'package:fireplace/src/model/chat/envelope_encryption.dart';

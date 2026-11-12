@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:fireplace/src/db/local_messages.dart';
 
 class TimelineScroll extends ChangeNotifier {
   TimelineScroll({required this.isMounted}) {
@@ -147,6 +150,29 @@ class TimelineScroll extends ChangeNotifier {
 
   GlobalKey anchorFor(String messageId) =>
       _anchors.putIfAbsent(messageId, GlobalKey.new);
+
+  /// History changed from [before] to [next]. Someone reading further up
+  /// keeps their place; at the bottom, a new last message is followed.
+  void historyChanged(
+    List<LocalMessage>? before,
+    AsyncValue<List<LocalMessage>> next,
+  ) {
+    if (!controller.hasClients || next.hasError) return;
+    if (controller.offset > 96 && !returningToLatest) {
+      final anchor = readingAnchor();
+      if (anchor != null) keepReadingAnchor(anchor);
+      return;
+    }
+    final after = next.value;
+    if (after == null ||
+        after.isEmpty ||
+        (before != null &&
+            before.isNotEmpty &&
+            before.last.id == after.last.id)) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => jumpToLatestIfNear());
+  }
 
   void jumpToLatestIfNear() {
     if (!_disposed &&

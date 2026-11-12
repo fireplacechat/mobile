@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fireplace/src/crypto/device.dart';
 import 'package:fireplace/src/crypto/prekeys.dart';
 import 'package:fireplace/src/crypto/session.dart';
-import 'package:fireplace/src/model/chat/async_mutex.dart';
+import 'package:fireplace/src/model/common/async_mutex.dart';
 import 'package:fireplace/src/model/common/daily_counter.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/db/secret_store.dart';
