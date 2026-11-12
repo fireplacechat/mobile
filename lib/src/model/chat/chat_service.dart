@@ -52,10 +52,11 @@ class ChatService {
   }) : _db = db,
        _keys = keys,
        _prekeys = prekeys,
-       _secrets = secrets,
+       // Sessions, the receive journal and sync positions are read on every
+       // message; only this service uses those keys, so it may remember them.
+       _secrets = CachedSecretStore(secrets),
        _messages = messages,
        _safety = safety,
-       _sess = SessionStore(secrets, device),
        _directory = ChatDirectory(db, messages, uid, safety),
        _commitBatch = commitBatch,
        _beforeChatListBump = beforeChatListBump {
@@ -72,7 +73,7 @@ class ChatService {
   final Future<void> Function()? _beforeChatListBump;
   final SecretStore _secrets;
   final LocalMessageStore _messages;
-  final SessionStore _sess;
+  late final _sess = SessionStore(_secrets, device);
   final ChatDirectory _directory;
   late final _recovery = SendRecovery(
     _db,

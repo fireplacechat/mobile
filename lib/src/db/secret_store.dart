@@ -50,3 +50,59 @@ class MemorySecretStore implements SecretStore {
   @override
   Future<void> clear() async => data.clear();
 }
+
+/// Remembers what it read and wrote, so reading the same key again does not
+/// go back to the platform store: every Keychain call is a slow round trip
+/// through the platform, and receiving one message used about ten of them.
+///
+/// Writes still go to the store every time. A value is remembered only after
+/// the store confirmed it; a failed write forgets the key, so the next read
+/// asks the store again. Only one instance may own a key: changes made
+/// through another instance or the store itself are not seen.
+class CachedSecretStore implements SecretStore {
+  CachedSecretStore(this._store);
+  final SecretStore _store;
+  final _values = <String, String?>{};
+
+  /// Changes started per key. A read or change remembers its result only if
+  /// no other change to that key started meanwhile.
+  final _changes = <String, int>{};
+
+  @override
+  Future<String?> read(String key) async {
+    if (_values.containsKey(key)) return _values[key];
+    final seen = _changes[key] ?? 0;
+    final value = await _store.read(key);
+    if ((_changes[key] ?? 0) == seen) _values[key] = value;
+    return value;
+  }
+
+  @override
+  Future<void> write(String key, String value) =>
+      _change(key, value, () => _store.write(key, value));
+
+  @override
+  Future<void> delete(String key) =>
+      _change(key, null, () => _store.delete(key));
+
+  Future<void> _change(
+    String key,
+    String? value,
+    Future<void> Function() store,
+  ) async {
+    final mine = (_changes[key] ?? 0) + 1;
+    _changes[key] = mine;
+    _values.remove(key);
+    await store();
+    if (_changes[key] == mine) _values[key] = value;
+  }
+
+  @override
+  Future<void> clear() async {
+    for (final key in {..._values.keys, ..._changes.keys}) {
+      _changes[key] = (_changes[key] ?? 0) + 1;
+    }
+    _values.clear();
+    await _store.clear();
+  }
+}

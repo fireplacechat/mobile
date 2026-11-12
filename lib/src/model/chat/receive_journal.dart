@@ -31,26 +31,29 @@ class ReceiveJournal {
   // spent one-time prekey) must all happen even if the app dies half way. The result
   // is first written as ONE journal record; applying it is idempotent and is
   // replayed before any other message is processed.
+  //
+  // At most one journal is ever open: every receive and send first finishes the
+  // open one, and fails if it cannot. So it has one fixed slot. Older versions
+  // kept one key per message plus an index; those are still finished first.
 
-  String get _journalIndexKey => 'journals:${device.keys.deviceId}';
-  String _journalKey(String chatId, String msgId) =>
-      'journal:${device.keys.deviceId}:$chatId:$msgId';
+  String get _slotKey => 'journal:${device.keys.deviceId}';
+  String get _legacyIndexKey => 'journals:${device.keys.deviceId}';
 
-  Future<List<String>> _journalIndex() async {
-    final raw = await _secrets.read(_journalIndexKey);
+  Future<List<String>> _legacyIndex() async {
+    final raw = await _secrets.read(_legacyIndexKey);
     return raw == null ? [] : (jsonDecode(raw) as List).cast<String>();
   }
 
-  Future<void> writeJournal(Map<String, dynamic> j) async {
-    final key = _journalKey(j['chatId'] as String, j['msgId'] as String);
-    await _secrets.write(key, jsonEncode(j));
-    final idx = await _journalIndex();
-    if (!idx.contains(key)) {
-      await _secrets.write(_journalIndexKey, jsonEncode([...idx, key]));
-    }
-  }
+  Future<void> writeJournal(Map<String, dynamic> j) =>
+      _secrets.write(_slotKey, jsonEncode(j));
 
-  Future<void> applyJournal(Map<String, dynamic> j) async {
+  Future<void> applyJournal(Map<String, dynamic> j) =>
+      _apply(j, () => _secrets.delete(_slotKey));
+
+  Future<void> _apply(
+    Map<String, dynamic> j,
+    Future<void> Function() close,
+  ) async {
     final chatId = j['chatId'] as String, msgId = j['msgId'] as String;
     if (!await _messages.has(chatId, msgId)) {
       await _messages.add(
@@ -82,27 +85,26 @@ class ReceiveJournal {
     if (opk is String) {
       await _prekeys.consumeOneTime(uid, device.keys.deviceId, opk);
     }
-    final key = _journalKey(chatId, msgId);
-    await _secrets.delete(key);
-    final idx = await _journalIndex();
-    await _secrets.write(
-      _journalIndexKey,
-      jsonEncode(idx.where((k) => k != key).toList()),
-    );
+    await close();
   }
 
   /// Completes any message whose effects were only partly applied (call under the lock).
   Future<void> recoverJournals() async {
-    for (final key in await _journalIndex()) {
+    for (final key in await _legacyIndex()) {
       final raw = await _secrets.read(key);
-      if (raw == null) {
-        final idx = await _journalIndex();
-        await _secrets.write(
-          _journalIndexKey,
-          jsonEncode(idx.where((k) => k != key).toList()),
+      if (raw != null) {
+        await _apply(
+          jsonDecode(raw) as Map<String, dynamic>,
+          () => _secrets.delete(key),
         );
-        continue;
       }
+      final rest = (await _legacyIndex()).where((k) => k != key).toList();
+      rest.isEmpty
+          ? await _secrets.delete(_legacyIndexKey)
+          : await _secrets.write(_legacyIndexKey, jsonEncode(rest));
+    }
+    final raw = await _secrets.read(_slotKey);
+    if (raw != null) {
       await applyJournal(jsonDecode(raw) as Map<String, dynamic>);
     }
   }

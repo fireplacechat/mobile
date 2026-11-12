@@ -487,20 +487,14 @@ void main() {
       // them and publishes fresh ones. (A failing handshake also triggers this by itself.)
       await bob.prekeys.maintain('bob', bob.device);
 
-      // Time passes (the session was never answered): age the sender's stored session.
+      // Time passes (the session was never answered): the stale period ends.
+      // (The chat service keeps its sessions in memory, so the stored copy is
+      // not edited behind its back; the period is shortened instead.)
       final sk =
           'sess:${alice.device.keys.deviceId}:bob:${bob.device.keys.deviceId}';
-      final list = (jsonDecode((await alice.secrets.read(sk))!) as List)
-          .map(
-            (e) => {
-              ...Map<String, dynamic>.from(e),
-              'createdAt': DateTime.now()
-                  .subtract(const Duration(days: 2))
-                  .millisecondsSinceEpoch,
-            },
-          )
-          .toList();
-      await alice.secrets.write(sk, jsonEncode(list));
+      final stalePeriod = ChatService.staleSessionAfter;
+      addTearDown(() => ChatService.staleSessionAfter = stalePeriod);
+      ChatService.staleSessionAfter = Duration.zero;
 
       await alice.chat.sendText('alice_bob', 'recovered');
       await eventually(
