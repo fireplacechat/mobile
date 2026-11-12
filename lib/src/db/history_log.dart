@@ -38,6 +38,10 @@ class HistoryLog {
   /// The file ends in a partial entry that must be cut off before appending.
   bool cutShort;
 
+  /// A failed append could not be cut back, so the next save rewrites the
+  /// snapshot instead.
+  bool damaged = false;
+
   static const _hashLength = 32;
   static final _aead = AesGcm.with256bits();
 
@@ -132,9 +136,6 @@ class HistoryLog {
       await raf.close();
     }
   }
-
-  /// A failed append could not be cut back: the next save rewrites.
-  bool damaged = false;
 
   static Future<List<int>> _hash(List<int> bytes) async =>
       (await Sha256().hash(bytes)).bytes;

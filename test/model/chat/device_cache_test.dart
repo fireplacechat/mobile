@@ -62,6 +62,19 @@ void main() {
     expect(keys.fetched, ['bob']);
   });
 
+  test('only the first send waits for a silent listener', () async {
+    final keys = _Keys();
+    // Long enough that a second wait would never finish within the test.
+    final cache = DeviceCache(keys, firstWait: const Duration(hours: 1));
+    addTearDown(cache.close);
+    final first = cache.devices('bob'); // waits for the listener
+    expect(await cache.devices('bob'), isEmpty); // reads at once
+    expect(keys.fetched, ['bob']);
+    keys.watches['bob']!.add(const []);
+    expect(await first, isEmpty);
+    expect(keys.fetched, ['bob'], reason: 'the listener answered the first');
+  });
+
   test('a changed identity is checked again on every send', () async {
     final keys = _Keys()
       ..fetchError = IdentityChangedException('bob', List.filled(64, 1));

@@ -22,7 +22,7 @@ Measured from the code, before this change:
 | Own reaction on screen | after the whole send, with the menu busy meanwhile |
 | Start-up | waits for prekey upkeep; reads the own profile twice |
 
-## 1. Reactions show at once
+## Reactions show at once
 
 `PendingReactions` records the chosen reaction for its message and the chat
 screen draws it over the saved history (`shownMessagesProvider`). When the send
@@ -32,7 +32,7 @@ person can react again. A reaction that reached the server but could not be
 saved here is saved locally without being sent again (`saveControlLocally`).
 Edits and deletes keep their notices.
 
-## 2. No reads before a send
+## No reads before a send
 
 **Device lists** come from a live listener per account (`DeviceCache`, at most
 32, least recently used first), started when a chat opens. Only server
@@ -50,7 +50,7 @@ miss one message, which then shows "Sent before this device was added" there.
 is accepted; the rules never let a chat go back from accepted. A request is
 still read fresh, because its counter decides whether a message may be sent.
 
-## 3. Append-only history for long chats
+## Append-only history for long chats
 
 Each chat keeps its snapshot file, unchanged in format. Chats of 200 records or
 more also keep `<snapshot>.log`: the SHA-256 of the snapshot it extends, then
@@ -73,7 +73,7 @@ order; nothing is replayed.
   it is ignored. Any other damage is reported, as for the snapshot.
 - Decision 0013 still holds: readers see a change only after it is flushed.
 
-## 4. Fewer Keychain calls
+## Fewer Keychain calls
 
 The chat service reads its own keys (sessions, the receive journal, sync
 positions) through `CachedSecretStore`. Every write still goes to the
@@ -96,7 +96,7 @@ Signal's approach (sessions in the encrypted database, one transaction per
 message, no journal) would go further but needs a database package; that is
 the owner's decision.
 
-## 6. Start-up
+## Start-up
 
 Prekey upkeep runs in the background once the device has published keys; a
 brand-new device still waits for its first keys, since nobody could start a

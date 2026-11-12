@@ -115,8 +115,9 @@ class PreKeyService {
     if (change(s)) await _save(uid, deviceId, s);
   });
 
-  /// True once this device holds a signed prekey: it has published keys that
-  /// peers can start a conversation with.
+  /// True once this device holds a signed prekey, which upkeep publishes as
+  /// it makes it. False on a new device: nobody can start a conversation with
+  /// it until upkeep has run once.
   Future<bool> hasSignedPreKey(String uid, String deviceId) async =>
       (await _load(uid, deviceId)).signed.isNotEmpty;
 

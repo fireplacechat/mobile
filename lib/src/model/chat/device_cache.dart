@@ -25,8 +25,10 @@ class DeviceCache {
   final KeyService _keys;
   final int capacity;
 
-  /// How long a send waits for a new listener's first server snapshot before
-  /// it reads the list directly, as it did before (for example offline).
+  /// How long the first send waits for a new listener's first server
+  /// snapshot before it reads the list directly, as it did before (for
+  /// example offline). Later sends do not wait again: they read directly
+  /// until the listener has answered.
   final Duration firstWait;
 
   // Insertion order is recency: a use moves the entry to the end.
@@ -41,7 +43,8 @@ class DeviceCache {
   Future<List<DeviceBundle>> devices(String uid) async {
     if (_closed) return _keys.fetchDevices(uid);
     final entry = _touch(uid);
-    if (!entry.ready.isCompleted) {
+    if (!entry.ready.isCompleted && !entry.waited) {
+      entry.waited = true;
       await entry.ready.future.timeout(firstWait, onTimeout: () {});
     }
     final latest = entry.latest;
@@ -106,4 +109,7 @@ class _Entry {
   StreamSubscription<List<DeviceBundle>>? sub;
   List<DeviceBundle>? latest;
   bool identityChanged = false;
+
+  /// A send has already waited for the first snapshot.
+  bool waited = false;
 }
