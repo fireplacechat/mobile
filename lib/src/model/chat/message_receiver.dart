@@ -1,9 +1,5 @@
-import 'package:fireplace/src/db/message_quote.dart';
-
 import 'dart:async';
 import 'dart:convert';
-
-import 'package:fireplace/src/db/message_mutation.dart';
 
 import 'dart:typed_data';
 
@@ -23,6 +19,7 @@ import 'package:fireplace/src/model/chat/work_tracker.dart';
 import 'package:fireplace/src/model/chat/deferred_queue.dart';
 import 'package:fireplace/src/model/chat/chat_tuning.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
+import 'package:fireplace/src/model/chat/message_payload.dart';
 
 class MessageReceiver {
   MessageReceiver({
@@ -425,35 +422,7 @@ class MessageReceiver {
     }
 
     // The message authenticated, so its key is spent whatever the payload holds.
-    var body = 'Malformed message.';
-    var status = MessageStatus.undecryptable;
-    MessageMutation? mutation;
-    MessageQuote? quote;
-    try {
-      final payload = jsonDecode(utf8.decode(plain));
-      if (payload is Map &&
-          payload['type'] == 'text' &&
-          payload['body'] is String) {
-        if (payload['v'] == 3 && payload['quote'] != null) {
-          quote = MessageQuote.fromJson(
-            Map<String, dynamic>.from(payload['quote']),
-          );
-        }
-        body = payload['body'] as String;
-        status = MessageStatus.ok;
-      } else if (payload is Map &&
-          ((payload['v'] == 2 &&
-                  (payload['type'] == 'reaction' ||
-                      payload['type'] == 'delete')) ||
-              (payload['v'] == 3 && payload['type'] == 'edit'))) {
-        mutation = MessageMutation.fromJson(Map<String, dynamic>.from(payload));
-        body = '';
-        status = MessageStatus.ok;
-      } else {
-        body = '[unsupported message]';
-        status = MessageStatus.ok;
-      }
-    } catch (_) {}
+    final (:body, :status, :mutation, :quote) = decodeMessagePayload(plain);
     // Everything below is one recoverable unit: record the outcome in the journal, then
     // apply it. A crash or storage failure after this point is completed on the next run
     // instead of leaving the history written but the ratchet (or prekey erasure) undone.

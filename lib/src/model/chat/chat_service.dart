@@ -96,7 +96,6 @@ class ChatService {
     db: _db,
     keys: _keys,
     prekeys: _prekeys,
-    secrets: _secrets,
     messages: _messages,
     safety: _safety,
     commitBatch: _commitBatch,

@@ -4,6 +4,17 @@ import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/crypto/session.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 
+/// Sessions advanced by encrypting one message for one device.
+typedef AdvancedSessions = ({
+  String uid,
+  String deviceId,
+  List<Session> sessions,
+});
+
+/// What [SessionStore.saveAhead] replaced, to put back with
+/// [SessionStore.restoreSessions].
+typedef SessionUndo = List<(String uid, String deviceId, String? stored)>;
+
 class SessionStore {
   SessionStore(this._secrets, this.device);
 
@@ -48,7 +59,31 @@ class SessionStore {
     return usable.first;
   }
 
-  Future<void> restoreSessions(List<(String, String, String?)> undo) async {
+  /// Saves [advanced] BEFORE its message is published (write-ahead). If the
+  /// publish came first and this save then failed, the next message would be
+  /// encrypted at a reused counter under the same key; saving first can at
+  /// worst leave a gap in the counter, which receivers tolerate. Returns what
+  /// to put back if the publish definitely fails. If this save fails, what it
+  /// saved is put back already and nothing may be published.
+  Future<SessionUndo> saveAhead(List<AdvancedSessions> advanced) async {
+    final SessionUndo undo = [];
+    try {
+      for (final a in advanced) {
+        undo.add((
+          a.uid,
+          a.deviceId,
+          await _secrets.read(sessKey(a.uid, a.deviceId)),
+        ));
+        await saveSessions(a.uid, a.deviceId, a.sessions);
+      }
+    } catch (_) {
+      await restoreSessions(undo);
+      rethrow;
+    }
+    return undo;
+  }
+
+  Future<void> restoreSessions(SessionUndo undo) async {
     for (final (u, d, raw) in undo) {
       try {
         raw == null

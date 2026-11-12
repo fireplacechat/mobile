@@ -42,10 +42,15 @@ All app imports use `package:fireplace/...`. Top-level startup wiring can assemb
 
 ## The path of one message
 
-1. `view/chat/chat_screen.dart` delegates sending to `model/chat/send_controller.dart`, which checks message length using `model/chat/message_limits.dart` and calls the chat service.
-2. `model/chat/chat_service.dart` forwards to `model/chat/message_sender.dart`, which asks `crypto/session.dart` to encrypt per device and publishes ciphertext.
+1. `view/chat/chat_screen.dart` delegates sending to `model/chat/send_controller.dart`, which checks message length using `model/chat/message_limits.dart` and calls the chat service. Reactions show at once through `model/chat/pending_reactions.dart`.
+2. `model/chat/chat_service.dart` forwards to `model/chat/message_sender.dart`, which runs the send in order:
+   - `send_mode.dart` checks what the chat allows (normal, request, accepting);
+   - `device_cache.dart` supplies the devices to encrypt for, from a live listener;
+   - `message_payload.dart` writes the plaintext, and `envelope_encryption.dart` encrypts it per device with `crypto/session.dart`;
+   - `session_store.dart` saves the advanced ratchets ahead of publishing;
+   - the batch is published, and `publish_errors.dart` tells a definite refusal from an ambiguous failure.
 3. An uncertain send is kept for the user's explicit confirmation or retry; it never silently resends.
-4. `model/chat/message_receiver.dart` decrypts, journals through `model/chat/receive_journal.dart`, and saves the message in `db/encrypted_message_store.dart`.
+4. `model/chat/message_receiver.dart` decrypts, reads the plaintext with `message_payload.dart`, journals through `model/chat/receive_journal.dart`, and saves the message in `db/encrypted_message_store.dart` (a snapshot per chat plus, for long chats, `db/history_log.dart`).
 5. Screens read local history. The server receives ciphertext for messaging. Message text is not copied into a report.
 
 Firestore stores public keys, ciphertext and account/chat metadata. Secure storage holds device keys and ratchet state. Encrypted local files hold history and preferences. Providers assemble these resources and manage their lifecycle.
