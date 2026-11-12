@@ -1,8 +1,7 @@
-import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
+import 'package:fireplace/src/view/chat/widgets/message_bubble_body.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/widgets/clock_time.dart';
-import 'package:fireplace/src/view/chat/message_edit_history.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -308,174 +307,29 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                     // own text; the quote panel then spans that width.
                     child: _HugWidth(
                       enabled: quoted,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: quoted
-                            ? CrossAxisAlignment.stretch
-                            : CrossAxisAlignment.end,
-                        children: [
-                          if (quoted)
-                            MessageQuotePreview(
-                              key: ValueKey('messageQuote-${message.id}'),
-                              quote: message.quote!,
-                              foreground: fg,
-                              bubble: base,
-                              outgoing: mine,
-                              author:
-                                  message.quote!.senderUid ==
-                                      ref.watch(
-                                        appSessionProvider.select(
-                                          (s) => s.value?.uid,
-                                        ),
-                                      )
-                                  ? 'You'
-                                  : widget.senderName ?? 'Them',
-                              onTap: widget.preview
-                                  ? null
-                                  : widget.selecting
-                                  ? widget.onToggleSelection
-                                  : () => widget.onQuote?.call(
-                                      message.quote!.targetId,
-                                    ),
-                            ),
-                          if (quoted) const SizedBox(height: 5),
-                          if (bad)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 6,
-                                children: [
-                                  Icon(Icons.lock_outline, size: 16, color: fg),
-                                  Text(
-                                    'Unreadable message',
-                                    style: TextStyle(
-                                      color: fg,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          Padding(
-                            padding: textInset,
-                            child: Align(
-                              widthFactor: quoted ? null : 1,
-                              alignment: AlignmentDirectional.centerStart,
-                              child: Text.rich(
-                                formatted.span(
-                                  TextStyle(
-                                    color: fg,
-                                    fontSize: 17,
-                                    height: 1.3,
-                                    fontStyle: bad || message.remotelyDeleted
-                                        ? FontStyle.italic
-                                        : FontStyle.normal,
-                                  ),
-                                ),
-                                semanticsLabel: formatted.plain,
-                              ),
-                            ),
-                          ),
-                          if (oversize)
-                            TextButton(
-                              key: ValueKey('showAll-${message.id}'),
-                              onPressed: widget.selecting
-                                  ? widget.onToggleSelection
-                                  : () => setState(() => _showAll = !_showAll),
-                              child: Text(
-                                _showAll ? 'Show less' : 'Show all',
-                                style: TextStyle(
-                                  color: fg,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: 2),
-                          Padding(
-                            padding: textInset,
-                            child: Wrap(
-                              alignment: WrapAlignment.end,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: 4,
-                              children: [
-                                if (message.edits.isNotEmpty &&
-                                    !message.remotelyDeleted)
-                                  Semantics(
-                                    button: true,
-                                    label: 'View edit history',
-                                    child: GestureDetector(
-                                      key: ValueKey('edited-${message.id}'),
-                                      behavior: HitTestBehavior.opaque,
-                                      onTap: widget.preview
-                                          ? null
-                                          : widget.selecting
-                                          ? widget.onToggleSelection
-                                          : () => showModalBottomSheet<void>(
-                                              context: context,
-                                              useSafeArea: true,
-                                              showDragHandle: true,
-                                              builder: (_) => MessageEditHistory(
-                                                chatId: message.chatId,
-                                                messageId: message.id,
-                                                ownerUid:
-                                                    ref
-                                                        .read(
-                                                          appSessionProvider,
-                                                        )
-                                                        .value
-                                                        ?.uid ??
-                                                    '',
-                                              ),
-                                            ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 4,
-                                        ),
-                                        child: Text(
-                                          'Edited',
-                                          style: TextStyle(
-                                            color: mine ? fg : t.secondaryText,
-                                            fontSize: 11,
-                                            height: 1.3,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                if (widget.outgoingSend?.state ==
-                                    OutgoingState.failed) ...[
-                                  Icon(
-                                    Icons.error_outline,
-                                    size: MediaQuery.textScalerOf(context)
-                                        .scale(13),
-                                    color: fg,
-                                  ),
-                                  const SizedBox(width: 4),
-                                ],
-                                Text(
-                                  widget.outgoingSend?.state ==
-                                          OutgoingState.failed
-                                      ? 'Not sent. Tap for options.'
-                                      : time,
-                                  key: widget.outgoingSend == null
-                                      ? null
-                                      : ValueKey('sendState-${message.id}'),
-                                  style: TextStyle(
-                                    color: mine ? fg : t.secondaryText,
-                                    fontSize: 11,
-                                    height: 1.3,
-                                    fontWeight:
-                                        widget.outgoingSend?.state ==
-                                            OutgoingState.failed
-                                        ? FontWeight.w700
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                      child: MessageBubbleBody(
+                        message: message,
+                        senderName: widget.senderName,
+                        preview: widget.preview,
+                        selecting: widget.selecting,
+                        quoted: quoted,
+                        mine: mine,
+                        bad: bad,
+                        oversize: oversize,
+                        showAll: _showAll,
+                        formatted: formatted,
+                        fg: fg,
+                        base: base,
+                        textInset: textInset,
+                        time: time,
+                        outgoingFailed:
+                            widget.outgoingSend?.state == OutgoingState.failed,
+                        hasOutgoingSend: widget.outgoingSend != null,
+                        secondaryText: mine ? fg : t.secondaryText,
+                        onToggleShowAll: () =>
+                            setState(() => _showAll = !_showAll),
+                        onToggleSelection: widget.onToggleSelection,
+                        onQuote: widget.onQuote,
                       ),
                     ),
                   ),
