@@ -39,6 +39,12 @@ Future<Box> measureLockup(WidgetTester t, Size size, Brightness b) async {
   await t.pumpWidget(
     MaterialApp(
       theme: fireplaceTheme(b),
+      // The fireflies would count as logo pixels here; reduced motion turns
+      // them off. fireflies_test checks they leave the hand-off frame alone.
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(disableAnimations: true),
+        child: child!,
+      ),
       home: RepaintBoundary(key: key, child: const FireplaceSplash()),
     ),
   );

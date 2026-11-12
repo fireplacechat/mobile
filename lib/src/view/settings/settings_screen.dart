@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
@@ -59,6 +60,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final session = ref.watch(appSessionProvider);
     final s = session.value;
     final activity = ref.watch(chatActivityProvider);
+    final bubbleColors = ref.watch(chatBubbleColorsProvider);
     if (s != null && _fingerprintFor != '${s.uid}/${s.device.keys.deviceId}') {
       _fingerprintFor = '${s.uid}/${s.device.keys.deviceId}';
       _fingerprint = identityFingerprint(s.device.identity.publicBytes);
@@ -146,7 +148,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       key: const Key('chatColors'),
                       leading: const Icon(Icons.palette_outlined),
                       title: const Text('Chat colors'),
-                      subtitle: const Text('Choose your bubble colors'),
+                      // Your colour first, then theirs: "Ember & Stone".
+                      subtitle: Text(
+                        '${bubbleColors.outgoing.label} & '
+                        '${bubbleColors.incoming.label}',
+                      ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _busy
                           ? null
@@ -254,9 +260,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       key: Key('recoveryKey'),
                       leading: Icon(Icons.key),
                       title: Text('Recovery key'),
-                      subtitle: Text(
-                        'Restore your identity, not past messages',
-                      ),
                       trailing: Icon(Icons.chevron_right),
                       onTap: _busy
                           ? null
@@ -288,9 +291,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           color: FireplaceUiTokens.of(context).danger,
                         ),
                       ),
-                      subtitle: Text(
-                        'Delete your account; received copies stay with others',
-                      ),
                       onTap: _busy
                           ? null
                           : () => _open(const DeleteAccountScreen()),
@@ -302,9 +302,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         color: FireplaceUiTokens.of(context).danger,
                       ),
                       title: Text('Sign out'),
-                      subtitle: Text(
-                        'Keys and history stay on this device so you can sign back in.',
-                      ),
                       onTap: _busy
                           ? null
                           : () => _run(() async {
@@ -324,9 +321,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       key: const Key('legalLinks'),
                       leading: const Icon(Icons.policy_outlined),
                       title: const Text('Privacy and terms'),
-                      subtitle: const Text(
-                        'Read the privacy policy and terms of use',
-                      ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _busy
                           ? null

@@ -4,6 +4,7 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fireplace/src/app/chat_list_warmup.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/app/theme_preference.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
@@ -81,12 +82,20 @@ class AuthGate extends ConsumerWidget {
                   : e is NeedsRecoveryException
                   ? NewDeviceScreen(uid: u.uid)
                   : _SessionError(error: e),
+              // The loading screen stays up until the first rows of the
+              // chat list have their names and previews.
               data: (s) =>
-                  s == null ? _Splash() : _BackupNudge(child: ChatListScreen()),
+                  s == null ||
+                      !ref.watch(chatListWarmupProvider.select(_settled))
+                  ? _Splash()
+                  : _BackupNudge(child: ChatListScreen()),
             );
       },
     );
   }
+
+  static bool _settled(AsyncValue<void> warmup) =>
+      warmup.hasValue || warmup.hasError;
 }
 
 /// Auth errors are actionable and never display SDK/internal exception strings.
