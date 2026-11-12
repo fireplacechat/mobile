@@ -68,14 +68,18 @@ void main() {
       act(counter, refuse: () => ++calls > 0),
       throwsA(isA<FirebaseException>()),
     );
-    expect(calls, 3);
+    expect(calls, 2, reason: 'both forms, and no attempt without a counter');
   });
 
-  test('a server without counters gets the action without one', () async {
+  test('the action is never tried without its counter', () async {
+    // The rules refuse an action without its counter (backend #21).
     final counter = DailyCounter(db, 'alice', 'chats');
     var calls = 0;
-    await act(counter, refuse: () => ++calls <= 2);
-    expect(calls, 3);
+    await expectLater(
+      act(counter, refuse: () => ++calls <= 2),
+      throwsA(isA<FirebaseException>()),
+    );
+    expect(calls, 2);
     expect(await stored('chats'), isNull, reason: 'nothing counted');
   });
 
@@ -134,11 +138,7 @@ void main() {
       final bundle = await alice.prekeys.fetchBundle(target, claimer: 'alice');
       expect(bundle.oneTime, isNull);
       expect(bundle.signed, isNotNull);
-      expect(
-        refusing.transactions,
-        3,
-        reason: 'both forms and none, then it stops',
-      );
+      expect(refusing.transactions, 2, reason: 'both forms, then it stops');
     },
   );
 }

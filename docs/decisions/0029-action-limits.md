@@ -1,5 +1,9 @@
 # 0029: Count new chats and one-time prekey claims
 
+*Update (v0.3.6): the backend now refuses an action without its counter
+(backend #21, deployed), so the app no longer tries one: when both forms are
+refused, the last refusal is passed on. One refused attempt fewer.*
+
 Status: requested by the owner, 2026-11-12. Goes with backend decision 0017.
 No change to message payloads, the ratchet or keys.
 
@@ -29,7 +33,7 @@ an account that has never counted, so it is no way round the cap.
 ## Tests
 
 `daily_counter_test`: forms and their order, a refusal retried in the other
-form, the attempt without a counter, a refusal in every form passed on, other
+form, no attempt without a counter, a refusal in every form passed on, other
 failures not retried, chats and claims counted, and the fall-back to the signed
 prekey when claims are refused.
 

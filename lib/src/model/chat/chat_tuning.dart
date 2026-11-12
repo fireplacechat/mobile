@@ -17,10 +17,6 @@ class ChatTuning {
   static Duration sendDay = const Duration(days: 1);
   static int sendDailyCap = 2000;
 
-  /// The gap a server still on the older rule (500 ms per account) needs,
-  /// with a margin so honest use never trips it.
-  static Duration legacySendGap = const Duration(milliseconds: 700);
-
   /// Off in tests (test/flutter_test_config.dart), which have no server
   /// rules: sends never wait, and a refused send clock is not retried.
   static bool pacing = true;

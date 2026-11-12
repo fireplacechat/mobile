@@ -71,17 +71,6 @@ void main() {
     expect(allowance.next, SendClock.window);
   });
 
-  test('on a server still on the older rule, the older gap applies', () {
-    allowance.published(SendClock.legacy, now);
-    expect(allowance.next, SendClock.legacy);
-    expect(allowance.capReached, isFalse);
-    now = now.add(const Duration(milliseconds: 200));
-    expect(
-      allowance.wait,
-      ChatTuning.legacySendGap - const Duration(milliseconds: 200),
-    );
-  });
-
   test('tests without pacing never wait', () {
     for (var i = 0; i < ChatTuning.sendBurst; i++) {
       send();
@@ -94,6 +83,5 @@ void main() {
     expect(SendClock.day.others, [SendClock.window, SendClock.next]);
     expect(SendClock.window.others, [SendClock.day, SendClock.next]);
     expect(SendClock.next.others, [SendClock.window, SendClock.day]);
-    expect(SendClock.legacy.others, isEmpty);
   });
 }

@@ -13,11 +13,7 @@ enum SendClock {
 
   /// Counts one more in the running window and day:
   /// `update({at, sent: +1, today: +1})`.
-  next,
-
-  /// The older form `{at}` with a fixed gap, for a server that has not been
-  /// updated to the window rule yet.
-  legacy;
+  next;
 
   /// The other window forms, in the order to try them after the server
   /// refused this one.
@@ -25,7 +21,6 @@ enum SendClock {
     day => const [window, next],
     window => const [day, next],
     next => const [window, day],
-    legacy => const [],
   };
 }
 
@@ -45,8 +40,6 @@ class SendAllowance {
   var _sent = 0;
   DateTime? _dayOpened;
   var _today = 0;
-  DateTime? _last;
-  var _legacy = false;
 
   bool get _windowRuns {
     final opened = _windowOpened;
@@ -62,38 +55,30 @@ class SendAllowance {
 
   /// The form the next message should use.
   SendClock get next {
-    if (_legacy) return SendClock.legacy;
     if (_windowRuns) return SendClock.next;
     return _dayRuns ? SendClock.window : SendClock.day;
   }
 
   /// This device alone has sent the day's cap. The server may refuse sooner,
   /// when the account's other devices sent too; it is the one that decides.
-  bool get capReached =>
-      !_legacy && _dayRuns && _today >= ChatTuning.sendDailyCap;
+  bool get capReached => _dayRuns && _today >= ChatTuning.sendDailyCap;
 
   /// When this device's day ends, once [capReached].
   DateTime? get dayEnds => _dayOpened?.add(ChatTuning.sendDay);
 
   /// How long the next message has to wait so the server accepts it: until
-  /// the window ends once its burst is used up, or the older gap.
+  /// the window ends, once its burst is used up.
   Duration get wait {
     if (!ChatTuning.pacing) return Duration.zero;
-    final now = _now();
-    if (_legacy) {
-      final last = _last;
-      return last == null
-          ? Duration.zero
-          : ChatTuning.legacySendGap - now.difference(last);
-    }
     if (!_windowRuns || _sent < ChatTuning.sendBurst) return Duration.zero;
-    return _windowOpened!.add(ChatTuning.sendWindow + margin).difference(now);
+    return _windowOpened!
+        .add(ChatTuning.sendWindow + margin)
+        .difference(_now());
   }
 
   /// Records a message the server accepted with [clock]; [startedAt] is when
   /// its publish began, a little before the server's time for it.
   void published(SendClock clock, DateTime startedAt) {
-    _last = _now();
     switch (clock) {
       case SendClock.day:
         _dayOpened = startedAt;
@@ -112,8 +97,6 @@ class SendAllowance {
         _windowOpened ??= startedAt;
         _today++;
         _sent++;
-      case SendClock.legacy:
-        _legacy = true;
     }
   }
 }

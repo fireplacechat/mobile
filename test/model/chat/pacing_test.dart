@@ -58,7 +58,6 @@ void main() {
     ChatTuning.pacing = false;
     ChatTuning.sendBurst = 20;
     ChatTuning.sendWindow = const Duration(seconds: 10);
-    ChatTuning.legacySendGap = const Duration(milliseconds: 700);
     ChatTuning.sendDailyCap = 2000;
   });
 
@@ -117,17 +116,21 @@ void main() {
   });
 
   test(
-    'a server still on the older rule gets the older form from then on',
+    'refused in every window form, the send fails without the older form',
     () async {
       ChatTuning.pacing = true;
-      ChatTuning.legacySendGap = const Duration(milliseconds: 10);
-      accept = (attempt) => attempt > 3; // all three new forms are refused
-      await alice.sendText(chatId, 'one');
-      expect(attempts, 4);
-      expect((await clock()).keys, ['at']);
-      await alice.sendText(chatId, 'two');
-      expect(attempts, 5, reason: 'no new form tried again');
-      expect((await clock()).keys, ['at']);
+      // The rules refuse the older `{at}` form (backend #21), so trying it
+      // would only add a refused attempt.
+      accept = (attempt) => attempt > 3;
+      await expectLater(
+        alice.sendText(chatId, 'one'),
+        throwsA(isA<ChatException>()),
+      );
+      expect(attempts, 3, reason: 'the three window forms, nothing more');
+      expect(
+        (await db.collection('chats/$chatId/messages').get()).docs,
+        isEmpty,
+      );
     },
   );
 
@@ -135,13 +138,12 @@ void main() {
     'a refusal for another reason fails every form and publishes nothing',
     () async {
       ChatTuning.pacing = true;
-      ChatTuning.legacySendGap = const Duration(milliseconds: 10);
       accept = (_) => false;
       await expectLater(
         alice.sendText(chatId, 'blocked'),
         throwsA(isA<ChatException>()),
       );
-      expect(attempts, 4);
+      expect(attempts, 3);
       expect(
         (await db.collection('chats/$chatId/messages').get()).docs,
         isEmpty,
@@ -155,7 +157,7 @@ void main() {
     for (var i = 0; i < 5; i++) {
       await alice.sendText(chatId, 'quick $i');
     }
-    // The older rule needed at least four gaps of 700 ms here.
+    // A fixed gap of 700 ms, as before decision 0028, would need 2.8 s.
     expect(sw.elapsed, lessThan(const Duration(milliseconds: 2800)));
   }, tags: 'timing');
 
