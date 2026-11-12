@@ -137,6 +137,9 @@ class MessageSender {
       uid: uid,
       changesMessage: mutation != null || quote != null,
     );
+    if (_allowance.capReached) {
+      throw ChatException(dailyLimitText(_allowance.dayEnds!));
+    }
 
     // 3. Encrypt for every device.
     final List<DeviceBundle> peerDevices;
@@ -272,11 +275,12 @@ class MessageSender {
   /// limit) and, for requests, the chat change, in one atomic batch.
   ///
   /// The clock form comes from [SendAllowance]. A refused clock may be a
-  /// wrong guess (another device opened a window, the clocks differ), so the
-  /// other form is tried at once. If the server refuses both, it may still
-  /// be on the older rule: the older form is tried after its gap, and used
-  /// from then on. A refusal for another reason (a block) fails every form
-  /// and is reported as before.
+  /// wrong guess (another device opened a window or day, the clocks differ),
+  /// so the other forms are tried at once. If the server refuses them all, it
+  /// may still be on the older rule: the older form is tried after its gap,
+  /// and used from then on. A refusal for another reason (a block, the daily
+  /// cap reached on another device) fails every form and is reported as
+  /// before.
   Future<void> _publishPaced(
     DocumentReference<Map<String, dynamic>> ref,
     Map<String, Object> doc,
@@ -290,12 +294,26 @@ class MessageSender {
         .doc('send');
     Future<void> publish(SendClock clock) {
       final at = FieldValue.serverTimestamp();
+      final one = FieldValue.increment(1);
       final batch = _db.batch()..set(ref, doc);
       switch (clock) {
-        case SendClock.open:
-          batch.set(limit, {'at': at, 'window': at, 'sent': 1});
+        case SendClock.day:
+          batch.set(limit, {
+            'at': at,
+            'window': at,
+            'sent': 1,
+            'day': at,
+            'today': 1,
+          });
+        case SendClock.window:
+          batch.update(limit, {
+            'at': at,
+            'window': at,
+            'sent': 1,
+            'today': one,
+          });
         case SendClock.next:
-          batch.update(limit, {'at': at, 'sent': FieldValue.increment(1)});
+          batch.update(limit, {'at': at, 'sent': one, 'today': one});
         case SendClock.legacy:
           batch.set(limit, {'at': at});
       }
@@ -311,28 +329,26 @@ class MessageSender {
     final wait = _allowance.wait;
     if (wait > Duration.zero) await Future<void>.delayed(wait);
     final startedAt = DateTime.now();
-    var clock = _allowance.next;
-    try {
-      await publish(clock);
-    } on FirebaseException catch (e) {
-      if (!refused(e)) rethrow;
-      if (clock == SendClock.legacy) {
-        await Future<void>.delayed(const Duration(milliseconds: 900));
-      } else {
-        clock = clock.other;
-        try {
-          await publish(clock);
-          _allowance.published(clock, startedAt);
-          return;
-        } on FirebaseException catch (e) {
-          if (!refused(e)) rethrow;
-          clock = SendClock.legacy;
-          await Future<void>.delayed(ChatTuning.legacySendGap);
-        }
+    final guess = _allowance.next;
+    for (final clock in [guess, ...guess.others]) {
+      try {
+        await publish(clock);
+        _allowance.published(clock, startedAt);
+        return;
+      } on FirebaseException catch (e) {
+        if (!refused(e)) rethrow;
       }
-      await publish(clock);
     }
-    _allowance.published(clock, startedAt);
+    // Every form was refused. The older form is tried once more after a
+    // pause (pacing, clock skew), or for the first time on a server that may
+    // still be on the older rule.
+    await Future<void>.delayed(
+      guess == SendClock.legacy
+          ? const Duration(milliseconds: 900)
+          : ChatTuning.legacySendGap,
+    );
+    await publish(SendClock.legacy);
+    _allowance.published(SendClock.legacy, startedAt);
   }
 
   /// Moves the chat up the chat list at most once a minute. Requests already

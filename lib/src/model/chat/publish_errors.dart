@@ -12,11 +12,20 @@ const definitelyNotPublished = {
   'unauthenticated',
 };
 
-/// The rules refused the message: the pacing rule, a block, or a request
-/// that may not be answered.
+/// The rules refused the message: the pacing rule or daily cap, a block, or
+/// a request that may not be answered.
 const permissionDeniedText =
-    'This message could not be sent. You may be sending too fast, or the '
-    'other person may have blocked you or is not accepting messages.';
+    'This message could not be sent. You may be sending too fast or have '
+    'reached today\'s limit, or the other person may have blocked you or is '
+    'not accepting messages.';
+
+/// This device has sent the daily cap; nothing was sent.
+String dailyLimitText(DateTime dayEnds) {
+  final left = dayEnds.difference(DateTime.now());
+  final hours = left.inMinutes <= 60 ? null : (left.inMinutes / 60).ceil();
+  return 'You have sent the most messages allowed in a day. You can send '
+      'again ${hours == null ? 'within the hour' : 'in about $hours hours'}.';
+}
 
 /// Plain words for any other definite refusal, by error code.
 String refusedText(String code) => switch (code) {

@@ -59,38 +59,61 @@ void main() {
     ChatTuning.sendBurst = 20;
     ChatTuning.sendWindow = const Duration(seconds: 10);
     ChatTuning.legacySendGap = const Duration(milliseconds: 700);
+    ChatTuning.sendDailyCap = 2000;
   });
 
   Future<Map<String, dynamic>> clock() async =>
       (await db.doc('users/alice/limits/send').get()).data()!;
 
+  test('the first message opens a day and the next ones count in it', () async {
+    await alice.sendText(chatId, 'one');
+    final opened = await clock();
+    expect(opened.keys.toSet(), {'at', 'window', 'sent', 'day', 'today'});
+    expect(opened['sent'], 1);
+    expect(opened['today'], 1);
+    await alice.sendText(chatId, 'two');
+    await alice.sendText(chatId, 'three');
+    final now = await clock();
+    expect(now['sent'], 3);
+    expect(now['today'], 3);
+    expect(now['window'], opened['window'], reason: 'the same window');
+    expect(now['day'], opened['day'], reason: 'the same day');
+  });
+
   test(
-    'the first message opens a window and the next ones count in it',
+    'at this device\'s daily cap a send stops before anything is sent',
     () async {
+      ChatTuning.sendDailyCap = 2;
       await alice.sendText(chatId, 'one');
-      final opened = await clock();
-      expect(opened.keys.toSet(), {'at', 'window', 'sent'});
-      expect(opened['sent'], 1);
       await alice.sendText(chatId, 'two');
-      await alice.sendText(chatId, 'three');
-      final now = await clock();
-      expect(now['sent'], 3);
-      expect(now['window'], opened['window'], reason: 'the same window');
+      await expectLater(
+        alice.sendText(chatId, 'three'),
+        throwsA(
+          isA<ChatException>().having(
+            (e) => e.message,
+            'message',
+            contains('most messages allowed in a day'),
+          ),
+        ),
+      );
+      expect(attempts, 2, reason: 'nothing published for the third');
     },
   );
 
-  test('a wrong guess is corrected at once by the other form', () async {
+  test('a wrong guess is corrected at once by another form', () async {
     ChatTuning.pacing = true;
-    // Another device of this account opened a window a moment ago.
+    // Another device of this account opened a day a moment ago.
     await db.doc('users/alice/limits/send').set({
       'at': Timestamp.now(),
       'window': Timestamp.now(),
       'sent': 4,
+      'day': Timestamp.now(),
+      'today': 4,
     });
-    accept = (attempt) => attempt != 1; // the server refuses a second window
+    accept = (attempt) => attempt != 1; // the server refuses a second day
     await alice.sendText(chatId, 'hi');
     expect(attempts, 2);
-    expect((await clock())['sent'], 5, reason: 'counted in that window');
+    expect((await clock())['today'], 5, reason: 'counted in that day');
   });
 
   test(
@@ -98,12 +121,12 @@ void main() {
     () async {
       ChatTuning.pacing = true;
       ChatTuning.legacySendGap = const Duration(milliseconds: 10);
-      accept = (attempt) => attempt > 2; // both window forms are refused
+      accept = (attempt) => attempt > 3; // all three new forms are refused
       await alice.sendText(chatId, 'one');
-      expect(attempts, 3);
+      expect(attempts, 4);
       expect((await clock()).keys, ['at']);
       await alice.sendText(chatId, 'two');
-      expect(attempts, 4, reason: 'no window form tried again');
+      expect(attempts, 5, reason: 'no new form tried again');
       expect((await clock()).keys, ['at']);
     },
   );
@@ -118,7 +141,7 @@ void main() {
         alice.sendText(chatId, 'blocked'),
         throwsA(isA<ChatException>()),
       );
-      expect(attempts, 3);
+      expect(attempts, 4);
       expect(
         (await db.collection('chats/$chatId/messages').get()).docs,
         isEmpty,
@@ -151,7 +174,9 @@ void main() {
         sw.elapsed,
         greaterThanOrEqualTo(const Duration(milliseconds: 1500)),
       );
-      expect((await clock())['sent'], 1, reason: 'a new window');
+      final now = await clock();
+      expect(now['sent'], 1, reason: 'a new window');
+      expect(now['today'], 3, reason: 'in the same day');
     },
     tags: 'timing',
   );

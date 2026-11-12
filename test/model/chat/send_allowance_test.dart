@@ -10,15 +10,18 @@ void main() {
     now = DateTime(2026, 11, 12, 12);
     allowance = SendAllowance(clock: () => now);
   });
-  tearDown(() => ChatTuning.pacing = false);
+  tearDown(() {
+    ChatTuning.pacing = false;
+    ChatTuning.sendDailyCap = 2000;
+  });
 
   void send() {
     final clock = allowance.next;
     allowance.published(clock, now);
   }
 
-  test('the first message opens a window; the next ones count in it', () {
-    expect(allowance.next, SendClock.open);
+  test('the first message opens a day; the next ones count in it', () {
+    expect(allowance.next, SendClock.day);
     send();
     now = now.add(const Duration(seconds: 3));
     expect(allowance.next, SendClock.next);
@@ -28,7 +31,13 @@ void main() {
   test('a new window opens once the last one is nearly over', () {
     send();
     now = now.add(ChatTuning.sendWindow - SendAllowance.margin);
-    expect(allowance.next, SendClock.open);
+    expect(allowance.next, SendClock.window);
+  });
+
+  test('a new day opens once the last one is nearly over', () {
+    send();
+    now = now.add(ChatTuning.sendDay - SendAllowance.dayMargin);
+    expect(allowance.next, SendClock.day);
   });
 
   test('a used-up burst waits for the end of its window, with a margin', () {
@@ -43,9 +52,29 @@ void main() {
     );
   });
 
+  test('the daily cap is reached on this device alone, and lifts next day', () {
+    ChatTuning.sendDailyCap = 3;
+    for (var i = 0; i < 3; i++) {
+      send();
+      now = now.add(const Duration(minutes: 1));
+    }
+    expect(allowance.capReached, isTrue);
+    expect(allowance.dayEnds, DateTime(2026, 11, 13, 12));
+    now = now.add(ChatTuning.sendDay);
+    expect(allowance.capReached, isFalse);
+    expect(allowance.next, SendClock.day);
+  });
+
+  test('a day another device opened is assumed to run', () {
+    allowance.published(SendClock.window, now);
+    now = now.add(const Duration(seconds: 20));
+    expect(allowance.next, SendClock.window);
+  });
+
   test('on a server still on the older rule, the older gap applies', () {
     allowance.published(SendClock.legacy, now);
     expect(allowance.next, SendClock.legacy);
+    expect(allowance.capReached, isFalse);
     now = now.add(const Duration(milliseconds: 200));
     expect(
       allowance.wait,
@@ -61,8 +90,10 @@ void main() {
     expect(allowance.wait, Duration.zero);
   });
 
-  test('the other form of a window clock', () {
-    expect(SendClock.open.other, SendClock.next);
-    expect(SendClock.next.other, SendClock.open);
+  test('after a refusal the other forms are tried, the likeliest first', () {
+    expect(SendClock.day.others, [SendClock.window, SendClock.next]);
+    expect(SendClock.window.others, [SendClock.day, SendClock.next]);
+    expect(SendClock.next.others, [SendClock.window, SendClock.day]);
+    expect(SendClock.legacy.others, isEmpty);
   });
 }

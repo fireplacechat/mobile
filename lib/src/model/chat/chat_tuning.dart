@@ -7,10 +7,15 @@ class ChatTuning {
   static Duration staleSessionAfter = const Duration(hours: 24);
   static const pruneAfter = Duration(days: 30);
 
-  /// The server's send window (backend decision 0015): up to [sendBurst]
-  /// messages per [sendWindow] per account, across all chats.
+  /// The server's send limits (backend decision 0015), per account across
+  /// all chats: up to [sendBurst] messages per [sendWindow].
   static Duration sendWindow = const Duration(seconds: 10);
   static int sendBurst = 20;
+
+  /// And at most [sendDailyCap] messages, reactions included, in a day of
+  /// [sendDay] from the first one.
+  static Duration sendDay = const Duration(days: 1);
+  static int sendDailyCap = 2000;
 
   /// The gap a server still on the older rule (500 ms per account) needs,
   /// with a margin so honest use never trips it.
