@@ -146,11 +146,7 @@ extension NativeCryptoSessions on NativeCrypto {
 class NativeSession implements Finalizable {
   NativeSession._(this._core, this._handle, Map<String, dynamic> state)
     : _state = NativeCrypto.decodeJson(NativeCrypto.jsonBytes(state)),
-      _finalizer = NativeFinalizer(
-        _core.library.lookup<NativeFunction<Void Function(Pointer<Void>)>>(
-          'fp_session_destroy',
-        ),
-      ) {
+      _finalizer = _finalizerFor(_core) {
     try {
       _finalizer.attach(this, _handle, detach: this);
     } catch (_) {
@@ -164,6 +160,21 @@ class NativeSession implements Finalizable {
   Pointer<Void> _handle;
   Map<String, dynamic> _state;
   final NativeFinalizer _finalizer;
+  // Finalizers must stay reachable independently of the sessions they watch,
+  // or the SDK may collect them before their callbacks run. Cache one per
+  // loaded destructor address; no session or key material is kept here.
+  static final _finalizers = <int, NativeFinalizer>{};
+  static NativeFinalizer _finalizerFor(NativeCrypto core) {
+    final callback = core.library
+        .lookup<NativeFunction<Void Function(Pointer<Void>)>>(
+          'fp_session_destroy',
+        );
+    return _finalizers.putIfAbsent(
+      callback.address,
+      () => NativeFinalizer(callback),
+    );
+  }
+
   late final _destroy = _core.library
       .lookupFunction<
         Void Function(Pointer<Void>),
