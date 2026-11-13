@@ -14,7 +14,7 @@ abstract final class MessageMenuMetrics {
   static const double gap = messageMenuGap;
   static const double barHeight = 56;
   static const double barPadding = 6;
-  static const double reactionCell = 44;
+  static const double reactionCell = 48;
   static const double reactionEmoji = 32;
   static const double selectedReaction = 52;
   static const double moreButton = 32;
