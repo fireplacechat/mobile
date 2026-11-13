@@ -97,10 +97,10 @@ with **our own** protocol.
   the push's own "New Message".
 - Signing: a new extension identifier and refreshed profiles (owner).
 
-## Dependencies (approval in principle, with conditions)
+## Dependencies (approved by the owner, 2026-11-13, with conditions)
 
-The Rust toolchain and these crates may be used for the core, pending the
-owner's confirmation on the first PR: `x25519-dalek`, `ed25519-dalek`,
+The Rust toolchain and these crates may be used for the core; the first PR
+lists their exact versions for the record: `x25519-dalek`, `ed25519-dalek`,
 `ml-kem`, `ml-dsa`, `aes-gcm`, `hkdf`, `sha2`, `zeroize`, `getrandom` /
 `rand_core`. Mostly MIT or Apache-2.0, compatible with AGPLv3. Conditions:
 
