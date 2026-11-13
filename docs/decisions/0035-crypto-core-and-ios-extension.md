@@ -56,15 +56,25 @@ with **our own** protocol.
 
 ## Shape
 
-- **Rust crate** in this repository (`packages/fireplace_native/rust/`):
+- **Its own repository, `fireplacechat/fireplace-crypto`** (owner,
+  2026-11-13), as Signal keeps libsignal apart from its apps: AGPL-3.0, its
+  own tests and CI, and the crate `fireplace-crypto` on crates.io. It holds
   the protocol only (key agreement, the hybrid ratchet, envelopes,
-  signatures, prekeys, fingerprints, the recovery key), with a small C ABI.
-  No networking, storage or UI.
+  signatures, prekeys, fingerprints, the recovery key) and a small C ABI. No
+  networking, storage or UI.
+- **The app pins an exact version** and builds the library from it in the
+  in-repo plugin (`packages/fireplace_native`). A new version reaches the app
+  only through a reviewed PR that changes the pin.
+- **Claiming the name:** the owner creates the repository (private until the
+  owner decides) and publishes `0.1.0` from the first real code, after review
+  of the package contents. crates.io does not allow crates that only reserve
+  a name, and a publish cannot be deleted after 72 hours.
 - **Dart** calls it through `dart:ffi` (part of the SDK; no binding package).
   **Swift** (the extension) calls the same C ABI.
 - **Builds:** Android libraries for each ABI and an iOS XCFramework, built by
-  the in-repo plugin; a host library for `flutter test` on Linux CI and
-  Windows. CI gains a pinned Rust toolchain.
+  the in-repo plugin from the pinned version; a host library for
+  `flutter test` on Linux CI and Windows. Both repositories' CI gain a pinned
+  Rust toolchain.
 
 ## The iOS extension
 
@@ -102,7 +112,8 @@ New dependencies always need the owner's approval:
 Grok builds, one PR per step; Claude reviews each PR against this decision
 and the whole at the end.
 
-1. The Rust crate and the C ABI, with the known-answer vectors.
+1. The `fireplace-crypto` repository: the crate and the C ABI, with the
+   known-answer vectors; the owner publishes `0.1.0`.
 2. Differential tests against the Dart reference, in both directions.
 3. The app on the Rust core, behind one switch, with the chat simulation.
 4. The iOS extension, measured on the oldest supported iPhone (iOS 15).
