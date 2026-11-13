@@ -80,7 +80,12 @@ Android's normal own-message-only reaction alerts. This exception needs
 particular attention in review and the device checklist.
 
 The work deadline is about 4.2 seconds, with original-content completion at
-4.5 seconds or on the system's expiry callback. Completion runs exactly
+4.5 seconds. A process admission lease permits only one active preview;
+overlapping requests fall back immediately so allocations cannot multiply.
+Read locks also serialize descriptor ownership within the extension process,
+because POSIX closing rules apply to its own concurrent callers too.
+Completion also runs on the system's expiry callback.
+Completion runs exactly
 once, including cancellation and repeated delivery/expiry callbacks. HTTP
 requests use ephemeral sessions with no cookies, credential cache or URL
 cache. Neither bearer tokens nor refresh bodies follow redirects. There is

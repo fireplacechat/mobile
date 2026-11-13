@@ -29,6 +29,9 @@ final class NotificationService: UNNotificationServiceExtension, @unchecked Send
       guard let self = self else { return }
       do {
         let deadline = PreviewDeadline()
+        try deadline.check()
+        guard let admission = PreviewAdmission.process.acquire() else { throw PreviewFailure.unavailable }
+        defer { withExtendedLifetime(admission) {} }
         guard let appGroup = Bundle.main.object(forInfoDictionaryKey: "FPAppGroup") as? String,
               let group = Bundle.main.object(forInfoDictionaryKey: "FPSharedKeychainGroup") as? String,
               !group.contains("$("),

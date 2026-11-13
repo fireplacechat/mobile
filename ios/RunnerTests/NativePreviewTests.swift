@@ -3,6 +3,16 @@ import UserNotifications
 import XCTest
 
 final class NativePreviewTests: XCTestCase {
+  func testOnlyOnePreviewCanOwnTheProcessMemoryBudget() {
+    let admission = PreviewAdmission()
+    var first = admission.acquire()
+    XCTAssertNotNil(first)
+    XCTAssertNil(admission.acquire())
+    first = nil
+    let next = admission.acquire()
+    XCTAssertNotNil(next)
+    withExtendedLifetime(next) {}
+  }
   func testOwnedInputWipeClearsEveryByte() {
     let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 3)
     buffer.initialize(repeating: 7, count: 3)
