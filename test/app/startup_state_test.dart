@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
@@ -5,6 +7,7 @@ import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/app.dart';
 import 'package:fireplace/src/view/devices/new_device_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
+import 'package:fireplace/src/styles/brand/lockup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -17,6 +20,62 @@ class _User extends Fake implements User {
 }
 
 void main() {
+  for (final error in [
+    NeedsRecoveryException(),
+    StateError('startup failed'),
+  ]) {
+    testWidgets(
+      'session refresh hides ${error.runtimeType} actions until startup finishes',
+      (tester) async {
+        final resumed = Completer<AppSession?>();
+        var attempts = 0;
+        final container = ProviderContainer(
+          retry: (_, _) => null,
+          overrides: [
+            authUserProvider.overrideWith((ref) => Stream.value(_User())),
+            appSessionProvider.overrideWith((ref) async {
+              if (++attempts == 1) throw error;
+              return resumed.future;
+            }),
+          ],
+        );
+        addTearDown(() {
+          container.dispose();
+          if (!resumed.isCompleted) resumed.complete(null);
+        });
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: fireplaceTheme(Brightness.light),
+              home: const AuthGate(),
+            ),
+          ),
+        );
+        await settleUi(tester);
+        expect(attempts, 1);
+        final preparing = find.byWidgetPredicate(
+          (widget) =>
+              widget is FireplaceSplash &&
+              widget.message == 'Preparing your account…' &&
+              widget.actions.isEmpty,
+        );
+        expect(preparing, findsNothing);
+
+        // Successful recovery/reset invalidates this provider before rebuilding
+        // the session. Its old error actions must not remain usable meanwhile.
+        container.invalidate(appSessionProvider);
+        await tester.pump();
+        await tester.pump();
+        expect(attempts, 2);
+        expect(find.byType(NewDeviceScreen), findsNothing);
+        expect(find.byKey(const Key('optReset')), findsNothing);
+        expect(find.byKey(const Key('retrySession')), findsNothing);
+        expect(preparing, findsOneWidget);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
   for (final error in [
     NeedsRecoveryException(),
     AccountDeletionPending('alice'),
