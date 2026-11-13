@@ -4,6 +4,7 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
+import 'package:fireplace/src/view/settings/browser_error_dialog.dart';
 import 'package:fireplace/src/model/common/external_browser.dart';
 import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
@@ -35,7 +36,6 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _busy = false;
-  bool _browserFailed = false;
   String? _error, _fingerprintFor;
   Future<String>? _fingerprint;
   Future<void> _run(Future<void> Function() action) async {
@@ -62,10 +62,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _openLegal(String address) async {
     if (_busy) return;
-    setState(() {
-      _busy = true;
-      _browserFailed = false;
-    });
+    setState(() => _busy = true);
     var opened = false;
     try {
       opened = await ref.read(externalBrowserProvider).open(Uri.parse(address));
@@ -73,10 +70,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       // Keep both rows available for retry if the browser cannot open.
     }
     if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _browserFailed = !opened;
-    });
+    if (!opened) await showBrowserErrorDialog(context);
+    if (mounted) setState(() => _busy = false);
   }
 
   @override
@@ -341,13 +336,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 UiSettingsSection(
                   title: 'About',
                   children: [
-                    if (_browserFailed)
-                      const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: UiActionError(
-                          message: 'Could not open your browser. Try again.',
-                        ),
-                      ),
                     ListTile(
                       key: const Key('openPrivacyPolicy'),
                       leading: const Icon(Icons.policy_outlined),

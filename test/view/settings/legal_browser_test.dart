@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,8 +16,13 @@ const privacy = Key('openPrivacyPolicy');
 const terms = Key('openTermsOfUse');
 const errorText = 'Could not open your browser. Try again.';
 
-Future<void> openPage(WidgetTester tester, {required bool settings}) async {
-  tester.view.physicalSize = const Size(800, 3000);
+Future<void> openPage(
+  WidgetTester tester, {
+  required bool settings,
+  Size size = const Size(800, 3000),
+  double textScale = 1,
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final fixture = UiFixture();
@@ -26,6 +32,11 @@ Future<void> openPage(WidgetTester tester, {required bool settings}) async {
       overrides: fixture.overrides,
       child: MaterialApp(
         theme: fireplaceTheme(Brightness.light),
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context)
+              .copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
         home: settings ? const SettingsScreen() : const LegalLinksScreen(),
       ),
     ),
@@ -106,9 +117,22 @@ void main() {
             await tester.tap(find.byKey(privacy));
             await tester.pumpAndSettle();
             expect(find.text(errorText), findsOneWidget);
+            expect(find.byType(UiDialog), findsOneWidget);
+            expect(
+              find.descendant(
+                of: find.byType(UiDialog),
+                matching: find.text(errorText),
+              ),
+              findsOneWidget,
+            );
             expect(find.textContaining('PRIVATE DETAIL'), findsNothing);
             expect(find.byKey(privacy), findsOneWidget);
             expect(find.byKey(terms), findsOneWidget);
+            expect(opener(tester, privacy, settings), isNull);
+            await tester.tap(find.byKey(const Key('dismissBrowserError')));
+            await tester.pumpAndSettle();
+            expect(find.byType(UiDialog), findsNothing);
+            expect(find.text(errorText), findsNothing);
             expect(opener(tester, privacy, settings), isNotNull);
             fail = false;
             await tester.tap(find.byKey(terms));
@@ -118,6 +142,33 @@ void main() {
           },
         );
       }
+
+      testWidgets(
+        'browser error popup stays dismissible at 200% text on a short phone',
+        (tester) async {
+          mockBrowser(tester, (call) async => false);
+          await openPage(
+            tester,
+            settings: settings,
+            size: const Size(320, 480),
+            textScale: 2,
+          );
+          await tester.scrollUntilVisible(find.byKey(privacy), 300);
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(privacy));
+          await tester.pumpAndSettle();
+          expect(find.byType(UiDialog), findsOneWidget);
+          expect(tester.takeException(), isNull);
+          final dismiss = find.byKey(const Key('dismissBrowserError'));
+          await tester.ensureVisible(dismiss);
+          await tester.pumpAndSettle();
+          expect(tester.getRect(dismiss).bottom, lessThanOrEqualTo(480));
+          await tester.tap(dismiss);
+          await tester.pumpAndSettle();
+          expect(find.byType(UiDialog), findsNothing);
+          expect(opener(tester, privacy, settings), isNotNull);
+        },
+      );
 
       testWidgets(
         'opening guards repeated taps and safely finishes after disposal',
