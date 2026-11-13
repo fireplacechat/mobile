@@ -4,6 +4,8 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
+import 'package:fireplace/src/view/settings/browser_error_dialog.dart';
+import 'package:fireplace/src/model/common/external_browser.dart';
 import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
@@ -57,6 +59,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => page));
   });
+
+  Future<void> _openLegal(String address) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    var opened = false;
+    try {
+      opened = await ref.read(externalBrowserProvider).open(Uri.parse(address));
+    } catch (_) {
+      // Keep both rows available for retry if the browser cannot open.
+    }
+    if (!mounted) return;
+    if (!opened) await showBrowserErrorDialog(context);
+    if (mounted) setState(() => _busy = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(appSessionProvider);
@@ -320,16 +337,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   title: 'About',
                   children: [
                     ListTile(
-                      key: const Key('legalLinks'),
+                      key: const Key('openPrivacyPolicy'),
                       leading: const Icon(Icons.policy_outlined),
-                      title: const Text('Privacy and terms'),
+                      title: const Text('Privacy policy'),
                       onLongPress: previewDiagnosticsEnabled
                           ? () => _open(const PreviewDiagnosticsScreen())
                           : null,
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: _busy
-                          ? null
-                          : () => _open(const LegalLinksScreen()),
+                      onTap: _busy ? null : () => _openLegal(privacyPolicyUrl),
+                    ),
+                    ListTile(
+                      key: const Key('openTermsOfUse'),
+                      leading: const Icon(Icons.description_outlined),
+                      title: const Text('Terms of use'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _busy ? null : () => _openLegal(termsOfUseUrl),
                     ),
                     ListTile(
                       key: const Key('openLicences'),

@@ -18,6 +18,31 @@ import UserNotifications
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "FireplaceNotifications") {
       NotificationsChannel.register(messenger: registrar.messenger())
     }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "FireplaceBrowser") {
+      BrowserChannel.register(messenger: registrar.messenger())
+    }
+  }
+}
+
+/// Open public HTTPS links in the phone's browser, reporting an OS refusal.
+private enum BrowserChannel {
+  static var channel: FlutterMethodChannel?
+
+  static func register(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "fireplace/browser", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "open" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard let address = call.arguments as? String, let url = URL(string: address),
+            url.scheme == "https", url.host?.isEmpty == false else {
+        result(false)
+        return
+      }
+      UIApplication.shared.open(url, options: [:]) { opened in result(opened) }
+    }
+    self.channel = channel
   }
 }
 

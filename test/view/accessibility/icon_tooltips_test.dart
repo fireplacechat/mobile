@@ -8,7 +8,6 @@ import 'package:fireplace/src/view/chat/message_menu_parts.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
-import 'package:fireplace/src/view/settings/legal_links.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -146,12 +145,6 @@ void main() {
     await holdIcon(tester, 'Remove device');
   });
 
-  iconTest('copy-link icons have no held labels', (tester) async {
-    await mount(tester, const LegalLinksScreen(), push: true);
-    await holdIcon(tester, 'Copy privacy policy link');
-    await holdIcon(tester, 'Copy terms of use link');
-  });
-
   iconTest('select-text Close has no held label', (tester) async {
     await mount(tester, const ChatScreen(chatId: 'alice_fred'));
     unawaited(
@@ -172,12 +165,15 @@ void main() {
     await holdIcon(tester, 'Cancel reply');
   });
 
-  iconTest('selection Delete and Forward have no held labels', (tester) async {
+  iconTest('selection Delete, Copy and Forward have no held labels', (
+    tester,
+  ) async {
     await mount(tester, const ChatScreen(chatId: 'alice_fred'));
     await openMessageMenu(tester);
     await tester.tap(find.byKey(const ValueKey('messageAction-select')));
     await tester.pumpAndSettle();
     await holdIcon(tester, 'Delete');
+    await holdIcon(tester, 'Copy');
     await holdIcon(tester, 'Forward');
   });
 

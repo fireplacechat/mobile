@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_selection.dart';
+import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/message_controls.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
@@ -117,6 +119,36 @@ class MessageSelectionSurface extends ConsumerWidget {
     await forwardMessages(context, chosen, name: name);
   }
 
+  Future<void> _copy(BuildContext context, WidgetRef ref) async {
+    final owner = ref.read(appSessionProvider).value;
+    final controller = ref.read(messageSelectionProvider(chatId).notifier);
+    if (owner == null ||
+        !controller.available ||
+        ref.read(messageSelectionProvider(chatId)).deleting) {
+      return;
+    }
+    var notice = 'Copied';
+    try {
+      // The cached history is already in display order, unlike selection IDs.
+      final text = [
+        for (final message in _selectedMessages(ref))
+          if (message.status != MessageStatus.undecryptable)
+            displayMessage(message.body).plain,
+      ].where((body) => body.isNotEmpty).join('\n\n');
+      if (text.isEmpty) return;
+      await Clipboard.setData(ClipboardData(text: text));
+    } catch (_) {
+      notice = 'Could not copy these messages. Try again.';
+    }
+    if (!context.mounted ||
+        !identical(ref.read(appSessionProvider).value, owner)) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(notice)));
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(messageControlsProvider(chatId).select((s) => s.busy));
@@ -176,8 +208,8 @@ class MessageSelectionSurface extends ConsumerWidget {
             ? Material(
                 color: t.panel,
                 child: SafeArea(
-                  child: SizedBox(
-                    height: 52,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minHeight: 52),
                     child: Row(
                       children: [
                         IconButton(
@@ -188,6 +220,9 @@ class MessageSelectionSurface extends ConsumerWidget {
                               : () => _deleteSelected(context, ref),
                           icon: const Icon(CupertinoIcons.trash),
                         ),
+                        // Balance the new right-hand action so the selected
+                        // count keeps its existing centered position.
+                        const SizedBox(width: 48),
                         Expanded(
                           child: Text(
                             '$count Selected',
@@ -195,6 +230,14 @@ class MessageSelectionSurface extends ConsumerWidget {
                             textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
+                        ),
+                        IconButton(
+                          key: const Key('copySelectedMessages'),
+                          tooltip: 'Copy',
+                          onPressed: selection.deleting || count == 0
+                              ? null
+                              : () => _copy(context, ref),
+                          icon: const Icon(CupertinoIcons.doc_on_doc),
                         ),
                         IconButton(
                           key: const Key('forwardSelectedMessages'),

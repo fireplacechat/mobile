@@ -139,11 +139,11 @@ void main() {
 
   testWidgets('legal links are labeled and large text fits', (t) async {
     await check(t, 'legal', const LegalLinksScreen());
-    final privacy = find.byTooltip(
-      'Copy privacy policy link',
+    final privacy = find.byKey(
+      const Key('openPrivacyPolicy'),
       skipOffstage: false,
     );
-    final terms = find.byTooltip('Copy terms of use link', skipOffstage: false);
+    final terms = find.byKey(const Key('openTermsOfUse'), skipOffstage: false);
     await reveal(t, privacy);
     await reveal(t, terms);
     expect(t.getSize(privacy).shortestSide, greaterThanOrEqualTo(48));

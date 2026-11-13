@@ -89,7 +89,8 @@ void main() {
       ('recoveryKey', 'Recovery key'),
       ('deleteAccountTile', 'Delete account'),
       ('signOut', 'Sign out'),
-      ('legalLinks', 'Privacy and terms'),
+      ('openPrivacyPolicy', 'Privacy policy'),
+      ('openTermsOfUse', 'Terms of use'),
     ]) {
       final tile = t.widget<ListTile>(find.byKey(Key(key)));
       expect((tile.title! as Text).data, title);

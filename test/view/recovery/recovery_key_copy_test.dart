@@ -160,7 +160,7 @@ void main() {
       read();
       await t.pumpAndSettle();
       expect(find.byType(LegalLinksScreen), findsOneWidget);
-      expect(find.text(privacyPolicyUrl), findsOneWidget);
+      expect(find.byKey(const Key('openPrivacyPolicy')), findsOneWidget);
       await t.pageBack();
       await t.pumpAndSettle();
       expect(
