@@ -1,5 +1,10 @@
 # 0028: Send in bursts, within a daily cap
 
+*Update (v0.3.6, decision 0032): a fourth form for a day that ends inside a
+window, all forms tried in order of likelihood, and two more rounds after a
+refusal of every form, so a send is no longer reported "Not sent" when it
+would have passed a moment later.*
+
 *Update (v0.3.6): the backend now refuses the older `{at}` form (backend #21,
 deployed), so the app no longer has it: three forms, and when all three are
 refused the send fails with the last refusal. "Release order" below describes

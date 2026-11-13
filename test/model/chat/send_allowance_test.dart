@@ -28,10 +28,41 @@ void main() {
     expect(allowance.wait, Duration.zero);
   });
 
-  test('a new window opens once the last one is nearly over', () {
+  test('a new window is guessed only once the last one is over', () {
+    // Guessing it early was refused near the end of every window.
     send();
-    now = now.add(ChatTuning.sendWindow - SendAllowance.margin);
+    now = now.add(ChatTuning.sendWindow - const Duration(milliseconds: 1));
+    expect(allowance.next, SendClock.next);
+    now = now.add(const Duration(milliseconds: 1));
     expect(allowance.next, SendClock.window);
+  });
+
+  test('a day that ends inside a window is opened without a new window', () {
+    send();
+    now = now.add(
+      ChatTuning.sendDay - SendAllowance.dayMargin - const Duration(seconds: 5),
+    );
+    send(); // opens a window
+    now = now.add(const Duration(seconds: 6));
+    expect(allowance.next, SendClock.dayInWindow);
+    send();
+    expect(allowance.next, SendClock.next);
+    expect(allowance.capReached, isFalse);
+  });
+
+  test('the wait for a used-up burst counts from the server answer', () {
+    final start = now;
+    for (var i = 0; i < ChatTuning.sendBurst; i++) {
+      allowance.published(
+        allowance.next,
+        start,
+        start.add(const Duration(seconds: 1)),
+      );
+    }
+    expect(
+      allowance.wait,
+      ChatTuning.sendWindow + SendAllowance.margin + const Duration(seconds: 1),
+    );
   });
 
   test('a new day opens once the last one is nearly over', () {
@@ -79,9 +110,30 @@ void main() {
     expect(allowance.wait, Duration.zero);
   });
 
-  test('after a refusal the other forms are tried, the likeliest first', () {
-    expect(SendClock.day.others, [SendClock.window, SendClock.next]);
-    expect(SendClock.window.others, [SendClock.day, SendClock.next]);
-    expect(SendClock.next.others, [SendClock.window, SendClock.day]);
+  test('every form is tried, the other window state right after', () {
+    expect(SendClock.next.tryOrder, [
+      SendClock.next,
+      SendClock.window,
+      SendClock.dayInWindow,
+      SendClock.day,
+    ]);
+    expect(SendClock.window.tryOrder, [
+      SendClock.window,
+      SendClock.next,
+      SendClock.day,
+      SendClock.dayInWindow,
+    ]);
+    expect(SendClock.day.tryOrder, [
+      SendClock.day,
+      SendClock.dayInWindow,
+      SendClock.window,
+      SendClock.next,
+    ]);
+    expect(SendClock.dayInWindow.tryOrder, [
+      SendClock.dayInWindow,
+      SendClock.day,
+      SendClock.next,
+      SendClock.window,
+    ]);
   });
 }
