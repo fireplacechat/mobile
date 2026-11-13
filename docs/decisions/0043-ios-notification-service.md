@@ -29,12 +29,22 @@ opaque conversation key. Missing keys, an unrecognised chat, disabled
 previews, a pending receive journal or a failed lock leaves the original
 push body. It never establishes a new identity pin or creates local keys.
 
+The current APNs alert already supplies its opaque key as `aps.thread-id`
+and enables `mutable-content`. The extension uses that thread identifier;
+it does not require Android's separate data-only payload fields. A legacy
+data key is accepted only with its explicit marker. No backend change is
+needed.
+
 An expired ID token is refreshed against Google's fixed HTTPS token endpoint,
 using that user's refresh token and public API key. The response must name
 the same user; the returned token's audience, subject and issuer must match.
 Firestore still verifies its signature and enforces the deployed security
 rules. No service-account credential is used. The refreshed token is used
 only in memory; the extension never updates the keychain.
+The request includes the parent app's `X-Ios-Bundle-Identifier`, required by
+the existing iOS API-key restriction. Read-only live metadata checks on
+2026-11-13 confirmed that restriction and unenforced App Check for Firestore
+and Firebase Auth; no setting was changed.
 
 The REST query requests at most ten new documents from one chat, projecting
 only sender fields, timestamp and the envelope for this device. Its response

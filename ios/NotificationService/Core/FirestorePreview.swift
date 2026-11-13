@@ -2,6 +2,25 @@ import Foundation
 
 public enum PreviewParseError: Error { case invalid, oversized }
 
+public enum PreviewRequests {
+  public static func refresh(apiKey: String, refreshToken: String, timeout: TimeInterval) throws -> URLRequest {
+    guard !apiKey.isEmpty, apiKey.utf8.count <= 256, !refreshToken.isEmpty,
+          refreshToken.utf8.count <= 16 * 1024, timeout > 0, timeout <= 5 else { throw PreviewParseError.invalid }
+    var endpoint = URLComponents(string: "https://securetoken.googleapis.com/v1/token")!
+    endpoint.queryItems = [URLQueryItem(name: "key", value: apiKey)]
+    var form = URLComponents()
+    form.queryItems = [URLQueryItem(name: "grant_type", value: "refresh_token"), URLQueryItem(name: "refresh_token", value: refreshToken)]
+    var request = URLRequest(url: endpoint.url!)
+    request.httpMethod = "POST"
+    request.timeoutInterval = timeout
+    request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+    // The credential belongs to the parent app's iOS-restricted Firebase key.
+    request.setValue("com.fireplacechat.app", forHTTPHeaderField: "X-Ios-Bundle-Identifier")
+    request.httpBody = Data((form.percentEncodedQuery ?? "").replacingOccurrences(of: "+", with: "%2B").utf8)
+    return request
+  }
+}
+
 public struct PreviewDocument {
   public let id: String
   public let fields: [String: Any]
@@ -9,6 +28,12 @@ public struct PreviewDocument {
 
 public enum FirestorePreview {
   public static let pageLimit = 10
+  public static func pushKey(threadIdentifier: String, legacyMarker: String? = nil, legacyKey: String? = nil) -> String? {
+    let key = threadIdentifier.isEmpty ? (legacyMarker == "1" ? legacyKey : nil) : threadIdentifier
+    guard let key = key, key.utf8.count == 32,
+          key.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else { return nil }
+    return key
+  }
   public static func component(_ value: String) -> Bool {
     !value.isEmpty && value.utf8.count <= 256 && value != "." && value != ".." &&
       value.unicodeScalars.allSatisfy { CharacterSet.alphanumerics.contains($0) || $0 == "_" || $0 == "-" }

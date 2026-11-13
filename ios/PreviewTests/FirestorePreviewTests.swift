@@ -3,6 +3,22 @@ import XCTest
 import PreviewCore
 
 final class FirestorePreviewTests: XCTestCase {
+  func testRefreshUsesTheParentAppKeyRestrictionAndPreservesFormBytes() throws {
+    let request = try PreviewRequests.refresh(apiKey: "fictional-key", refreshToken: "fictional+refresh/token==", timeout: 4)
+    XCTAssertEqual(request.url?.host, "securetoken.googleapis.com")
+    XCTAssertEqual(request.httpMethod, "POST")
+    XCTAssertEqual(request.value(forHTTPHeaderField: "X-Ios-Bundle-Identifier"), "com.fireplacechat.app")
+    let body = try XCTUnwrap(String(data: request.httpBody!, encoding: .utf8))
+    XCTAssertTrue(body.contains("fictional%2Brefresh"))
+    XCTAssertFalse(body.contains("fictional+refresh"))
+  }
+  func testCurrentApnsThreadKeyWorksWithoutAndroidDataFields() {
+    let key = "0123456789abcdef0123456789abcdef"
+    XCTAssertEqual(FirestorePreview.pushKey(threadIdentifier: key), key)
+    XCTAssertEqual(FirestorePreview.pushKey(threadIdentifier: "", legacyMarker: "1", legacyKey: key), key)
+    XCTAssertNil(FirestorePreview.pushKey(threadIdentifier: "", legacyKey: key))
+    XCTAssertNil(FirestorePreview.pushKey(threadIdentifier: "INVALID"))
+  }
   func testQueryFetchesOnlyOneDeviceAndTenDocuments() throws {
     let body = try FirestorePreview.query(device: "fictional-device", cursor: "1700000000:123456789")
     let query = body["structuredQuery"] as! [String: Any]

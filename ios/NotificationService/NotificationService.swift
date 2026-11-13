@@ -33,8 +33,9 @@ final class NotificationService: UNNotificationServiceExtension, @unchecked Send
               let group = Bundle.main.object(forInfoDictionaryKey: "FPSharedKeychainGroup") as? String,
               !group.contains("$("),
               let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup),
-              request.content.userInfo["fp"] as? String == "1",
-              let key = request.content.userInfo["k"] as? String else { throw PreviewFailure.unavailable }
+              let key = FirestorePreview.pushKey(threadIdentifier: request.content.threadIdentifier,
+                legacyMarker: request.content.userInfo["fp"] as? String,
+                legacyKey: request.content.userInfo["k"] as? String) else { throw PreviewFailure.unavailable }
         try deadline.check()
         guard self.begin(root: root, run: run) else { throw PreviewFailure.deadline }
         let store = PreviewKeychain(group: group)

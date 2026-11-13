@@ -26,15 +26,7 @@ struct PreviewCredentials {
   func token(deadline: PreviewDeadline) async throws -> String {
     try deadline.check()
     if expiresAt > Date().timeIntervalSince1970 + 30 { return idToken }
-    var endpoint = URLComponents(string: "https://securetoken.googleapis.com/v1/token")!
-    endpoint.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-    var form = URLComponents()
-    form.queryItems = [URLQueryItem(name: "grant_type", value: "refresh_token"), URLQueryItem(name: "refresh_token", value: refreshToken)]
-    var request = URLRequest(url: endpoint.url!)
-    request.httpMethod = "POST"
-    request.timeoutInterval = deadline.remaining
-    request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-    request.httpBody = Data((form.percentEncodedQuery ?? "").replacingOccurrences(of: "+", with: "%2B").utf8)
+    let request = try PreviewRequests.refresh(apiKey: apiKey, refreshToken: refreshToken, timeout: deadline.remaining)
     let data = try await BoundedTransport(limit: 32 * 1024).data(for: request)
     guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any],
           result["user_id"] as? String == uid, let token = result["id_token"] as? String,
