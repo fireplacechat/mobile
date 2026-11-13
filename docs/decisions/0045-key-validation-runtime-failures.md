@@ -1,6 +1,23 @@
 # 0045: Preserve keys when the crypto runtime is unavailable
 
-Status: proposed during the v0.3.7 iOS upgrade investigation.
+Status: proposed after reproducing the v0.3.7 archive failure.
+
+Signed inspection run 43491392076 built the v0.3.7 runtime sources and found
+all 36 C ABI exports missing from the final Runner executable. The ordinary
+unsigned Release build retained them. Archive stripping therefore has to be
+tested explicitly; passing Debug simulator and ordinary device builds is
+insufficient. The signed keychain-group check has not passed yet: inspection
+stopped at the missing exports.
+
+Runner now sets `STRIP_STYLE = non-global` in every configuration, following
+[Flutter's static FFI guidance](https://docs.flutter.dev/platform-integration/legacy-ffi-plugin#stripping-symbols).
+Debug information is still stripped; the global functions that Dart resolves
+by name remain available. The existing link anchor and export linker flag
+remain necessary. A project regression test rejects removing this protection
+from any Runner configuration. Manual unsigned checks now use
+`flutter build ipa --release --no-codesign`, which archives and strips but
+stops before IPA export/signing, and validate the archived executable. The
+protected signing lane also validates the final exported IPA before upload.
 
 The device-setup screen is not proof that local private keys were lost.
 `ensureDevice` previously caught every exception while parsing and validating

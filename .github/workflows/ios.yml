@@ -20,8 +20,10 @@ jobs:
       - run: ruby -c ios/fastlane/Fastfile
       - run: swift test --package-path ios
       - run: flutter pub get
-      - run: flutter build ios --no-codesign
-      - run: bash scripts/check_ios_preview_bundle.sh build/ios/iphoneos/Runner.app
+      # Archive performs the symbol stripping that an ordinary device build skips.
+      # Without --codesign Flutter stops at the archive and never exports an IPA.
+      - run: flutter build ipa --release --no-codesign
+      - run: bash scripts/check_ios_preview_bundle.sh build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
       - run: flutter build ios --simulator --debug --no-codesign
       - name: Check out the source of the published core for its vector tests
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

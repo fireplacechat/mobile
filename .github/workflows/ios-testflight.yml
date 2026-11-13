@@ -53,16 +53,16 @@ jobs:
         if: inputs.mode != 'inspect'
       - run: flutter pub get
         if: inputs.mode != 'inspect'
-      - run: flutter build ios --release --no-codesign
+      - run: flutter build ipa --release --no-codesign
         if: inputs.mode != 'inspect'
-      - run: bash scripts/check_ios_preview_bundle.sh build/ios/iphoneos/Runner.app
+      - run: bash scripts/check_ios_preview_bundle.sh build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app
         if: inputs.mode != 'inspect'
       - name: Print built app version
         if: inputs.mode != 'inspect'
         run: |
           set -euo pipefail
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/ios/iphoneos/Runner.app/Info.plist
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/ios/iphoneos/Runner.app/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Info.plist
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Info.plist
   upload:
     if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.mode == 'upload' || inputs.mode == 'inspect') }}
     needs: check

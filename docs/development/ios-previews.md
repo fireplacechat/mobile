@@ -2,6 +2,9 @@
 
 The notification service and shared-storage foundation shipped in v0.3.7.
 The startup regression on upgraded installations is still under investigation.
+Signed inspection reproduced missing Rust C ABI exports after archive stripping.
+The fix preserves global symbols and checks unsigned archives as well as final
+signed IPAs. Physical upgrade validation remains required.
 Only the owner configures Apple identifiers, signs and uploads builds.
 
 ## Apple Developer configuration
