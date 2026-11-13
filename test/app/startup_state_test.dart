@@ -135,6 +135,7 @@ void main() {
       await tester.pump();
       await tester.tap(find.byKey(const Key('retrySession')));
       await settleUi(tester);
+      await tester.pump(const Duration(seconds: 3));
       expect(attempts, 2);
       expect(find.byKey(const Key('newChat')), findsOneWidget);
       await tester.pumpAndSettle();
