@@ -4,9 +4,9 @@ import 'package:fireplace/fireplace_crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('the production default stays Dart pending explicit review', () {
-    expect(CryptoBackend.production, CryptoBackendKind.dart);
-    expect(CryptoBackend.current, CryptoBackendKind.dart);
+  test('ordinary app builds select the Rust backend', () {
+    expect(CryptoBackend.production, CryptoBackendKind.rust);
+    expect(CryptoBackend.current, CryptoBackendKind.rust);
   });
 
   test(
@@ -21,7 +21,7 @@ void main() {
         });
         expect(CryptoBackend.current, CryptoBackendKind.rust);
       });
-      expect(CryptoBackend.current, CryptoBackendKind.dart);
+      expect(CryptoBackend.current, CryptoBackend.production);
     },
   );
 
