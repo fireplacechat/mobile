@@ -7,11 +7,11 @@ on:
         required: true
         type: string
       mode:
-        description: 'Check without signing, or upload with owner approval'
+        description: 'Check unsigned, inspect a signed IPA without uploading, or upload with owner approval'
         required: true
         default: check
         type: choice
-        options: [check, upload]
+        options: [check, inspect, upload]
       preview_diagnostics:
         description: 'Local preview diagnostics for TestFlight only; never select this build for App Store release'
         required: true
@@ -39,21 +39,32 @@ jobs:
           [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected vX.Y.Z."; exit 1; }
           package_version=$(awk '$1 == "version:" { print $2 }' pubspec.yaml)
           [ "$VERSION" = "v${package_version%%+*}" ] || { echo "Version must match pubspec.yaml."; exit 1; }
+      - name: Show requested operation and diagnostic flag
+        env:
+          REQUESTED_MODE: ${{ inputs.mode }}
+          PREVIEW_DIAGNOSTICS: ${{ inputs.preview_diagnostics }}
+        run: printf 'Operation=%s PreviewDiagnostics=%s\n' "$REQUESTED_MODE" "$PREVIEW_DIAGNOSTICS"
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        if: inputs.mode != 'inspect'
         with:
           flutter-version-file: pubspec.yaml
           cache: false
       - run: bash scripts/build_crypto_ios.sh
+        if: inputs.mode != 'inspect'
       - run: flutter pub get
+        if: inputs.mode != 'inspect'
       - run: flutter build ios --release --no-codesign
+        if: inputs.mode != 'inspect'
       - run: bash scripts/check_ios_preview_bundle.sh build/ios/iphoneos/Runner.app
+        if: inputs.mode != 'inspect'
       - name: Print built app version
+        if: inputs.mode != 'inspect'
         run: |
           set -euo pipefail
           /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/ios/iphoneos/Runner.app/Info.plist
           /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' build/ios/iphoneos/Runner.app/Info.plist
   upload:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.mode == 'upload' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && (inputs.mode == 'upload' || inputs.mode == 'inspect') }}
     needs: check
     runs-on: macos-latest
     timeout-minutes: 60
@@ -103,6 +114,7 @@ jobs:
       - name: Run beta lane
         working-directory: ios
         env:
+          TESTFLIGHT_ACTION: ${{ inputs.mode }}
           PREVIEW_DIAGNOSTICS: ${{ inputs.preview_diagnostics }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}

@@ -29,6 +29,8 @@ platform :ios do
 
   desc 'Use existing signing material and upload one build to TestFlight'
   lane :beta do
+    operation = ENV.fetch('TESTFLIGHT_ACTION', 'upload')
+    UI.user_error!('Unknown TestFlight operation') unless ['upload', 'inspect'].include?(operation)
     setup_ci(timeout: 0)
     key = fireplace_api_key
     match(
@@ -88,12 +90,16 @@ platform :ios do
     Dir.mktmpdir('fireplace-verify-', ENV['RUNNER_TEMP']) do |temporary|
       sh('unzip', '-q', bundles.first, '-d', temporary)
       sh('bash', File.join(root, 'scripts', 'check_ios_preview_bundle.sh'),
-        File.join(temporary, 'Payload', 'Runner.app'), diagnostics ? 'on' : 'off')
+        File.join(temporary, 'Payload', 'Runner.app'), diagnostics ? 'on' : 'off', 'signed')
     end
-    upload_to_testflight(
-      api_key: key,
-      ipa: bundles.first,
-      skip_waiting_for_build_processing: true
-    )
+    if operation == 'upload'
+      upload_to_testflight(
+        api_key: key,
+        ipa: bundles.first,
+        skip_waiting_for_build_processing: true
+      )
+    else
+      UI.success('Signed IPA inspected. Nothing uploaded to TestFlight.')
+    end
   end
 end

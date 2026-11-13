@@ -1,7 +1,7 @@
 # iOS preview setup and upgrade checks
 
-The notification service and shared-storage foundation are under review;
-this is not a release announcement.
+The notification service and shared-storage foundation shipped in v0.3.7.
+The startup regression on upgraded installations is still under investigation.
 Only the owner configures Apple identifiers, signs and uploads builds.
 
 ## Apple Developer configuration
@@ -70,6 +70,26 @@ failure without attaching keychain contents or encrypted store dumps.
 
 ## Diagnostic TestFlight round
 
+For an upgrade incident, use `mode=inspect` in the existing TestFlight workflow
+to build and inspect a signed IPA without uploading it. It uses the protected
+owner signing environment and can reuse the current version because it does
+not upload a build. Inspection skips the redundant unsigned compilation and
+goes directly to the protected signed build after checking the requested version.
+Validation checks the main executable's actual dynamic
+Rust exports and compares both bundles' runtime keychain configuration with
+their signed entitlements, including the app's original default group. Logs
+report check results, never keychain values or private signing material.
+
+```sh
+gh workflow run ios-testflight.yml --repo fireplacechat/mobile --ref main -f version=vX.Y.Z -f mode=inspect
+```
+
+Do not treat a missing-key setup screen as proof of lost keys: failures during
+local-key validation can currently reach the same screen. Keep the affected
+installation and avoid identity-reset actions during diagnosis. Account login,
+public device registrations, an encrypted recovery backup and private local
+keys are distinct recovery states; verify each before claiming restoration.
+
 After unsigned checks, Apple configuration, signing setup and the reviewed
 version bump have passed, the owner can run:
 
@@ -114,5 +134,6 @@ identifier. Peak zero is shown as unavailable.
 - Open the app after every case and confirm each message is received once,
   existing sessions continue and one-time prekeys are consumed by the app.
 
-The production app backend still defaults to Dart. Its explicit Rust switch
-review and a release on Rust precede any removal of the Dart reference.
+The production app defaults to Rust after the owner's integration review.
+Keep the Dart reference until a working release has been validated and the
+owner explicitly approves its removal.

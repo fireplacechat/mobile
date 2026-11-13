@@ -4,6 +4,12 @@ app="${1:?Expected Runner.app}"
 diagnostics="${2:-off}"
 extension="$app/PlugIns/NotificationService.appex"
 test -d "$extension" || { echo 'The notification extension is missing.' >&2; exit 1; }
+root="$(cd "$(dirname "$0")/.." && pwd)"
+if [ "${3:-}" = signed ]; then
+  python3 "$root/scripts/check_ios_upgrade.py" "$app" --signed
+else
+  python3 "$root/scripts/check_ios_upgrade.py" "$app"
+fi
 stage="$(mktemp -d "${TMPDIR:-/tmp}/fireplace-preview-check.XXXXXX")"
 for bundle in "$app" "$extension"; do
   executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$bundle/Info.plist")"
