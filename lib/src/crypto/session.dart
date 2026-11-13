@@ -420,6 +420,13 @@ class Session {
   static SimplePublicKey _pk(List<int> b) =>
       SimplePublicKey(b, type: KeyPairType.x25519);
 
+  /// 32 coins when the test stream is on. Otherwise the library draws them.
+  static (Uint8List, Uint8List) _encaps(Uint8List pk) {
+    final coins = takeTestBytes(32);
+    if (coins == null) return PqcKem.kyber768.encapsulate(pk);
+    return PqcKem.kyber768.encapsulate(pk, coins);
+  }
+
   static Future<(Session, HandshakeInit)> initiate({
     required DeviceKeys local,
     required DeviceBundle localBundle,
@@ -439,17 +446,18 @@ class Session {
       throw SessionException('one-time prekey has the wrong kind');
     }
 
-    final ek = await _x25519.newKeyPair();
+    final ekSeed = takeTestBytes(32);
+    final ek = ekSeed == null
+        ? await _x25519.newKeyPair()
+        : await _x25519.newKeyPairFromSeed(ekSeed);
     final ekPub = Uint8List.fromList((await ek.extractPublicKey()).bytes);
     final ik = await _x25519.newKeyPairFromSeed(local.x25519Seed);
     final dh1 = await _dh(ik, _pk(spk.x25519Pub));
     final dh2 = await _dh(ek, _pk(dev.x25519Pub));
     final dh3 = await _dh(ek, _pk(spk.x25519Pub));
     final dh4 = opk == null ? null : await _dh(ek, _pk(opk.x25519Pub));
-    final (ct1, ss1) = PqcKem.kyber768.encapsulate(spk.kemPub);
-    final (ct2, ss2) = opk == null
-        ? (null, null)
-        : PqcKem.kyber768.encapsulate(opk.kemPub);
+    final (ct1, ss1) = _encaps(spk.kemPub);
+    final (ct2, ss2) = opk == null ? (null, null) : _encaps(opk.kemPub);
 
     final hs = HandshakeInit(
       ek: ekPub,
@@ -659,9 +667,12 @@ class Session {
     final seed = randomBytes(32);
     final kp = await _x25519.newKeyPairFromSeed(seed);
     final pub = Uint8List.fromList((await kp.extractPublicKey()).bytes);
-    final (kemPk, kemSk) = PqcKem.kyber768.generateKeyPair();
+    final kemSeed = takeTestBytes(64);
+    final (kemPk, kemSk) = kemSeed == null
+        ? PqcKem.kyber768.generateKeyPair()
+        : PqcKem.kyber768.generateKeyPair(kemSeed);
     final dh = await _dh(kp, _pk(remoteX));
-    final (ct, ss) = PqcKem.kyber768.encapsulate(remoteKem);
+    final (ct, ss) = _encaps(remoteKem);
     final (rk, ck) = await _kdfRk(st.rk, dh, ss);
     st.pn = st.ns;
     st.ns = 0;
@@ -772,6 +783,7 @@ class Session {
     final box = await _aead.encrypt(
       plaintext,
       secretKey: await _msgKey(mk),
+      nonce: takeTestBytes(12),
       aad: await _aad(
         sessionId,
         chatId,

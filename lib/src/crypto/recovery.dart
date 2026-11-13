@@ -99,6 +99,7 @@ class RecoveryBackup {
     final box = await _aead.encrypt(
       utf8.encode(jsonEncode(identity.toJson())),
       secretKey: await key._aeadKey(),
+      nonce: takeTestBytes(12),
       aad: utf8Bytes('fireplace/v1/backup'),
     );
     return b64(box.concatenation());

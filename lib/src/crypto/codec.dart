@@ -4,8 +4,46 @@ import 'dart:typed_data';
 
 final _rng = Random.secure();
 
-Uint8List randomBytes(int n) =>
-    Uint8List.fromList(List<int>.generate(n, (_) => _rng.nextInt(256)));
+/// Bytes still to be drawn by [randomBytes] and [takeTestBytes].
+///
+/// Release builds strip the assert that writes this, so a release call of
+/// [installTestRng] cannot replace the operating-system generator.
+Uint8List? _testStream;
+
+/// Installs a finite stream for tests. Pass null to clear it.
+///
+/// The body is inside `assert`, which Dart removes from release builds.
+void installTestRng(Uint8List? bytes) {
+  assert(() {
+    _testStream = bytes == null ? null : Uint8List.fromList(bytes);
+    return true;
+  }());
+}
+
+/// Draws [n] bytes from the test stream, or returns null when it is off.
+///
+/// A short stream throws. Release builds strip the assert, so this returns
+/// null and every caller stays on the library generator.
+Uint8List? takeTestBytes(int n) {
+  Uint8List? taken;
+  assert(() {
+    final stream = _testStream;
+    if (stream == null) return true;
+    if (stream.length < n) {
+      throw StateError('test rng exhausted');
+    }
+    taken = Uint8List.fromList(stream.sublist(0, n));
+    _testStream = Uint8List.fromList(stream.sublist(n));
+    return true;
+  }());
+  return taken;
+}
+
+Uint8List randomBytes(int n) {
+  final taken = takeTestBytes(n);
+  if (taken != null) return taken;
+  return Uint8List.fromList(List<int>.generate(n, (_) => _rng.nextInt(256)));
+}
 
 String b64(List<int> bytes) => base64Encode(bytes);
 Uint8List unb64(String s) => Uint8List.fromList(base64Decode(s));
