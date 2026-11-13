@@ -1,7 +1,7 @@
 # iOS preview setup and upgrade checks
 
-The notification service and shared-storage foundation are under review;
-this is not a release announcement.
+The notification service and shared-storage foundation shipped in v0.3.7.
+The startup regression on upgraded installations is still under investigation.
 Only the owner configures Apple identifiers, signs and uploads builds.
 
 ## Apple Developer configuration
@@ -134,5 +134,6 @@ identifier. Peak zero is shown as unavailable.
 - Open the app after every case and confirm each message is received once,
   existing sessions continue and one-time prekeys are consumed by the app.
 
-The production app backend still defaults to Dart. Its explicit Rust switch
-review and a release on Rust precede any removal of the Dart reference.
+The production app defaults to Rust after the owner's integration review.
+Keep the Dart reference until a working release has been validated and the
+owner explicitly approves its removal.
