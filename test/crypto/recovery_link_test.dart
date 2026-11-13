@@ -1,9 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:fireplace/fireplace_crypto.dart';
+import '../support/crypto_backend.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
-void main() {
+void main() => bothCryptoBackends(() {
   group('RecoveryKey', () {
     test(
       'display/parse round trip, formatting tolerant, typos rejected',
@@ -155,4 +156,4 @@ void main() {
       );
     });
   });
-}
+});

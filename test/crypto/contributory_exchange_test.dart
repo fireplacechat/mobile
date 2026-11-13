@@ -5,12 +5,13 @@ import 'package:cryptography/cryptography.dart';
 import 'package:pqcrypto/pqcrypto.dart';
 import 'package:fireplace/src/crypto/codec.dart' show lp, concat, utf8Bytes;
 
-import 'package:fireplace/fireplace_crypto.dart';
+import '../support/crypto_backend.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/prekey_helpers.dart';
+import '../support/crypto_backend_prekeys.dart';
 
-void main() {
+void main() => bothCryptoBackends(() {
   for (final value in [0, 1]) {
     test('link sealing rejects low-order X25519 point $value', () async {
       final identity = await AccountIdentity.generate();
@@ -179,4 +180,4 @@ void main() {
       expect(await receiver.decrypt(valid, chatId: 'c'), [1, 2, 3]);
     },
   );
-}
+});

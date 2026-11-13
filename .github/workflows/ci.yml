@@ -27,7 +27,7 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version-file: pubspec.yaml, cache: false }
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test scripts
+      - run: dart format --output=none --set-exit-if-changed lib test scripts packages/fireplace_native/lib
       - run: flutter analyze
       - run: python3 scripts/check_layout.py .
       - run: python3 scripts/test_check_layout.py
@@ -49,6 +49,7 @@ jobs:
       - run: flutter pub get
       - run: rustup toolchain install 1.98.1 --profile minimal --no-self-update
       - run: bash scripts/build_crypto_host.sh
+      - run: bash scripts/build_crypto_host.sh test-rng
       - run: flutter test --exclude-tags timing --total-shards 3 --shard-index ${{ matrix.shard }}
 
   timing:

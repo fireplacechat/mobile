@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 export TZ=UTC
 
 echo "== format"
-dart format --output=none --set-exit-if-changed lib test scripts
+dart format --output=none --set-exit-if-changed lib test scripts packages/fireplace_native/lib
 echo "== analyze"
 flutter analyze
 echo "== layers"
@@ -18,6 +18,7 @@ bash scripts/test_build_aab.sh
 
 echo "== Rust crypto host library"
 bash scripts/build_crypto_host.sh
+bash scripts/build_crypto_host.sh test-rng
 
 echo "== tests (parallel)"
 flutter test --exclude-tags timing
