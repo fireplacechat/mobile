@@ -16,6 +16,27 @@ screens with `TZ=UTC flutter test scripts/render/render_screens_test.dart --conc
 The client Firebase configuration is public identification, not an administrator credential.
 Never add service-account files, signing keys or real account data.
 
+## Rust host tests (Linux and Windows)
+
+Install the approved Rust toolchain, version 1.98.1. The in-repo native plugin
+pins `fireplace-crypto = "=0.1.0"` from crates.io, with its dependency graph in
+`packages/fireplace_native/rust/Cargo.lock`. It does not use a sibling checkout.
+The build downloads these sources on first use; the core has no networking.
+
+`scripts/check.sh` builds the release host library before running tests. To
+run the FFI smoke test by itself, use Bash (Git Bash on Windows):
+
+```sh
+bash scripts/build_crypto_host.sh
+flutter test test/crypto/native_host_test.dart
+```
+
+The library goes in `build/fireplace_crypto/host/release/`. The test fails if
+it is missing, calls the C ABI to generate a recovery key, frees it through
+`fp_free`, and checks that the test-only random stream is absent. This is
+test infrastructure; the app still uses the Dart implementation. Android
+and iOS packaging and protocol comparisons follow in separate changes (0035).
+
 ## Local backend and integration testing
 
 Backend rules and operator tools are maintained in a separate private repository. Maintainers
