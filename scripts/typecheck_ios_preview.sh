@@ -12,4 +12,7 @@ sources=()
 while IFS= read -r file; do sources+=("$file"); done < <(find ios/NotificationService -name '*.swift' -type f | sort)
 xcrun swiftc -typecheck -swift-version 5 -target "$target" \
   -sdk "$(xcrun --sdk iphonesimulator --show-sdk-path)" -I "$headers" \
+  -import-objc-header ios/NotificationService/Memory/PreviewMemory.h \
   -D PREVIEW_DIAGNOSTICS "${sources[@]}"
+xcrun clang -fsyntax-only -target "$target" -isysroot "$(xcrun --sdk iphonesimulator --show-sdk-path)" \
+  ios/NotificationService/Memory/PreviewMemory.c

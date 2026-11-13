@@ -44,6 +44,8 @@
 		25DA487CB293F5F1DF9B2C0B /* rust_session.json in Resources */ = {isa = PBXBuildFile; fileRef = DC62D41BEF3AFE662CC87711; };
 		77813903931081F59ED7B37E /* FireplaceCrypto.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = FCB0FCADE79C2345CE76ED67; };
 		B64670E682FBE9CDB7BA84E6 /* NotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 5955664A7D0A6695122662FC; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BD5F1ED66FADBEBA903B0D14 /* PreviewMemory.c in Sources */ = {isa = PBXBuildFile; fileRef = 31CAFF0C40F73E03FD3599DE; };
+		6D3C35B1BC42E4B10D36AFAA /* PreviewMemory.c in Sources */ = {isa = PBXBuildFile; fileRef = 31CAFF0C40F73E03FD3599DE; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,6 +107,8 @@
 		DC62D41BEF3AFE662CC87711 /* rust_session.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ../test/crypto/vectors/rust_session.json; sourceTree = SOURCE_ROOT; };
 		5955664A7D0A6695122662FC /* NotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = NotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCB0FCADE79C2345CE76ED67 /* FireplaceCrypto.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = ../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework; sourceTree = SOURCE_ROOT; };
+		31CAFF0C40F73E03FD3599DE /* PreviewMemory.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = NotificationService/Memory/PreviewMemory.c; sourceTree = SOURCE_ROOT; };
+		73A98C159BA99F3E3F4C24FF /* PreviewMemory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NotificationService/Memory/PreviewMemory.h; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -179,7 +183,9 @@
 			path = Runner;
 			sourceTree = "<group>";
 		};
-		2B6EF53F5CCDFF961F0BE79F /* NotificationService */ = {isa = PBXGroup; name = NotificationService; children = (97823AF0626FAE8445C4268A, 9EA8EF8315FDC6A321A47798, 218E8921078044BDE6038D61, C17F7937A5C467005B4EDA6C, 6EB7D3D0131C0FFEC87389AB, D0925363AE85278B6FA37A95, 7864C1415726F0A996E91F0A, 68550F452EA863ABCE61B609, AB0387B27AA1EA60403CBC3E, 17B49ED9B98FB187211AE130, 79CDCAB9EDE058022952F298, C2F3EB94733442D4C1F22781, FCB0FCADE79C2345CE76ED67, ); sourceTree = "<group>"; };
+		2B6EF53F5CCDFF961F0BE79F /* NotificationService */ = {isa = PBXGroup; name = NotificationService; children = (
+				73A98C159BA99F3E3F4C24FF,
+				31CAFF0C40F73E03FD3599DE,97823AF0626FAE8445C4268A, 9EA8EF8315FDC6A321A47798, 218E8921078044BDE6038D61, C17F7937A5C467005B4EDA6C, 6EB7D3D0131C0FFEC87389AB, D0925363AE85278B6FA37A95, 7864C1415726F0A996E91F0A, 68550F452EA863ABCE61B609, AB0387B27AA1EA60403CBC3E, 17B49ED9B98FB187211AE130, 79CDCAB9EDE058022952F298, C2F3EB94733442D4C1F22781, FCB0FCADE79C2345CE76ED67, ); sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -331,6 +337,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6D3C35B1BC42E4B10D36AFAA,
 				29A06BA4B13E696ECF121EE2,
 				222D29D3D7360DEA70597D90,
 				2746D55026594A77EEB713CE,
@@ -358,7 +365,8 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		89C2174B4AEF87D4B26700BA /* NotificationService Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (21FDB46D0BC5E59CF1417336, 15C118F264C7BC85D39CEA68, 7F33B87121710026B77DF4BC, D4DB444DD035F110F501CE33, 3F897AA09AF1C1F615D29E68, 3C2E5C3734ABB40C39CE2BFF, 464EB64BEDA70DD77C407814, 0F21EC119C67E596207480C5, E8BF468449DDB515457B2C19, 7C15A22B52FEBE37C772B2A2, 082BA2F2D33871A545D39341, 5286D2706C05ACB571CB8085, ); runOnlyForDeploymentPostprocessing = 0; };
+		89C2174B4AEF87D4B26700BA /* NotificationService Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
+				BD5F1ED66FADBEBA903B0D14,21FDB46D0BC5E59CF1417336, 15C118F264C7BC85D39CEA68, 7F33B87121710026B77DF4BC, D4DB444DD035F110F501CE33, 3F897AA09AF1C1F615D29E68, 3C2E5C3734ABB40C39CE2BFF, 464EB64BEDA70DD77C407814, 0F21EC119C67E596207480C5, E8BF468449DDB515457B2C19, 7C15A22B52FEBE37C772B2A2, 082BA2F2D33871A545D39341, 5286D2706C05ACB571CB8085, ); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -468,6 +476,7 @@
 		331C8088294A63A400263BE5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/Headers";
 				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/Headers";
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -487,6 +496,7 @@
 		331C8089294A63A400263BE5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/Headers";
 				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/Headers";
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -504,6 +514,7 @@
 		331C808A294A63A400263BE5 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/Headers";
 				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/Headers";
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -680,6 +691,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9740EEB31CF90195004384FC;
 			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
@@ -707,6 +719,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9740EEB31CF90195004384FC;
 			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
@@ -734,6 +747,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 9740EEB31CF90195004384FC;
 			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				APPLICATION_EXTENSION_API_ONLY = YES;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;

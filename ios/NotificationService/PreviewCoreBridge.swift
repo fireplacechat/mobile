@@ -15,7 +15,7 @@ private final class CoreInput {
     try self.init(JSONSerialization.data(withJSONObject: json, options: [.sortedKeys, .withoutEscapingSlashes]))
   }
   deinit {
-    explicit_bzero(pointer, max(1, count))
+    fireplace_preview_wipe(pointer, max(1, count))
     pointer.deallocate()
   }
 }

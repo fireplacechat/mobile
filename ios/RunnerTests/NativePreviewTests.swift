@@ -3,6 +3,13 @@ import UserNotifications
 import XCTest
 
 final class NativePreviewTests: XCTestCase {
+  func testOwnedInputWipeClearsEveryByte() {
+    let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: 3)
+    buffer.initialize(repeating: 7, count: 3)
+    fireplace_preview_wipe(buffer, 3)
+    XCTAssertEqual(Array(UnsafeBufferPointer(start: buffer, count: 3)), [0, 0, 0])
+    buffer.deallocate()
+  }
   func testSwiftBridgeDecryptsBothDirectionsAndKeepsStoredSnapshotsUnchanged() throws {
     let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "rust_session", withExtension: "json"))
     let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: String])
