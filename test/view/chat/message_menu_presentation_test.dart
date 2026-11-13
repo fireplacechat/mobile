@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fireplace/src/view/chat/message_actions.dart';
 
 import '../../support/ui_fixture.dart';
 import 'long_press_menu_test.dart' show openChat, bubble, action;
@@ -115,9 +116,15 @@ void main() {
     );
     final resting = t.getRect(emoji);
     final gesture = await t.startGesture(t.getCenter(action('react-❤️')));
+    await t.pump();
+    // It waits a moment under the finger before it lifts.
+    await t.pump(
+      MessageMenuGesture.reactionDelay - const Duration(milliseconds: 10),
+    );
+    expect((t.getRect(emoji).center - resting.center).dy.abs(), lessThan(1));
+    await t.pump(const Duration(milliseconds: 10));
     // The grow starts during this frame, so the first tick is the next one.
     await t.pump();
-    expect((t.getRect(emoji).center - resting.center).dy.abs(), lessThan(1));
     await t.pump(const Duration(milliseconds: 80));
     final mid = resting.center.dy - t.getRect(emoji).center.dy;
     await t.pump(const Duration(milliseconds: 200));
@@ -125,7 +132,10 @@ void main() {
     expect(mid, greaterThan(4));
     expect(mid, lessThan(34));
     expect(resting.center.dy - focused.center.dy, closeTo(36, 1.5));
-    expect(focused.height / resting.height, closeTo(1.5, 0.05));
+    expect(
+      focused.height / resting.height,
+      closeTo(MessageMenuMetrics.reactionFocusScale, 0.05),
+    );
     expect(action('react-❤️'), findsOneWidget);
     await gesture.up();
     await t.pumpAndSettle();
@@ -233,6 +243,8 @@ void main() {
     final resting = t.getRect(emoji);
     final gesture = await t.startGesture(t.getCenter(action('react-❤️')));
     await t.pump();
+    await t.pump(MessageMenuGesture.reactionDelay);
+    await t.pump();
     await t.pump(const Duration(milliseconds: 200));
     expect(resting.center.dy - t.getRect(emoji).center.dy, closeTo(36, 1.5));
     await gesture.moveTo(
@@ -248,6 +260,44 @@ void main() {
     await t.pumpAndSettle();
     expect(f.chat.reactions, isEmpty);
     expect(action('reply'), findsOneWidget);
+  });
+
+  testWidgets('a finger passing over an emoji does not lift it', (t) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    await openChat(t, f);
+    await t.longPress(bubble('5'));
+    await t.pumpAndSettle();
+    final heart = find.descendant(
+      of: action('react-❤️'),
+      matching: find.text('❤️'),
+    );
+    final resting = t.getRect(heart);
+    final gesture = await t.startGesture(t.getCenter(action('react-❤️')));
+    await t.pump(const Duration(milliseconds: 50));
+    // Moved on before the delay: the heart never lifted.
+    await gesture.moveTo(
+      t.getCenter(find.byKey(const Key('messageActionsPanel'))),
+    );
+    await t.pump(const Duration(milliseconds: 300));
+    expect((t.getRect(heart).center.dy - resting.center.dy).abs(), lessThan(1));
+    await gesture.up();
+    await t.pumpAndSettle();
+  });
+
+  testWidgets('letting go before an emoji lifts still chooses it', (t) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    await openChat(t, f);
+    await t.longPress(bubble('5'));
+    await t.pumpAndSettle();
+    final gesture = await t.startGesture(t.getCenter(action('react-❤️')));
+    await t.pump(const Duration(milliseconds: 30));
+    await gesture.up();
+    await t.pumpAndSettle();
+    expect(f.chat.reactions, [('5', '❤️')]);
   });
 
   testWidgets('a small movement keeps the menu open', (t) async {

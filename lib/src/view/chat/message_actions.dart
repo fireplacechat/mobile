@@ -66,9 +66,38 @@ class MessageMenuGesture {
     return true;
   }
 
+  /// How long the finger rests on a reaction before it lifts. Sliding along
+  /// the bar then does not make each emoji jump out from under the finger.
+  static const reactionDelay = Duration(milliseconds: 100);
+
+  /// The reaction under the finger that has not lifted yet. Letting go now
+  /// still chooses it.
+  MessageAction? pending;
+  Timer? _pendingTimer;
+
+  /// Highlights [action] after [reactionDelay], unless the finger moves on.
+  void highlightSoon(MessageAction action, VoidCallback lift) {
+    if (identical(pending, action)) return;
+    _pendingTimer?.cancel();
+    pending = action;
+    _pendingTimer = Timer(reactionDelay, () {
+      _pendingTimer = null;
+      if (!identical(pending, action)) return;
+      pending = null;
+      lift();
+    });
+  }
+
+  void cancelPending() {
+    _pendingTimer?.cancel();
+    _pendingTimer = null;
+    pending = null;
+  }
+
   void Function(Offset)? onMove;
   VoidCallback? onEnd, onCancel;
   void dispose() {
+    cancelPending();
     onMove = null;
     onEnd = null;
     onCancel = null;

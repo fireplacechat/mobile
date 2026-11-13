@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:fireplace/src/view/chat/message_menu_parts.dart';
+import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 
 import '../../support/ui_fixture.dart';
@@ -25,12 +27,17 @@ void main() {
       );
       final resting = t.getRect(emoji);
       await gesture.moveTo(t.getCenter(action('react-❤️')));
-      // The grow starts on the frame that first lands on the emoji.
+      await t.pump();
+      await t.pump(MessageMenuGesture.reactionDelay);
+      // The grow starts on the frame after the delay.
       await t.pump();
       await t.pump(const Duration(milliseconds: 200));
       final focused = t.getRect(emoji);
       expect(resting.center.dy - focused.center.dy, closeTo(36, 1.5));
-      expect(focused.height / resting.height, closeTo(1.5, 0.05));
+      expect(
+        focused.height / resting.height,
+        closeTo(MessageMenuMetrics.reactionFocusScale, 0.05),
+      );
       await gesture.up();
       await t.pumpAndSettle();
       expect(f.chat.reactions, [('5', '❤️')]);

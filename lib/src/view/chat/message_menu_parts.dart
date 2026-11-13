@@ -30,9 +30,9 @@ abstract final class MessageMenuMetrics {
   static const double rowIcon = 20;
   static const double rowPadding = 16;
 
-  /// `scale(1.5).translatedBy(y: -24)` folds the shift through the scale,
-  /// so the focused emoji's center rises 36 points.
-  static const double reactionFocusScale = 1.5;
+  /// The focused emoji rises 36 points, as in Signal, and grows only a
+  /// little (owner, v0.3.6; Signal grows it by half).
+  static const double reactionFocusScale = 1.25;
   static const double reactionFocusLift = 36;
   static const Duration reactionFocusDuration = Duration(milliseconds: 150);
 
@@ -265,8 +265,8 @@ class ReactionEntrance extends StatelessWidget {
   }
 }
 
-/// Grows the emoji under the finger. Signal's matrix is
-/// `scale(1.5).translatedBy(y: -24)`, which lifts the center 36 points.
+/// Lifts the emoji under the finger 36 points and grows it a little, once
+/// the finger has rested on it for MessageMenuGesture.reactionDelay.
 class _ReactionFocus extends StatefulWidget {
   const _ReactionFocus({required this.focused, required this.child});
 
