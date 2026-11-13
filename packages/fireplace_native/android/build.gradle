@@ -5,9 +5,15 @@ plugins {
 group = 'com.fireplacechat.fireplace_native'
 version = '1.0'
 
+abstract class BuildFireplaceCrypto extends Exec {
+    @OutputDirectory
+    abstract DirectoryProperty getJniOutputDirectory()
+}
+
 android {
     namespace = 'com.fireplacechat.fireplace_native'
     compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -18,6 +24,29 @@ android {
         minSdk = 26
     }
 }
+
+// Flutter's SDK already contains Dart; use it directly on Windows as well as
+// Unix so the native build does not depend on a particular shell installation.
+def localProperties = new Properties()
+rootProject.file('local.properties').withInputStream { localProperties.load(it) }
+def flutterSdk = localProperties.getProperty('flutter.sdk')
+if (!flutterSdk) throw new GradleException('flutter.sdk is missing from local.properties')
+def windows = System.getProperty('os.name').toLowerCase().contains('windows')
+def dart = new File(flutterSdk, "bin/cache/dart-sdk/bin/dart${windows ? '.exe' : ''}")
+def nativeRoot = projectDir.parentFile
+def buildScript = new File(nativeRoot, '../../scripts/build_crypto_android.dart')
+def jniOutput = layout.buildDirectory.dir('generated/fireplaceCrypto/jniLibs')
+def buildCrypto = tasks.register('buildFireplaceCrypto', BuildFireplaceCrypto) {
+    inputs.files(new File(nativeRoot, 'rust/Cargo.toml'), new File(nativeRoot, 'rust/Cargo.lock'),
+        new File(nativeRoot, 'rust/rust-toolchain.toml'), buildScript)
+    jniOutputDirectory.set(jniOutput)
+    commandLine dart.absolutePath, buildScript.absolutePath,
+        android.ndkDirectory.absolutePath, jniOutput.get().asFile.absolutePath
+}
+androidComponents.onVariants(androidComponents.selector().all(), { variant ->
+    variant.sources.jniLibs.addGeneratedSourceDirectory(buildCrypto) { task -> task.jniOutputDirectory }
+} as Action)
+tasks.named('preBuild').configure { dependsOn(buildCrypto) }
 
 kotlin {
     compilerOptions {
