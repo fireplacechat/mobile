@@ -17,3 +17,5 @@ flutter:
       android:
         package: com.fireplacechat.fireplace_native
         pluginClass: FireplaceNativePlugin
+      ios:
+        pluginClass: FireplaceNativePlugin

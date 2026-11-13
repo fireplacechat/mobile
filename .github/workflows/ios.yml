@@ -10,10 +10,28 @@ concurrency:
 jobs:
   ios-compile:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version-file: pubspec.yaml, cache: false }
+      - run: bash scripts/build_crypto_ios.sh
       - run: flutter pub get
       - run: flutter build ios --no-codesign
+      - run: bash scripts/select_ios_crypto_simulator.sh
+      - run: flutter build ios --simulator --debug --no-codesign
+      - name: Swift C ABI and app simulator tests
+        run: xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner -destination "platform=iOS Simulator,id=$FP_IOS_SIMULATOR" CODE_SIGNING_ALLOWED=NO
+      - name: Check out the source of the published core for its vector tests
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: fireplacechat/fireplace-crypto
+          ref: 2cfd022d129e59ba50c104761fc9eca907087f7d # published 0.1.1 source
+          path: .work/crypto-tests
+          persist-credentials: false
+      - name: Rust protocol and standards tests on the simulator
+        working-directory: .work/crypto-tests
+        env:
+          FP_REQUIRE_VECTORS: '1'
+          IPHONEOS_DEPLOYMENT_TARGET: '15.0'
+        run: cargo test --locked --all-targets --features test-rng --target "$FP_IOS_SIM_TARGET"

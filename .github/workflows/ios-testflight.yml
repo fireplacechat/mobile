@@ -38,6 +38,7 @@ jobs:
         with:
           flutter-version-file: pubspec.yaml
           cache: false
+      - run: bash scripts/build_crypto_ios.sh
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
       - name: Print built app version
@@ -59,6 +60,7 @@ jobs:
         with:
           flutter-version-file: pubspec.yaml
           cache: false
+      - run: bash scripts/build_crypto_ios.sh
       - run: flutter pub get
       # The repository only allows GitHub-owned actions and the pinned Flutter action, so no Ruby
       # setup action: the macOS runner already ships Ruby and Bundler; fastlane comes from ios/Gemfile.lock.
