@@ -62,17 +62,41 @@ class _FireplaceAppState extends ConsumerState<FireplaceApp> {
   }
 }
 
-class AuthGate extends ConsumerWidget {
+class AuthGate extends ConsumerStatefulWidget {
   const AuthGate({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends ConsumerState<AuthGate> {
+  bool _minimumElapsed = false;
+  late final Timer _minimumTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _minimumTimer = Timer(const Duration(seconds: 3), () {
+      setState(() => _minimumElapsed = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _minimumTimer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Start the existing account work immediately, alongside the splash timer.
+    // Errors and recovery remain actionable without waiting for decoration.
     final user = ref.watch(authUserProvider);
     return user.when(
       loading: () => _Splash(),
       error: (e, _) => const _AuthError(),
       data: (u) {
-        if (u == null) return AuthScreen();
+        if (u == null) return _minimumElapsed ? AuthScreen() : _Splash();
         return ref
             .watch(appSessionProvider)
             .when(
@@ -87,7 +111,8 @@ class AuthGate extends ConsumerWidget {
               // chat list have their names and previews.
               data: (s) =>
                   s == null ||
-                      !ref.watch(chatListWarmupProvider.select(_settled))
+                      !ref.watch(chatListWarmupProvider.select(_settled)) ||
+                      !_minimumElapsed
                   ? _Splash()
                   : _BackupNudge(child: ChatListScreen()),
             );

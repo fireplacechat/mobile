@@ -11,6 +11,7 @@ import 'message_surface_cases.dart';
 import 'outgoing_send_cases.dart';
 import 'theme_cases.dart';
 import 'icon_hold_cases.dart';
+import 'startup_cases.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -133,6 +134,7 @@ void main() {
     ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(manifest));
   });
   final cases = [
+    ...startupCases,
     ...iconHoldCases,
     ...themeCases,
     ...outgoingSendCases,
