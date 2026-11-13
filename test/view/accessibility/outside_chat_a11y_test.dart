@@ -77,7 +77,7 @@ void main() {
     await t.tap(theme);
     await t.pumpAndSettle();
     final choice = find.byKey(
-      const ValueKey<String>('theme-system'),
+      const ValueKey<String>('theme-light'),
       skipOffstage: false,
     );
     expect(choice, findsOneWidget);
