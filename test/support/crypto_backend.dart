@@ -6,11 +6,11 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:fireplace/fireplace_crypto.dart' as reference;
+import 'package:fireplace/src/crypto/dart_reference.dart' as reference;
 import 'package:fireplace_native/fireplace_crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-export 'package:fireplace/fireplace_crypto.dart'
+export 'package:fireplace/src/crypto/dart_reference.dart'
     hide
         AccountIdentity,
         DeviceKeys,

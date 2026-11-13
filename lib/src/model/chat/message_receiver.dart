@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fireplace/src/crypto/session.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/keys/prekey_service.dart';
 import 'package:fireplace/src/model/safety/safety_service.dart';

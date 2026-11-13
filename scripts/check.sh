@@ -15,6 +15,7 @@ python3 scripts/check_layout.py .
 python3 scripts/test_check_layout.py
 python3 scripts/test_check_ios_preview.py
 bash scripts/test_build_aab.sh
+python3 scripts/test_check_crypto_apk.py
 [ "${1:-}" = quick ] && { echo "quick checks passed"; exit 0; }
 
 echo "== Rust crypto host library"

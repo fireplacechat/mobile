@@ -1,5 +1,4 @@
-import 'package:fireplace/src/crypto/device.dart';
-import 'package:fireplace/src/crypto/session.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/model/chat/chat_tuning.dart';
 import 'package:fireplace/src/model/chat/session_store.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';

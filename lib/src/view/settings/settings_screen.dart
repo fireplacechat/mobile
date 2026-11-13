@@ -4,7 +4,7 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
-import 'package:fireplace/src/crypto/fingerprint.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
 import 'package:fireplace/src/model/push/push_notification_service.dart';

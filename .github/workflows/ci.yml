@@ -33,6 +33,7 @@ jobs:
       - run: python3 scripts/test_check_layout.py
       - run: python3 scripts/test_check_ios_preview.py
       - run: bash scripts/test_build_aab.sh
+      - run: python3 scripts/test_check_crypto_apk.py
       - run: node --test .github/scripts/cla-check.test.js
       # Explicit manual runs also produce reviewable UI artifacts. Ordinary
       # pull-request checks keep their existing job shape and render workload.
