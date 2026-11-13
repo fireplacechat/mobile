@@ -50,6 +50,7 @@ void main() {
 
     fred.complete('fred');
     await settleUi(tester);
+    await tester.pump(const Duration(seconds: 3));
     expect(find.byType(FireplaceSplash), findsNothing);
     final row = find.byKey(const ValueKey('conversation-alice_fred'));
     expect(row, findsOneWidget);
@@ -97,6 +98,7 @@ void main() {
     addTearDown(fixture.session.close);
     await _launch(tester, fixture);
     await settleUi(tester);
+    await tester.pump(const Duration(seconds: 3));
     expect(find.byType(ChatListScreen), findsOneWidget);
 
     await tester.runAsync(

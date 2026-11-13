@@ -13,6 +13,7 @@ import 'theme_cases.dart';
 import 'icon_hold_cases.dart';
 import 'legal_cases.dart';
 import 'selection_copy_cases.dart';
+import 'startup_cases.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -138,6 +139,7 @@ void main() {
   final cases = [
     ...selectionCopyCases,
     ...legalCases,
+    ...startupCases,
     ...iconHoldCases,
     ...themeCases,
     ...outgoingSendCases,
