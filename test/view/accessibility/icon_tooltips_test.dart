@@ -165,12 +165,15 @@ void main() {
     await holdIcon(tester, 'Cancel reply');
   });
 
-  iconTest('selection Delete and Forward have no held labels', (tester) async {
+  iconTest('selection Delete, Copy and Forward have no held labels', (
+    tester,
+  ) async {
     await mount(tester, const ChatScreen(chatId: 'alice_fred'));
     await openMessageMenu(tester);
     await tester.tap(find.byKey(const ValueKey('messageAction-select')));
     await tester.pumpAndSettle();
     await holdIcon(tester, 'Delete');
+    await holdIcon(tester, 'Copy');
     await holdIcon(tester, 'Forward');
   });
 

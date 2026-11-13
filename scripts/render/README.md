@@ -16,7 +16,7 @@ recording service fakes. Device identifiers, fingerprints, usernames and message
 are fictional. These fakes cannot validate crypto, Firebase rules or native
 plugins. There is no Firebase SDK instance or live account connection.
 
-The catalog has 121 states in each theme, including shared components, chat color settings, the `accent-*` states (a saved chat color other than the default, seeded into the fixture's secret store as an earlier run would have left it), narrow/enlarged signup and list views, conversation layouts with keyboard/landscape insets, and the held-message info, delete and pin states. The core inventory covers: list/data/empty/loading/error,
+The catalog has 127 states in each theme, including shared components, chat color settings, the `accent-*` states (a saved chat color other than the default, seeded into the fixture's secret store as an earlier run would have left it), narrow/enlarged signup and list views, conversation layouts with keyboard/landscape insets, and the held-message info, delete and pin states. The core inventory covers: list/data/empty/loading/error,
 conversation/data/empty/error, request, requests list, details, verification,
 settings, devices, recovery, linking, new device, deletion, resumed deletion,
 sign-in, sign-up, startup and auth error. Each test disposes its widget tree and
@@ -30,6 +30,13 @@ For emoji previews, optionally set `RENDER_EMOJI_FONT` to an installed emoji fon
 file. The renderer loads it only into the test process as a fallback; it is not
 bundled with the app or committed. Keep the font and environment identical when
 comparing render hashes. The manifest records whether this fallback was supplied.
+
+The `selection-toolbar-android-*` and `selection-toolbar-ios-*` states run the
+real selection bar with the requested Flutter target platform and phone safe
+areas. They show one selection, multiple selections and copy feedback in both
+themes. These are widget renders, not device screenshots. Latin text uses the
+SDK's Roboto preview font on both targets; this avoids the widget-test Ahem
+placeholder for iOS system fonts without changing the app's shipping fonts.
 
 The seven-feature continuation adds formatted messages, muted/unread controls, the back-arrow total, forwarding, global search and message location, name-only/text foreground cards, and device linking at narrow enlarged-text and landscape sizes. Searches use the real isolate scanner over fictional local history; asynchronous search is fully settled before capturing. Every state still has paired light/dark renders.
 
