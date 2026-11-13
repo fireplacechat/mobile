@@ -99,6 +99,9 @@ New dependencies always need the owner's approval:
 
 ## Order of work
 
+Grok builds, one PR per step; Claude reviews each PR against this decision
+and the whole at the end.
+
 1. The Rust crate and the C ABI, with the known-answer vectors.
 2. Differential tests against the Dart reference, in both directions.
 3. The app on the Rust core, behind one switch, with the chat simulation.
