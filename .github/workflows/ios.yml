@@ -33,6 +33,7 @@ jobs:
         working-directory: .work/crypto-tests
         env:
           FP_REQUIRE_VECTORS: '1'
+          SIMCTL_CHILD_FP_REQUIRE_VECTORS: '1'
           IPHONEOS_DEPLOYMENT_TARGET: '15.0'
         run: cargo test --locked --all-targets --features test-rng --target "$FP_IOS_SIM_TARGET"
       - name: Swift C ABI and app simulator tests
