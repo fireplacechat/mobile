@@ -51,9 +51,13 @@ class EncryptedFileMessageStore implements LocalMessageStore {
     required SecretStore secrets,
     required String uid,
     SharedLock? lock,
+    bool createKey = true,
   }) async {
     final keyName = 'msgkey:$uid';
     var raw = await secrets.read(keyName);
+    // The background push handler never makes the key: the app may be making
+    // it at the same moment, and two keys would lose a history.
+    if (raw == null && !createKey) throw StateError('No history yet.');
     if (raw == null) {
       raw = b64(randomBytes(32));
       await secrets.write(keyName, raw);

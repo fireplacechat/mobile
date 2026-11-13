@@ -53,6 +53,7 @@ void main() {
   late LocalChatPreferences prefs;
   late ChatSyncCoordinator coordinator;
   var stopped = false;
+  final live = <Set<String>>[];
   void build({Future<void> Function(String)? save, bool baseline = false}) {
     prefs = LocalChatPreferences(save: save, baselineExisting: baseline);
     coordinator = ChatSyncCoordinator(
@@ -62,6 +63,7 @@ void main() {
       chatPreferences: prefs,
       store: store,
       isStopped: () => stopped,
+      onLiveChats: live.add,
     );
     addTearDown(() async {
       await coordinator.stop();
@@ -74,6 +76,26 @@ void main() {
     chat = FakeChat();
     store = MemoryMessageStore();
     stopped = false;
+    live.clear();
+  });
+
+  test('the push handler learns which chats are received', () async {
+    build();
+    safety.blocked.add('blocked');
+    safety.hidden.add('hidden');
+    coordinator.chatsChanged([
+      summary('a'),
+      summary('request', incoming: true),
+      summary('blocked'),
+      summary('hidden'),
+    ]);
+    await flush();
+    await flush();
+    expect(live.last, {'a'});
+    coordinator.chatsChanged([summary('b')]);
+    await flush();
+    await flush();
+    expect(live.last, {'b'});
   });
 
   test('only qualifying chats sync, once each', () async {

@@ -270,6 +270,47 @@ void main() {
         },
       );
 
+      test('Android registrations say they handle data pushes', () async {
+        await service().startAtLaunch();
+        expect((await db.doc(doc).get()).data()?['dataPush'], isTrue);
+        final ios = PushNotificationService(
+          db: db,
+          uid: 'alice',
+          deviceId: 'alice-device-2',
+          messaging: messaging,
+          preferences: prefs,
+          platform: 'ios',
+          isApplePlatform: false,
+        );
+        addTearDown(ios.unregister);
+        await ios.startAtLaunch();
+        final iosDoc = await db
+            .doc('users/alice/pushTokens/alice-device-2')
+            .get();
+        expect(iosDoc.exists, isTrue);
+        expect(iosDoc.data()!.containsKey('dataPush'), isFalse);
+      });
+
+      test('the device choices are read together, all on by default', () async {
+        var choices = await PushChoices.read(prefs, 'alice');
+        expect(
+          [choices.alerts, choices.preview, choices.showName, choices.sound],
+          [true, true, true, true],
+        );
+        expect(choices.channel, 'messages');
+        final s = service();
+        await s.setShowPreview(false);
+        await s.setSound(false);
+        await s.setShowName(false);
+        await s.disable();
+        choices = await PushChoices.read(prefs, 'alice');
+        expect(
+          [choices.alerts, choices.preview, choices.showName, choices.sound],
+          [false, false, false, false],
+        );
+        expect(choices.channel, 'messages_silent');
+      });
+
       test('changing the name preference while off writes nothing', () async {
         final s = service();
         await s.setShowName(false);
