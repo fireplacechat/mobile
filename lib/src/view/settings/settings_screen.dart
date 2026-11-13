@@ -4,7 +4,7 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
-import 'package:fireplace/src/crypto/fingerprint.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
 import 'package:fireplace/src/model/push/push_notification_service.dart';
@@ -22,6 +22,8 @@ import 'package:fireplace/src/widgets/settings_section.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
 import 'package:fireplace/src/model/settings/send_sound_preference.dart';
 import 'package:fireplace/src/view/settings/theme_mode_tile.dart';
+import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
+import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -321,6 +323,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       key: const Key('legalLinks'),
                       leading: const Icon(Icons.policy_outlined),
                       title: const Text('Privacy and terms'),
+                      onLongPress: previewDiagnosticsEnabled
+                          ? () => _open(const PreviewDiagnosticsScreen())
+                          : null,
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _busy
                           ? null

@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:fireplace/fireplace_crypto.dart';
+import '../support/crypto_backend.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/prekey_helpers.dart';
+import '../support/crypto_backend_prekeys.dart';
 
 class _Peer {
   _Peer(this.keys, this.bundle, this.pk);
@@ -39,7 +40,7 @@ Future<(Session, Session)> _sessions() async {
   return (send, receive);
 }
 
-void main() {
+void main() => bothCryptoBackends(() {
   test('failed authentication leaves an out-of-order key available', () async {
     final (send, receive) = await _sessions();
     final first = await send.encrypt(utf8.encode('first'), chatId: 'alice_bob');
@@ -105,4 +106,4 @@ void main() {
       throwsA(isA<SessionException>()),
     );
   });
-}
+});

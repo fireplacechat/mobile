@@ -2,13 +2,14 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:fireplace/fireplace_crypto.dart';
+import '../support/crypto_backend.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
 Map<String, dynamic> j(Map<String, dynamic> m) =>
     jsonDecode(jsonEncode(m)) as Map<String, dynamic>;
 
-void main() {
+void main() => bothCryptoBackends(() {
   test('KeyChecks: X25519 and ML-KEM public/private correspondence', () async {
     final a = await DeviceKeys.generate();
     final b = await DeviceKeys.generate();
@@ -206,4 +207,4 @@ void main() {
       expect(utf8.decode(await sb.decrypt(fresh, chatId: 'c')), 'new chain');
     },
   );
-}
+});

@@ -31,6 +31,16 @@ void main() {
       reason: 'Build the pinned core with bash scripts/build_crypto_host.sh.',
     );
     final library = DynamicLibrary.open(file.absolute.path);
+    // 0.1.1 is required to retain the failed-chain budget between C calls.
+    for (final symbol in [
+      'fp_session_load',
+      'fp_session_save',
+      'fp_session_destroy',
+      'fp_session_encrypt_handle',
+      'fp_session_decrypt_handle',
+    ]) {
+      expect(library.providesSymbol(symbol), isTrue, reason: symbol);
+    }
     final generate = library
         .lookupFunction<
           Int32 Function(Pointer<_FpBuf>),

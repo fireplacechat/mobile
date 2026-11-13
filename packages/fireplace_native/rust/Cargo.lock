@@ -271,9 +271,9 @@ checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
 
 [[package]]
 name = "fireplace-crypto"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ce6f20d1c819a343064d659e5ad2b6e50b38724340ad89e1b703f12e8d58566f"
+checksum = "86d230c2cdc16ebad88c19ae86fe5c66469f1b9d8dc167288c0d0a6c23b9a307"
 dependencies = [
  "aes-gcm",
  "ed25519-dalek",

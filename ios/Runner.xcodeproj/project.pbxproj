@@ -16,6 +16,36 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		21FDB46D0BC5E59CF1417336 /* FirestorePreview.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = 97823AF0626FAE8445C4268A; };
+		665E49D16A9137A93C9D90D3 /* FirestorePreview.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = 97823AF0626FAE8445C4268A; };
+		15C118F264C7BC85D39CEA68 /* PreviewHistory.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = 9EA8EF8315FDC6A321A47798; };
+		F19C814DE965061BA5EAE370 /* PreviewHistory.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = 9EA8EF8315FDC6A321A47798; };
+		7F33B87121710026B77DF4BC /* PreviewPayload.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = 218E8921078044BDE6038D61; };
+		207E43C77381C7040CF26B1B /* PreviewPayload.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = 218E8921078044BDE6038D61; };
+		D4DB444DD035F110F501CE33 /* PreviewText.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = C17F7937A5C467005B4EDA6C; };
+		1F3A60B3314372D9F8E9EF6C /* PreviewText.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = C17F7937A5C467005B4EDA6C; };
+		3F897AA09AF1C1F615D29E68 /* BoundedTransport.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = 6EB7D3D0131C0FFEC87389AB; };
+		DB1EB56331928169E661F19E /* BoundedTransport.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = 6EB7D3D0131C0FFEC87389AB; };
+		3C2E5C3734ABB40C39CE2BFF /* NotificationService.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = D0925363AE85278B6FA37A95; };
+		9F6F3B7F9FF1153D62DC15BF /* NotificationService.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = D0925363AE85278B6FA37A95; };
+		464EB64BEDA70DD77C407814 /* PreviewCoreBridge.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = 7864C1415726F0A996E91F0A; };
+		1FF927C9306F610C5C2FF547 /* PreviewCoreBridge.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = 7864C1415726F0A996E91F0A; };
+		0F21EC119C67E596207480C5 /* PreviewDiagnostics.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = 68550F452EA863ABCE61B609; };
+		50D13AF0EBBE54AD645166E7 /* PreviewDiagnostics.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = 68550F452EA863ABCE61B609; };
+		E8BF468449DDB515457B2C19 /* PreviewKeychain.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = AB0387B27AA1EA60403CBC3E; };
+		E01FDB134A9DFACD5C4AF7D0 /* PreviewKeychain.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = AB0387B27AA1EA60403CBC3E; };
+		7C15A22B52FEBE37C772B2A2 /* PreviewReadLock.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = 17B49ED9B98FB187211AE130; };
+		599B2D8AC9196B70001FCA6D /* PreviewReadLock.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = 17B49ED9B98FB187211AE130; };
+		082BA2F2D33871A545D39341 /* PreviewREST.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = 79CDCAB9EDE058022952F298; };
+		2746D55026594A77EEB713CE /* PreviewREST.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = 79CDCAB9EDE058022952F298; };
+		5286D2706C05ACB571CB8085 /* PreviewRunner.swift in Sources (extension) */ = {isa = PBXBuildFile; fileRef = C2F3EB94733442D4C1F22781; };
+		222D29D3D7360DEA70597D90 /* PreviewRunner.swift in Sources (tests) */ = {isa = PBXBuildFile; fileRef = C2F3EB94733442D4C1F22781; };
+		29A06BA4B13E696ECF121EE2 /* NativePreviewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A08645E1616128056192223C; };
+		25DA487CB293F5F1DF9B2C0B /* rust_session.json in Resources */ = {isa = PBXBuildFile; fileRef = DC62D41BEF3AFE662CC87711; };
+		77813903931081F59ED7B37E /* FireplaceCrypto.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = FCB0FCADE79C2345CE76ED67; };
+		B64670E682FBE9CDB7BA84E6 /* NotificationService.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 5955664A7D0A6695122662FC; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BD5F1ED66FADBEBA903B0D14 /* PreviewMemory.c in Sources */ = {isa = PBXBuildFile; fileRef = 31CAFF0C40F73E03FD3599DE; };
+		6D3C35B1BC42E4B10D36AFAA /* PreviewMemory.c in Sources */ = {isa = PBXBuildFile; fileRef = 31CAFF0C40F73E03FD3599DE; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,6 +56,7 @@
 			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
 			remoteInfo = Runner;
 		};
+		03C4EDA7D13D15CC3327DB25 = {isa = PBXContainerItemProxy; containerPortal = 97C146E61CF9000F007C117D; proxyType = 1; remoteGlobalIDString = 48BEC0BCF88997DDA0BC8837; remoteInfo = NotificationService; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -39,6 +70,7 @@
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		40A5FA7587508AAB102338E2 /* Embed App Extensions */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (B64670E682FBE9CDB7BA84E6, ); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -59,6 +91,24 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		97823AF0626FAE8445C4268A /* FirestorePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FirestorePreview.swift; path = NotificationService/Core/FirestorePreview.swift; sourceTree = SOURCE_ROOT; };
+		9EA8EF8315FDC6A321A47798 /* PreviewHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PreviewHistory.swift; path = NotificationService/Core/PreviewHistory.swift; sourceTree = SOURCE_ROOT; };
+		218E8921078044BDE6038D61 /* PreviewPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PreviewPayload.swift; path = NotificationService/Core/PreviewPayload.swift; sourceTree = SOURCE_ROOT; };
+		C17F7937A5C467005B4EDA6C /* PreviewText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PreviewText.swift; path = NotificationService/Core/PreviewText.swift; sourceTree = SOURCE_ROOT; };
+		6EB7D3D0131C0FFEC87389AB /* BoundedTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BoundedTransport.swift; path = NotificationService/Network/BoundedTransport.swift; sourceTree = SOURCE_ROOT; };
+		D0925363AE85278B6FA37A95 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NotificationService.swift; path = NotificationService/NotificationService.swift; sourceTree = SOURCE_ROOT; };
+		7864C1415726F0A996E91F0A /* PreviewCoreBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PreviewCoreBridge.swift; path = NotificationService/PreviewCoreBridge.swift; sourceTree = SOURCE_ROOT; };
+		68550F452EA863ABCE61B609 /* PreviewDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PreviewDiagnostics.swift; path = NotificationService/PreviewDiagnostics.swift; sourceTree = SOURCE_ROOT; };
+		AB0387B27AA1EA60403CBC3E /* PreviewKeychain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PreviewKeychain.swift; path = NotificationService/PreviewKeychain.swift; sourceTree = SOURCE_ROOT; };
+		17B49ED9B98FB187211AE130 /* PreviewReadLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PreviewReadLock.swift; path = NotificationService/PreviewReadLock.swift; sourceTree = SOURCE_ROOT; };
+		79CDCAB9EDE058022952F298 /* PreviewREST.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PreviewREST.swift; path = NotificationService/PreviewREST.swift; sourceTree = SOURCE_ROOT; };
+		C2F3EB94733442D4C1F22781 /* PreviewRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PreviewRunner.swift; path = NotificationService/PreviewRunner.swift; sourceTree = SOURCE_ROOT; };
+		A08645E1616128056192223C /* NativePreviewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests/NativePreviewTests.swift; sourceTree = SOURCE_ROOT; };
+		DC62D41BEF3AFE662CC87711 /* rust_session.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = ../test/crypto/vectors/rust_session.json; sourceTree = SOURCE_ROOT; };
+		5955664A7D0A6695122662FC /* NotificationService.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; path = NotificationService.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FCB0FCADE79C2345CE76ED67 /* FireplaceCrypto.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = ../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework; sourceTree = SOURCE_ROOT; };
+		31CAFF0C40F73E03FD3599DE /* PreviewMemory.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = NotificationService/Memory/PreviewMemory.c; sourceTree = SOURCE_ROOT; };
+		73A98C159BA99F3E3F4C24FF /* PreviewMemory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = NotificationService/Memory/PreviewMemory.h; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,12 +120,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E14ABE29B8AE961B95D684F1 /* NotificationService Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		331C8082294A63A400263BE5 /* RunnerTests */ = {
 			isa = PBXGroup;
 			children = (
+				DC62D41BEF3AFE662CC87711,
+				A08645E1616128056192223C,
 				331C807B294A618700263BE5 /* RunnerTests.swift */,
 			);
 			path = RunnerTests;
@@ -96,6 +149,7 @@
 		97C146E51CF9000F007C117D = {
 			isa = PBXGroup;
 			children = (
+				2B6EF53F5CCDFF961F0BE79F,
 				9740EEB11CF90186004384FC /* Flutter */,
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
@@ -106,6 +160,7 @@
 		97C146EF1CF9000F007C117D /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				5955664A7D0A6695122662FC,
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 			);
@@ -128,6 +183,9 @@
 			path = Runner;
 			sourceTree = "<group>";
 		};
+		2B6EF53F5CCDFF961F0BE79F /* NotificationService */ = {isa = PBXGroup; name = NotificationService; children = (
+				73A98C159BA99F3E3F4C24FF,
+				31CAFF0C40F73E03FD3599DE,97823AF0626FAE8445C4268A, 9EA8EF8315FDC6A321A47798, 218E8921078044BDE6038D61, C17F7937A5C467005B4EDA6C, 6EB7D3D0131C0FFEC87389AB, D0925363AE85278B6FA37A95, 7864C1415726F0A996E91F0A, 68550F452EA863ABCE61B609, AB0387B27AA1EA60403CBC3E, 17B49ED9B98FB187211AE130, 79CDCAB9EDE058022952F298, C2F3EB94733442D4C1F22781, FCB0FCADE79C2345CE76ED67, ); sourceTree = "<group>"; };
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -152,6 +210,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 97C147051CF9000F007C117D /* Build configuration list for PBXNativeTarget "Runner" */;
 			buildPhases = (
+				40A5FA7587508AAB102338E2,
 				9740EEB61CF901F6004384FC /* Run Script */,
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
@@ -162,6 +221,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				C8F10409B8513082DAAAB99A,
 			);
 			name = Runner;
 			packageProductDependencies = (
@@ -171,6 +231,7 @@
 			productReference = 97C146EE1CF9000F007C117D /* Runner.app */;
 			productType = "com.apple.product-type.application";
 		};
+		48BEC0BCF88997DDA0BC8837 /* NotificationService */ = {isa = PBXNativeTarget; buildConfigurationList = 165C2C95240F15EF67B017A1; buildPhases = (89C2174B4AEF87D4B26700BA, E14ABE29B8AE961B95D684F1, 9DED29AF85FD45F0591ED37A, ); buildRules = (); dependencies = (); name = NotificationService; productName = NotificationService; productReference = 5955664A7D0A6695122662FC; productType = "com.apple.product-type.app-extension"; };
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -207,6 +268,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				48BEC0BCF88997DDA0BC8837,
 				97C146ED1CF9000F007C117D /* Runner */,
 				331C8080294A63A400263BE5 /* RunnerTests */,
 			);
@@ -218,6 +280,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				25DA487CB293F5F1DF9B2C0B,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -232,6 +295,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		9DED29AF85FD45F0591ED37A /* NotificationService Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
@@ -273,6 +337,20 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6D3C35B1BC42E4B10D36AFAA,
+				29A06BA4B13E696ECF121EE2,
+				222D29D3D7360DEA70597D90,
+				2746D55026594A77EEB713CE,
+				599B2D8AC9196B70001FCA6D,
+				E01FDB134A9DFACD5C4AF7D0,
+				50D13AF0EBBE54AD645166E7,
+				1FF927C9306F610C5C2FF547,
+				9F6F3B7F9FF1153D62DC15BF,
+				DB1EB56331928169E661F19E,
+				1F3A60B3314372D9F8E9EF6C,
+				207E43C77381C7040CF26B1B,
+				F19C814DE965061BA5EAE370,
+				665E49D16A9137A93C9D90D3,
 				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -287,6 +365,8 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		89C2174B4AEF87D4B26700BA /* NotificationService Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
+				BD5F1ED66FADBEBA903B0D14,21FDB46D0BC5E59CF1417336, 15C118F264C7BC85D39CEA68, 7F33B87121710026B77DF4BC, D4DB444DD035F110F501CE33, 3F897AA09AF1C1F615D29E68, 3C2E5C3734ABB40C39CE2BFF, 464EB64BEDA70DD77C407814, 0F21EC119C67E596207480C5, E8BF468449DDB515457B2C19, 7C15A22B52FEBE37C772B2A2, 082BA2F2D33871A545D39341, 5286D2706C05ACB571CB8085, ); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -295,6 +375,7 @@
 			target = 97C146ED1CF9000F007C117D /* Runner */;
 			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
 		};
+		C8F10409B8513082DAAAB99A = {isa = PBXTargetDependency; target = 48BEC0BCF88997DDA0BC8837; targetProxy = 03C4EDA7D13D15CC3327DB25; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
@@ -395,6 +476,7 @@
 		331C8088294A63A400263BE5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -412,6 +494,7 @@
 		331C8089294A63A400263BE5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -427,6 +510,7 @@
 		331C808A294A63A400263BE5 /* Profile */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -597,6 +681,90 @@
 			};
 			name = Release;
 		};
+		70ACAF6E333E923B764AECC5 /* NotificationService Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC;
+			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/libfireplace_crypto.a", );
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/libfireplace_crypto.a", );
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fireplacechat.app.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG PREVIEW_DIAGNOSTICS";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		CC4C206FC7FBC78160677BA3 /* NotificationService Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC;
+			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/libfireplace_crypto.a", );
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/libfireplace_crypto.a", );
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fireplacechat.app.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		5190573BC6575768B844C304 /* NotificationService Profile */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 9740EEB31CF90195004384FC;
+			buildSettings = {
+				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/libfireplace_crypto.a", );
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/libfireplace_crypto.a", );
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = NotificationService/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = com.fireplacechat.app.NotificationService;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Profile;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -630,6 +798,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		165C2C95240F15EF67B017A1 /* NotificationService configurations */ = {isa = XCConfigurationList; buildConfigurations = (70ACAF6E333E923B764AECC5, CC4C206FC7FBC78160677BA3, 5190573BC6575768B844C304, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */

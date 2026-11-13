@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:fireplace/src/model/keys/key_service.dart';
-import 'package:fireplace/src/crypto/session.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 
 /// Sessions advanced by encrypting one message for one device.

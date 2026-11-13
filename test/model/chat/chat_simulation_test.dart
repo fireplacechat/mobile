@@ -729,11 +729,13 @@ void main() {
   final seeds = _onlySeed >= 0
       ? [_onlySeed]
       : [for (var i = 1; i <= _runs; i++) 5000 + i];
-  for (final seed in seeds) {
-    test(
-      'random schedule, seed $seed',
-      () => simulate(seed),
-      timeout: const Timeout(Duration(minutes: 4)),
-    );
+  for (final backend in CryptoBackendKind.values) {
+    for (final seed in seeds) {
+      test(
+        '${backend.name}: random schedule, seed $seed',
+        () => CryptoBackend.runWith(backend, () => simulate(seed)),
+        timeout: const Timeout(Duration(minutes: 4)),
+      );
+    }
   }
 }

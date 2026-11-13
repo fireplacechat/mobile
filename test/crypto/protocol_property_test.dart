@@ -24,10 +24,11 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:fireplace/fireplace_crypto.dart';
+import '../support/crypto_backend.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/prekey_helpers.dart';
+import '../support/crypto_backend_prekeys.dart';
 
 const _runs = int.fromEnvironment('PROTOCOL_RUNS', defaultValue: 10);
 const _onlySeed = int.fromEnvironment('PROTOCOL_SEED', defaultValue: -1);
@@ -274,7 +275,7 @@ Future<void> simulate(int seed, Party alice, Party bob) async {
   }
 }
 
-void main() {
+void main() => bothCryptoBackends(() {
   late Party alice, bob;
   setUpAll(() async {
     alice = await Party.create('alice');
@@ -457,4 +458,4 @@ void main() {
       },
     );
   });
-}
+});

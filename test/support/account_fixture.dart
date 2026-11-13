@@ -2,9 +2,7 @@
 import 'dart:async';
 
 import 'package:fireplace/fireplace_services.dart';
-import 'package:fireplace/src/crypto/identity.dart';
-import 'package:fireplace/src/crypto/link.dart';
-import 'package:fireplace/src/crypto/recovery.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'ui_fixture.dart';

@@ -90,11 +90,11 @@ Future<BackgroundSession> _open(FirebaseFirestore db, String uid) async {
       close: () async {
         await chat.close();
         await store.close();
-        lock.close();
+        await lock.close();
       },
     );
   } catch (_) {
-    lock.close();
+    await lock.close();
     rethrow;
   }
 }

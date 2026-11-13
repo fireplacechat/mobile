@@ -21,6 +21,7 @@ platform :ios do
     match(
       type: 'appstore',
       readonly: false,
+      force: true, # Refresh capabilities in profiles after owner setup.
       api_key: fireplace_api_key,
       team_id: ENV.fetch('APPLE_TEAM_ID')
     )
@@ -38,18 +39,31 @@ platform :ios do
     )
     root = File.expand_path('../..', __dir__)
     identifier = 'com.fireplacechat.app'
-    profile = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING].fetch(identifier)
-    update_code_signing_settings(
-      path: File.join(root, 'ios', 'Runner.xcodeproj'),
-      targets: ['Runner'],
-      build_configurations: ['Release'],
-      use_automatic_signing: false,
-      team_id: ENV.fetch('APPLE_TEAM_ID'),
-      code_sign_identity: 'Apple Distribution',
-      sdk: 'iphoneos*',
-      profile_name: profile,
-      bundle_identifier: identifier
-    )
+    identifiers = { 'Runner' => identifier, 'NotificationService' => "#{identifier}.NotificationService" }
+    profiles = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING]
+    identifiers.each do |target, bundle|
+      update_code_signing_settings(
+        path: File.join(root, 'ios', 'Runner.xcodeproj'),
+        targets: [target],
+        build_configurations: ['Release'],
+        use_automatic_signing: false,
+        team_id: ENV.fetch('APPLE_TEAM_ID'),
+        code_sign_identity: 'Apple Distribution',
+        sdk: 'iphoneos*',
+        profile_name: profiles.fetch(bundle),
+        bundle_identifier: bundle
+      )
+    end
+    diagnostics = ENV['PREVIEW_DIAGNOSTICS'] == 'true'
+    if diagnostics
+      project = Xcodeproj::Project.open(File.join(root, 'ios', 'Runner.xcodeproj'))
+      project.targets.select { |target| identifiers.key?(target.name) }.each do |target|
+        target.build_configurations.select { |config| config.name == 'Release' }.each do |config|
+          config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '$(inherited) PREVIEW_DIAGNOSTICS'
+        end
+      end
+      project.save
+    end
     Dir.mktmpdir('fireplace-export-', ENV['RUNNER_TEMP']) do |temporary|
       export_options = File.join(temporary, 'ExportOptions.plist')
       Xcodeproj::Plist.write_to_path(
@@ -57,18 +71,25 @@ platform :ios do
           'method' => 'app-store-connect',
           'signingStyle' => 'manual',
           'teamID' => ENV.fetch('APPLE_TEAM_ID'),
-          'provisioningProfiles' => { identifier => profile },
+          'provisioningProfiles' => identifiers.values.to_h { |bundle| [bundle, profiles.fetch(bundle)] },
           'manageAppVersionAndBuildNumber' => false,
           'destination' => 'export'
         },
         export_options
       )
       Dir.chdir(root) do
-        sh('flutter', 'build', 'ipa', '--release', "--export-options-plist=#{export_options}")
+        arguments = ['flutter', 'build', 'ipa', '--release', "--export-options-plist=#{export_options}"]
+        arguments << '--dart-define=PREVIEW_DIAGNOSTICS=true' if diagnostics
+        sh(*arguments)
       end
     end
     bundles = Dir[File.join(root, 'build', 'ios', 'ipa', '*.ipa')]
     UI.user_error!('Expected exactly one newly built IPA') unless bundles.length == 1
+    Dir.mktmpdir('fireplace-verify-', ENV['RUNNER_TEMP']) do |temporary|
+      sh('unzip', '-q', bundles.first, '-d', temporary)
+      sh('bash', File.join(root, 'scripts', 'check_ios_preview_bundle.sh'),
+        File.join(temporary, 'Payload', 'Runner.app'), diagnostics ? 'on' : 'off')
+    end
     upload_to_testflight(
       api_key: key,
       ipa: bundles.first,

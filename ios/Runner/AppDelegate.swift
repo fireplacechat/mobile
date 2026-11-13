@@ -42,12 +42,33 @@ private enum NotificationsChannel {
       case "playSendSound":
         Sounds.playSend()
         result(nil)
+      #if DEBUG || PREVIEW_DIAGNOSTICS
+      case "previewDiagnostics":
+        result(diagnosticRecords())
+      #endif
       default:
         result(FlutterMethodNotImplemented)
       }
     }
     self.channel = channel
   }
+
+  #if DEBUG || PREVIEW_DIAGNOSTICS
+  private static func diagnosticRecords() -> [[String: NSNumber]] {
+    guard let appGroup = Bundle.main.object(forInfoDictionaryKey: "FPAppGroup") as? String,
+          let root = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) else { return [] }
+    let file = root.appendingPathComponent("preview-diagnostics-v1.json")
+    guard let attributes = try? FileManager.default.attributesOfItem(atPath: file.path),
+          ((attributes[.size] as? NSNumber)?.intValue ?? Int.max) <= 32 * 1024,
+          let data = try? Data(contentsOf: file),
+          let records = try? JSONSerialization.jsonObject(with: data) as? [[String: NSNumber]] else { return [] }
+    return Array(records.suffix(20)).filter {
+      Set($0.keys) == ["run", "at", "ms", "peak", "outcome"]
+    }.map { row in
+      row.filter { $0.key != "run" }
+    }
+  }
+  #endif
 
   private static func setBadge(_ count: Int, result: @escaping FlutterResult) {
     if #available(iOS 16.0, *) {

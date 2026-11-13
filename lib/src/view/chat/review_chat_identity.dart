@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/crypto/fingerprint.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 

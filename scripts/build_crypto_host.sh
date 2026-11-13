@@ -9,6 +9,20 @@ case "$(uname -s)" in
   *) echo "The crypto host build supports Linux and Windows only." >&2; exit 1 ;;
 esac
 
-cargo build --package fireplace-crypto --lib --release --locked \
-  --target-dir ../../../build/fireplace_crypto/host
-test -f "../../../build/fireplace_crypto/host/release/$library"
+features=()
+package=fireplace-crypto
+case "${1:-}" in
+  '') target=host ;;
+  test-rng)
+    target=host-test-rng
+    package=fireplace-native-build
+    features=(--features test-rng)
+    library="${library/fireplace_crypto/fireplace_crypto_tests}"
+    ;;
+  *) echo "usage: bash scripts/build_crypto_host.sh [test-rng]" >&2; exit 64 ;;
+esac
+[ "$#" -le 1 ] || { echo "Too many build arguments." >&2; exit 64; }
+
+cargo build --package "$package" --lib --release --locked \
+  "${features[@]}" --target-dir "../../../build/fireplace_crypto/$target"
+test -f "../../../build/fireplace_crypto/$target/release/$library"

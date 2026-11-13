@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:fireplace/fireplace_crypto.dart';
+import '../support/crypto_backend.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/prekey_helpers.dart';
+import '../support/crypto_backend_prekeys.dart';
 
 Uint8List t(String s) => Uint8List.fromList(utf8.encode(s));
 
@@ -52,7 +53,7 @@ Session copy(Session s) => Session.fromJson(
 Map<String, dynamic> json(Session s) =>
     jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>;
 
-void main() {
+void main() => bothCryptoBackends(() {
   late Party alice, bob, eve;
   setUpAll(() async {
     alice = await Party.create('alice');
@@ -391,4 +392,4 @@ void main() {
       expect(jsonEncode(sb.toJson()), before);
     });
   });
-}
+});

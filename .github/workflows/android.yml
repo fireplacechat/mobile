@@ -3,7 +3,7 @@ name: Android build
 on:
   push:
     branches: [main]
-    paths: ['android/**', 'pubspec.yaml', 'pubspec.lock', 'scripts/check_apk.sh', 'scripts/test_check_apk.sh', '.github/workflows/android.yml']
+    paths: ['android/**', 'packages/fireplace_native/**', 'pubspec.yaml', 'pubspec.lock', 'scripts/build_crypto_android.dart', 'scripts/check_crypto_apk.py', 'scripts/test_check_crypto_apk.py', 'scripts/check_apk.sh', 'scripts/test_check_apk.sh', '.github/workflows/android.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,9 +21,11 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version-file: pubspec.yaml, cache: false }
       - run: flutter pub get
+      - run: rustup toolchain install 1.98.1 --profile minimal --no-self-update
       # No signing key in CI: the build falls back to the debug key, which proves it builds
       # and lets us check the manifest. Never distribute this artifact.
-      - run: flutter build apk --release --target-platform android-arm64
+      - run: flutter build apk --release
       - run: scripts/check_apk.sh build/app/outputs/flutter-apk/app-release.apk
+      - run: python3 scripts/check_crypto_apk.py build/app/outputs/flutter-apk/app-release.apk --nm "$ANDROID_HOME/ndk/28.2.13676358/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
       # The checker's signer rules (debug key, wrong key, tampered APK, no fingerprint) are tested on re-signed copies.
       - run: scripts/test_check_apk.sh build/app/outputs/flutter-apk/app-release.apk

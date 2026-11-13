@@ -3,9 +3,7 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:fireplace/src/crypto/device.dart';
-import 'package:fireplace/src/crypto/prekeys.dart';
-import 'package:fireplace/src/crypto/session.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/model/common/async_mutex.dart';
 import 'package:fireplace/src/model/common/daily_counter.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';

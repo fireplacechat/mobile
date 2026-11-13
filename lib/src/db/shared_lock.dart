@@ -28,6 +28,7 @@ class SharedLock {
   final _local = _Turns();
   final _zoneKey = Object();
   final _invalidators = <FutureOr<void> Function()>[];
+  Future<void>? _closing;
 
   /// The generation this isolate last wrote, or null before it held the lock.
   int? _seen;
@@ -36,6 +37,7 @@ class SharedLock {
   Future<T> run<T>(Future<T> Function() action) {
     final hold = Zone.current[_zoneKey];
     if (hold is _Hold && hold.active) return action();
+    if (_closing != null) return Future.error(StateError('Lock closed.'));
     return _local.run(() async {
       await _gate?.acquire();
       final hold = _Hold();
@@ -47,7 +49,7 @@ class SharedLock {
         try {
           await _advance();
         } finally {
-          _gate?.release();
+          await _gate?.release();
         }
       }
     });
@@ -87,8 +89,10 @@ class SharedLock {
     }
   }
 
-  /// Releases what the gate holds open (its port).
-  void close() => _gate?.close();
+  /// Waits for queued holders, then releases the gate's open resources.
+  Future<void> close() => _closing ??= _local.run(() async {
+    await _gate?.close();
+  });
 }
 
 class _Hold {
@@ -120,9 +124,67 @@ abstract interface class LockGate {
   Future<void> acquire();
 
   /// Lets the next caller in. Only called by the holder.
-  void release();
+  FutureOr<void> release();
 
-  void close();
+  FutureOr<void> close();
+}
+
+/// Adds a process-wide file lock outside the isolate gate. POSIX locks alone
+/// cannot exclude two isolates in the same process. Keep the isolate gate
+/// held until the file descriptor is closed: closing any descriptor for this
+/// file releases that process's POSIX locks. Swift must use fcntl, not flock.
+class CrossProcessLockGate implements LockGate {
+  CrossProcessLockGate(this.file, {required LockGate isolateGate})
+    : _isolateGate = isolateGate;
+
+  final File file;
+  final LockGate _isolateGate;
+  RandomAccessFile? _held;
+  bool _closed = false;
+
+  @override
+  Future<void> acquire() async {
+    if (_closed) throw StateError('Lock closed.');
+    await _isolateGate.acquire();
+    RandomAccessFile? opened;
+    try {
+      await file.parent.create(recursive: true);
+      opened = await file.open(mode: FileMode.append);
+      await opened.lock(FileLock.blockingExclusive);
+      _held = opened;
+    } catch (_) {
+      try {
+        await opened?.close();
+      } finally {
+        await _isolateGate.release();
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<void> release() async {
+    final opened = _held;
+    _held = null;
+    if (opened == null) return;
+    try {
+      // Closing also releases the OS lock, including when an action threw.
+      await opened.close();
+    } finally {
+      await _isolateGate.release();
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    try {
+      await release();
+    } finally {
+      await _isolateGate.close();
+    }
+  }
 }
 
 /// A number that every lock holder raises by one as it lets go.

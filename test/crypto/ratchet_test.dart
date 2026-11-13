@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:fireplace/fireplace_crypto.dart';
+import '../support/crypto_backend.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
-import '../support/prekey_helpers.dart';
+import '../support/crypto_backend_prekeys.dart';
 
 Uint8List t(String s) => Uint8List.fromList(utf8.encode(s));
 String s(List<int> b) => utf8.decode(b);
@@ -51,7 +52,7 @@ Future<Uint8List> send(Session from, Session to, String text) async {
   return to.decrypt(e, chatId: 'c');
 }
 
-void main() {
+void main() => bothCryptoBackends(() {
   late Party alice, bob;
   setUpAll(() async {
     alice = await Party.create('alice');
@@ -387,4 +388,4 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 4)),
   );
-}
+});

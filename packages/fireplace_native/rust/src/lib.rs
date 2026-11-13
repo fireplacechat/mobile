@@ -1,1 +1,4 @@
-//! Build manifest for the pinned registry crate; no protocol code lives here.
+//! Re-export the pinned C ABI for the feature-enabled host comparison library.
+//! Normal host and mobile builds select fireplace-crypto directly.
+
+pub use fireplace_crypto::ffi::*;

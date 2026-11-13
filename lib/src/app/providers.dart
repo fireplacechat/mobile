@@ -10,12 +10,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:fireplace/fireplace_services.dart';
+import 'package:fireplace/src/app/account_history.dart';
 import 'package:fireplace/src/model/account/profile_ready.dart';
 import 'package:fireplace/src/model/chat/chat_sync_coordinator.dart';
 import 'package:fireplace/src/model/common/session_scope.dart';
 import 'package:fireplace/src/model/notifications/arrival_notifier.dart';
 import 'package:fireplace/src/model/notifications/preview_notifier.dart';
 import 'package:fireplace/src/model/push/push_chat_index.dart';
+import 'package:fireplace/src/model/push/preview_credentials.dart';
 import 'package:fireplace/src/model/safety/push_challenge.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 
@@ -24,10 +26,21 @@ final firestoreProvider = Provider<FirebaseFirestore>(
   (_) => FirebaseFirestore.instance,
 );
 final secretStoreProvider = Provider<SecretStore>((_) => SecureSecretStore());
+final iosPreviewCredentialsProvider = Provider<IosPreviewCredentials?>((ref) {
+  if (!Platform.isIOS) return null;
+  final credentials = IosPreviewCredentials(
+    ref.watch(authProvider),
+    ref.watch(secretStoreProvider),
+  )..start();
+  ref.onDispose(() => unawaited(credentials.close().catchError((Object _) {})));
+  return credentials;
+});
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService(
     ref.watch(authProvider),
     ref.watch(firestoreProvider),
+    beforeLocalSignOut: () async =>
+        ref.read(iosPreviewCredentialsProvider)?.beforeLocalSignOut(),
     // Never wait for a session that is still loading: signing out must not hang.
     beforeSignOut: () async {
       await ref
@@ -46,15 +59,21 @@ final pushMessagingClientProvider = Provider<PushMessagingClient?>(
   (_) => pushEnabled ? FirebasePushMessagingClient() : null,
 );
 
-final authUserProvider = StreamProvider<User?>(
-  (ref) => ref.watch(authProvider).authStateChanges(),
-);
+final authUserProvider = StreamProvider<User?>((ref) {
+  ref.watch(iosPreviewCredentialsProvider);
+  return ref.watch(authProvider).authStateChanges();
+});
 
 /// The lock this account's stores share between the app and the background
 /// push handler: a name in the isolate name server, and a generation file next
 /// to the history (decision 0030).
 SharedLock accountLock(String uid, Directory historyDir) => SharedLock(
-  gate: IsolateLockGate('fireplace.account.$uid'),
+  gate: Platform.isIOS
+      ? CrossProcessLockGate(
+          File('${historyDir.parent.path}/locks/$uid.lock'),
+          isolateGate: IsolateLockGate('fireplace.account.$uid'),
+        )
+      : IsolateLockGate('fireplace.account.$uid'),
   generation: FileLockGeneration(File('${historyDir.path}/lock.gen')),
 );
 
@@ -160,7 +179,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     // safe alongside receiving) instead of holding up the chat list.
     final docs = await getApplicationDocumentsDirectory();
     scope.checkActive();
-    final historyDir = Directory('${docs.path}/messages_${user.uid}');
+    final historyDir = await accountHistoryDirectory(user.uid, docs);
     await historyDir.create(recursive: true);
     final lock = accountLock(user.uid, historyDir);
     scope.add(() async => lock.close());
@@ -185,7 +204,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     scope.add(store.close);
     scope.checkActive();
     final chatPreferences = await LocalChatPreferences.open(
-      dir: Directory('${docs.path}/messages_${user.uid}'),
+      dir: historyDir,
       secrets: secrets,
       uid: user.uid,
     );

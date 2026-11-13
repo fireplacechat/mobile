@@ -6,7 +6,7 @@ import 'package:fireplace/src/widgets/qr_scan_page.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/crypto/fingerprint.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/model/keys/verify_payload.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';

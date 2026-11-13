@@ -31,6 +31,7 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+packages/fireplace_native/ios/fireplace_native/Frameworks/
 /coverage/
 
 # Symbolication related
