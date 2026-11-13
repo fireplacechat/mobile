@@ -4,6 +4,7 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
+import 'package:fireplace/src/model/common/external_browser.dart';
 import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
@@ -34,6 +35,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _busy = false;
+  bool _browserFailed = false;
   String? _error, _fingerprintFor;
   Future<String>? _fingerprint;
   Future<void> _run(Future<void> Function() action) async {
@@ -57,6 +59,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await Navigator.of(context)
         .push(MaterialPageRoute<void>(builder: (_) => page));
   });
+
+  Future<void> _openLegal(String address) async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _browserFailed = false;
+    });
+    var opened = false;
+    try {
+      opened = await ref.read(externalBrowserProvider).open(Uri.parse(address));
+    } catch (_) {
+      // Keep both rows available for retry if the browser cannot open.
+    }
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _browserFailed = !opened;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(appSessionProvider);
@@ -319,17 +341,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 UiSettingsSection(
                   title: 'About',
                   children: [
+                    if (_browserFailed)
+                      const Padding(
+                        padding: EdgeInsets.all(16),
+                        child: UiActionError(
+                          message: 'Could not open your browser. Try again.',
+                        ),
+                      ),
                     ListTile(
-                      key: const Key('legalLinks'),
+                      key: const Key('openPrivacyPolicy'),
                       leading: const Icon(Icons.policy_outlined),
-                      title: const Text('Privacy and terms'),
+                      title: const Text('Privacy policy'),
                       onLongPress: previewDiagnosticsEnabled
                           ? () => _open(const PreviewDiagnosticsScreen())
                           : null,
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: _busy
-                          ? null
-                          : () => _open(const LegalLinksScreen()),
+                      onTap: _busy ? null : () => _openLegal(privacyPolicyUrl),
+                    ),
+                    ListTile(
+                      key: const Key('openTermsOfUse'),
+                      leading: const Icon(Icons.description_outlined),
+                      title: const Text('Terms of use'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _busy ? null : () => _openLegal(termsOfUseUrl),
                     ),
                     ListTile(
                       key: const Key('openLicences'),

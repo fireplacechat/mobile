@@ -1,4 +1,4 @@
-// Settings and sign-up reach the shared browser-link page before opening a URL.
+// Settings opens each URL directly from a row; sign-up keeps its legal links.
 import 'package:fireplace/src/view/auth/auth_screen.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
@@ -20,7 +20,7 @@ void expectBothLinks() {
 }
 
 void main() {
-  testWidgets('Settings has a legal entry with both browser buttons', (
+  testWidgets('Settings has two standard legal rows without another page', (
     t,
   ) async {
     t.view.physicalSize = const Size(800, 3000);
@@ -38,10 +38,16 @@ void main() {
       ),
     );
     await settleUi(t);
-    await t.ensureVisible(find.byKey(const Key('legalLinks')));
-    await t.tap(find.byKey(const Key('legalLinks')));
-    await settleUi(t);
     expectBothLinks();
+    expect(find.byKey(const Key('legalLinks')), findsNothing);
+    expect(find.text('Privacy and terms'), findsNothing);
+    for (final key in ['openPrivacyPolicy', 'openTermsOfUse']) {
+      final row = t.widget<ListTile>(find.byKey(Key(key)));
+      expect(row.leading, isA<Icon>());
+      expect((row.trailing! as Icon).icon, Icons.chevron_right);
+      expect(row.subtitle, isNull);
+      expect(row.onTap, isNotNull);
+    }
   });
 
   testWidgets(
@@ -78,12 +84,7 @@ void main() {
         ),
       );
       await settleUi(t);
-      await t.ensureVisible(find.byKey(const Key('legalLinks')));
-      await t.tap(find.byKey(const Key('legalLinks')));
-      await settleUi(t);
-      await t.pump(
-        const Duration(milliseconds: 600),
-      ); // let the page finish sliding in
+      await t.ensureVisible(find.byKey(const Key('openPrivacyPolicy')));
       await t.tap(find.byKey(const Key('openPrivacyPolicy')));
       await t.pump(const Duration(milliseconds: 100));
       expect(opened, privacyUrl);
@@ -91,6 +92,11 @@ void main() {
       await t.tap(find.byKey(const Key('openTermsOfUse')));
       await t.pump(const Duration(milliseconds: 100));
       expect(opened, termsUrl);
+      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(
+        Navigator.of(t.element(find.byType(SettingsScreen))).canPop(),
+        isFalse,
+      );
     },
   );
 

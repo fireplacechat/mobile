@@ -16,7 +16,7 @@ recording service fakes. Device identifiers, fingerprints, usernames and message
 are fictional. These fakes cannot validate crypto, Firebase rules or native
 plugins. There is no Firebase SDK instance or live account connection.
 
-The catalog has 121 states in each theme, including shared components, chat color settings, the `accent-*` states (a saved chat color other than the default, seeded into the fixture's secret store as an earlier run would have left it), narrow/enlarged signup and list views, conversation layouts with keyboard/landscape insets, and the held-message info, delete and pin states. The core inventory covers: list/data/empty/loading/error,
+The catalog has 122 states in each theme, including shared components, chat color settings, the `accent-*` states (a saved chat color other than the default, seeded into the fixture's secret store as an earlier run would have left it), narrow/enlarged signup and list views, conversation layouts with keyboard/landscape insets, and the held-message info, delete and pin states. The core inventory covers: list/data/empty/loading/error,
 conversation/data/empty/error, request, requests list, details, verification,
 settings, devices, recovery, linking, new device, deletion, resumed deletion,
 sign-in, sign-up, startup and auth error. Each test disposes its widget tree and

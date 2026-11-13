@@ -90,8 +90,8 @@ void main() {
       ),
     );
     await settleUi(tester);
-    await tester.ensureVisible(find.byKey(const Key('legalLinks')));
-    await tester.longPress(find.byKey(const Key('legalLinks')));
+    await tester.ensureVisible(find.byKey(const Key('openPrivacyPolicy')));
+    await tester.longPress(find.byKey(const Key('openPrivacyPolicy')));
     await tester.pumpAndSettle();
     expect(find.text('Preview test results'), findsOneWidget);
     expect(find.text('No preview runs recorded yet.'), findsOneWidget);
