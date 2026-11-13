@@ -12,6 +12,7 @@ import 'outgoing_send_cases.dart';
 import 'theme_cases.dart';
 import 'icon_hold_cases.dart';
 import 'legal_cases.dart';
+import 'selection_copy_cases.dart';
 import 'startup_cases.dart';
 
 import 'dart:convert';
@@ -50,6 +51,7 @@ import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -135,6 +137,7 @@ void main() {
     ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(manifest));
   });
   final cases = [
+    ...selectionCopyCases,
     ...legalCases,
     ...startupCases,
     ...iconHoldCases,
@@ -757,6 +760,13 @@ void main() {
     final theme = brightness.name;
     for (final spec in cases) {
       testWidgets('${spec.name} $theme', (tester) async {
+        final previousPlatform = debugDefaultTargetPlatformOverride;
+        if (spec.platform != null) {
+          debugDefaultTargetPlatformOverride = spec.platform;
+        }
+        addTearDown(
+          () => debugDefaultTargetPlatformOverride = previousPlatform,
+        );
         // The widget-test default turns blurred card shadows into hard black
         // outlines. This catalog previews the app's actual painted surfaces.
         final previousShadows = debugDisableShadows;
@@ -799,7 +809,18 @@ void main() {
                     debugShowCheckedModeBanner: false,
                     theme: theme.copyWith(
                       textTheme: theme.textTheme.apply(
-                        fontFamilyFallback: const ['PreviewEmoji'],
+                        fontFamily: 'Roboto',
+                        fontFamilyFallback: const ['Roboto', 'PreviewEmoji'],
+                      ),
+                      appBarTheme: theme.appBarTheme.copyWith(
+                        titleTextStyle: theme.appBarTheme.titleTextStyle
+                            ?.copyWith(
+                              fontFamily: 'Roboto',
+                              fontFamilyFallback: const [
+                                'Roboto',
+                                'PreviewEmoji',
+                              ],
+                            ),
                       ),
                     ),
                     builder: (context, child) => MediaQuery(
@@ -879,6 +900,7 @@ void main() {
         manifest.add({
           'screen': spec.name,
           'theme': theme,
+          'platform': defaultTargetPlatform.name,
           'file': filename,
           'width': spec.size.width,
           'height': spec.size.height,
@@ -895,6 +917,7 @@ void main() {
         await tester.pump();
         // Flutter checks painting invariants before running tearDown callbacks.
         debugDisableShadows = previousShadows;
+        debugDefaultTargetPlatformOverride = previousPlatform;
       });
     }
   }
