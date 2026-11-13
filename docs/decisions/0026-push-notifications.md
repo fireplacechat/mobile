@@ -52,12 +52,13 @@ deleted. Tokens that FCM reports as dead are removed.
     device's registration.
   - **More in iOS Settings / Android settings** opens the system settings for
     Fireplace.
-- **In the app:** **Show message text** (the in-app notice) and **Send sound**
+- **In the app:** **In-App Notifications** (whether the in-app notice shows the
+  message text; called "Show message text" before v0.3.6) and **Send sound**
   (on by default; stored on this device as `ui:send-sound`).
 - iOS Settings → Fireplace → Notifications and Android's "Messages" channel
   control sounds, banners, badges and lock-screen previews as usual.
 - While Fireplace is open, the system banner is suppressed. The existing
-  in-app notice (with its own "Show message text" choice) shows arrivals.
+  in-app notice (with its own "In-App Notifications" choice) shows arrivals.
 
 ## Sounds
 

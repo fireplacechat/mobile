@@ -70,7 +70,7 @@ void main() {
     );
     await reveal(t, previewFinder);
     final previews = t.getSemantics(previewFinder).getSemanticsData();
-    expect(previews.label, contains('Show message text'));
+    expect(previews.label, contains('In-App Notifications'));
     expect(previews.flagsCollection.isToggled, isNot(Tristate.none));
     final theme = find.byKey(const Key('themeMode'), skipOffstage: false);
     await reveal(t, theme);
