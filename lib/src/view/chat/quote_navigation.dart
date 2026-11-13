@@ -7,8 +7,8 @@ Future<void> locateQuotedMessage(
   TimelineScroll timeline,
   List<LocalMessage> messages,
   String id, {
-  required VoidCallback revealAll,
   required ValueChanged<String> notice,
+  ValueChanged<String>? onFound,
 }) async {
   if (!messages.any(
     (m) => m.id == id && !m.remotelyDeleted && m.status == MessageStatus.ok,
@@ -17,14 +17,12 @@ Future<void> locateQuotedMessage(
     return;
   }
   final reduceMotion = MediaQuery.disableAnimationsOf(context);
-  revealAll();
-  await WidgetsBinding.instance.endOfFrame;
-  if (!context.mounted) return;
   final found = await timeline.locate(
     id,
     messages.map((m) => m.id).toList(),
     reduceMotion: reduceMotion,
   );
+  if (found) onFound?.call(id);
   if (context.mounted && !found) {
     notice(
       'Could not locate the original message. Try searching this conversation.',

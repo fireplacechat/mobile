@@ -1,4 +1,6 @@
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/view/chat/message_actions_overlay.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +14,7 @@ import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/chat/widgets/day_separator.dart';
 import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
+import 'package:fireplace/src/view/chat/widgets/message_flash.dart';
 import 'package:fireplace/src/view/chat/widgets/rising_send.dart';
 import 'package:fireplace/src/view/chat/widgets/unconfirmed_note.dart';
 
@@ -38,7 +41,11 @@ class ChatTimeline extends ConsumerWidget {
     required this.onLatest,
     this.outgoing = const {},
     this.onFailedSend,
+    this.flashed,
   });
+
+  /// The message to highlight briefly after a jump to it.
+  final ValueListenable<String?>? flashed;
 
   /// Messages in [msgs] that are being sent or were not sent, by their id.
   final Map<String, OutgoingSend> outgoing;
@@ -57,6 +64,10 @@ class ChatTimeline extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selection = ref.watch(messageSelectionProvider(chatId));
+    final theme = Theme.of(context);
+    final highlight = ref
+        .watch(chatBubbleColorsProvider)
+        .jumpHighlight(theme.brightness, theme.scaffoldBackgroundColor);
     final controller = ref.read(messageSelectionProvider(chatId).notifier);
     return Stack(
       key: viewportKey,
@@ -126,69 +137,73 @@ class ChatTimeline extends ConsumerWidget {
                       ],
                     );
                   }
+                  final row = GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: selection.active
+                        ? () => controller.toggle(message.id)
+                        : null,
+                    child: Stack(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(
+                            bottom:
+                                message.reactions.values.any(
+                                  (reaction) => reaction.emoji != null,
+                                )
+                                ? ReactionChipLayout.reserve *
+                                      MediaQuery.textScalerOf(context).scale(1)
+                                : 0,
+                          ),
+                          child: Row(
+                            children: [
+                              if (selection.active)
+                                MessageSelectionMark(
+                                  selected: selection.ids.contains(message.id),
+                                ),
+                              Expanded(
+                                child: MessageBubble(
+                                  key: anchorFor(message.id),
+                                  message: message,
+                                  senderName: name,
+                                  selecting: selection.active,
+                                  selected: selection.ids.contains(message.id),
+                                  onToggleSelection: () =>
+                                      controller.toggle(message.id),
+                                  actions: actionsFor(message),
+                                  onQuote: onQuote,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          left: selection.active ? 36 : 0,
+                          right: 0,
+                          child: MessageReactions(
+                            message: message,
+                            peerName: name,
+                            onSelect: selection.active
+                                ? () => controller.toggle(message.id)
+                                : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                   return Column(
                     key: ValueKey(message.id),
                     children: [
                       if (showDate) DaySeparator(date: message.sentAt),
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: selection.active
-                            ? () => controller.toggle(message.id)
-                            : null,
-                        child: Stack(
-                          children: [
-                            Padding(
-                              padding: EdgeInsets.only(
-                                bottom:
-                                    message.reactions.values.any(
-                                      (reaction) => reaction.emoji != null,
-                                    )
-                                    ? ReactionChipLayout.reserve *
-                                          MediaQuery.textScalerOf(context)
-                                              .scale(1)
-                                    : 0,
-                              ),
-                              child: Row(
-                                children: [
-                                  if (selection.active)
-                                    MessageSelectionMark(
-                                      selected: selection.ids.contains(
-                                        message.id,
-                                      ),
-                                    ),
-                                  Expanded(
-                                    child: MessageBubble(
-                                      key: anchorFor(message.id),
-                                      message: message,
-                                      senderName: name,
-                                      selecting: selection.active,
-                                      selected: selection.ids.contains(
-                                        message.id,
-                                      ),
-                                      onToggleSelection: () =>
-                                          controller.toggle(message.id),
-                                      actions: actionsFor(message),
-                                      onQuote: onQuote,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              left: selection.active ? 36 : 0,
-                              right: 0,
-                              child: MessageReactions(
-                                message: message,
-                                peerName: name,
-                                onSelect: selection.active
-                                    ? () => controller.toggle(message.id)
-                                    : null,
-                              ),
-                            ),
-                          ],
+                      if (flashed == null)
+                        row
+                      else
+                        MessageFlash(
+                          messageId: message.id,
+                          flashed: flashed!,
+                          color: highlight,
+                          child: row,
                         ),
-                      ),
                       if (!selection.active &&
                           message.outgoing &&
                           !message.remotelyDeleted &&

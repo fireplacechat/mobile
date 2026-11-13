@@ -83,6 +83,21 @@ class ChatBubbleColors {
     );
   }
 
+  /// The tint behind a message after a jump to it (a search result, a quote,
+  /// a pin). Between the two bubble colours and faded into [page], so it
+  /// stands apart from both bubbles and from the page whichever two colours
+  /// are chosen, also when both are the same (test/styles/chat_colors_test).
+  /// In dark mode the outgoing colour's lighter accent stands in for its
+  /// fill, which is too close to some dark incoming fills.
+  Color jumpHighlight(Brightness brightness, Color page) {
+    final theirs = incoming.incoming(brightness);
+    final dark = brightness == Brightness.dark;
+    final between = dark
+        ? Color.lerp(theirs, outgoing.accentText(brightness), .9)!
+        : Color.lerp(theirs, outgoing.outgoing, .5)!;
+    return Color.lerp(page, between, dark ? .7 : .5)!;
+  }
+
   @override
   bool operator ==(Object other) =>
       other is ChatBubbleColors &&

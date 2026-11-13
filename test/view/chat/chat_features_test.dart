@@ -380,7 +380,7 @@ void main() {
     expect(f.chat.sends, isEmpty);
   });
   testWidgets(
-    'search location opens old message without marking newer messages seen',
+    'a search result in a short chat shows the whole chat, all seen',
     (t) async {
       final f = UiFixture();
       await f.seed();
@@ -390,11 +390,11 @@ void main() {
         f,
         const ChatScreen(chatId: 'alice_fred', initialMessageId: '1'),
       );
-      expect(find.text('Are we still on for Saturday?'), findsOneWidget);
-      expect(find.text('Around two? There is no rush.'), findsNothing);
-      expect(container(t).read(chatActivityProvider).unread['alice_fred'], 2);
-      await t.tap(find.text('Show latest messages'));
+      await t.pumpAndSettle();
       await settleUi(t);
+      // Everything fits on screen, so nothing newer is hidden or unread.
+      // Long chats: test/view/chat/search_jump_test.dart.
+      expect(find.text('Are we still on for Saturday?'), findsOneWidget);
       expect(find.text('Around two? There is no rush.'), findsOneWidget);
       expect(container(t).read(chatActivityProvider).unread['alice_fred'], 0);
     },
