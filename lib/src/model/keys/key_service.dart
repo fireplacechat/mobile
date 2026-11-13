@@ -111,20 +111,22 @@ class KeyService {
           keys.deviceId,
           Map<String, dynamic>.from(jsonDecode(bundleJson)),
         );
-        // Public and private halves must belong together and the certificate must still
-        // verify. A corrupted or half-restored record is never used, and a new identity
-        // is never minted on top of an account that already has published keys.
-        final consistent =
-            await keys.consistent() &&
-            await identity.consistent() &&
-            bytesEqual(bundle.x25519Pub, keys.x25519Pub) &&
-            bytesEqual(bundle.kemPub, keys.kemPub) &&
-            bytesEqual(bundle.identityPub, identity.publicBytes) &&
-            await bundle.verifyCert();
-        if (!consistent) throw const FormatException('inconsistent local keys');
-      } catch (_) {
-        throw NeedsRecoveryException(); // recover or link instead of guessing
+      } on FormatException {
+        throw NeedsRecoveryException();
+      } on TypeError {
+        throw NeedsRecoveryException();
       }
+      // A runtime/library failure is not evidence of lost keys. Let it reach
+      // startup's retryable error path instead of offering an identity reset.
+      // False verification still means these records cannot safely be used.
+      final consistent =
+          await keys.consistent() &&
+          await identity.consistent() &&
+          bytesEqual(bundle.x25519Pub, keys.x25519Pub) &&
+          bytesEqual(bundle.kemPub, keys.kemPub) &&
+          bytesEqual(bundle.identityPub, identity.publicBytes) &&
+          await bundle.verifyCert();
+      if (!consistent) throw NeedsRecoveryException();
       final mine = await _devices(uid).doc(keys.deviceId).get();
       // Existing local keys are not proof that this device is still registered.
       // A missing record can be an interrupted install or a removed device; do

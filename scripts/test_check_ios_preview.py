@@ -1,5 +1,6 @@
 """The project guard must reject regressions that would affect the extension."""
 from pathlib import Path
+import re
 import tempfile
 import unittest
 
@@ -15,6 +16,24 @@ class ProjectTests(unittest.TestCase):
     def test_rejects_duplicate_keys(self):
         with self.assertRaises(ValueError):
             parse_project('{a = one; a = two;}')
+
+    def test_runner_archives_preserve_global_ffi_symbols(self):
+        root = Path(__file__).resolve().parent.parent
+        source = (root / 'ios/Runner.xcodeproj/project.pbxproj').read_text(encoding='utf-8')
+        objects = parse_project(source)['objects']
+        runner = next(v for v in objects.values() if v.get('isa') == 'PBXNativeTarget' and v.get('name') == 'Runner')
+        for config in objects[runner['buildConfigurationList']]['buildConfigurations']:
+            self.assertEqual(objects[config]['buildSettings'].get('STRIP_STYLE'), 'non-global')
+        # Removing any one configuration's protection must fail the real guard.
+        for occurrence in range(3):
+            start = [m.start() for m in re.finditer('STRIP_STYLE = "non-global";', source)][occurrence]
+            changed = source[:start] + source[start:].replace('STRIP_STYLE = "non-global";', 'STRIP_STYLE = all;', 1)
+            with tempfile.TemporaryDirectory() as temporary:
+                path = Path(temporary) / 'ios/Runner.xcodeproj/project.pbxproj'
+                path.parent.mkdir(parents=True)
+                path.write_text(changed, encoding='utf-8')
+                with self.assertRaisesRegex(ValueError, 'preserve global FFI'):
+                    check(Path(temporary))
 
     def test_real_project_is_isolated_and_rejects_an_app_dependency(self):
         root = Path(__file__).resolve().parent.parent

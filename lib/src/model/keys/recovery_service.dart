@@ -97,6 +97,10 @@ class RecoveryService {
   /// Last resort when the identity is lost: remove all devices and the backup and
   /// start with a brand-new identity. Contacts will see a security-code change.
   Future<LocalDevice> resetIdentity(String uid) async {
+    // In particular, a missing native library must fail before any original
+    // keys, published devices or encrypted recovery backup are removed.
+    final identity = await AccountIdentity.generate();
+    final keys = await DeviceKeys.generate();
     for (final d
         in (await _db.collection('users').doc(uid).collection('devices').get())
             .docs) {
@@ -106,11 +110,7 @@ class RecoveryService {
     for (final k in ['identity', 'device', 'bundle']) {
       await _store.delete('$k:$uid');
     }
-    return _keys.installDevice(
-      uid,
-      await AccountIdentity.generate(),
-      await DeviceKeys.generate(),
-    );
+    return _keys.installDevice(uid, identity, keys);
   }
 
   // ------------------------------------------------- linking: the NEW device

@@ -18,6 +18,9 @@ def check(root):
     if target['productType'] != 'com.apple.product-type.app-extension' or target.get('dependencies') or target.get('packageProductDependencies'):
         raise ValueError('Extension must not depend on the app or Flutter packages')
     runner = targets['Runner'][1]
+    for config in objects[runner['buildConfigurationList']]['buildConfigurations']:
+        if objects[config]['buildSettings'].get('STRIP_STYLE') != 'non-global':
+            raise ValueError('Runner must preserve global FFI symbols when archiving')
     if not any(objects[d].get('target') == identifier for d in runner['dependencies']):
         raise ValueError('App does not build its extension')
     phases = [objects[p] for p in runner['buildPhases']]
