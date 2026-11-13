@@ -24,8 +24,10 @@ itself, which the app will use in a later step.
 - `fp_session_decrypt` takes the clock from the caller when the pointer is
   non-null, and uses the system clock otherwise. A null or empty one-time
   prekey means there is none.
-- The test stream (`fp_set_test_rng`) is process-global and for one thread.
-  Production builds do not call it.
+- `fp_set_test_rng` exists only when the crate is built with the `test-rng`
+  Cargo feature, which is off by default. A normal release build does not
+  contain the symbol. When the feature is on, the stream is process-global
+  and for one thread.
 
 The app does not call this ABI yet. That is a later step, after 0.1.0 is on
 crates.io. Publishing that version makes the crate's source public even
@@ -57,7 +59,9 @@ The body sits inside `assert`, which release builds strip, so a release call
 cannot turn the stream on. When the stream is off, every call site uses the
 same operating-system or library generator it used before. When it is on,
 those call sites take seeds, coins and nonces from the stream, in the same
-order as the Rust core.
+order as the Rust core. The Rust side of that stream is the `test-rng`
+feature. It is off by default, and a normal release build does not contain
+`fp_set_test_rng`.
 
 `dart run` on this machine does not enable asserts unless asked. The export
 script is:

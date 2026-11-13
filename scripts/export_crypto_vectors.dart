@@ -3,9 +3,10 @@
 // Run from the app root. Asserts must be on, or the recorded stream is ignored:
 //   dart run --enable-asserts scripts/export_crypto_vectors.dart <output-directory>
 //
-// The scripted sections share one recorded byte stream, in the same order the
-// Rust test replays. The natural section leaves the stream off, so its
-// handshake is cross-checked (Rust opens it) rather than compared byte for byte.
+// Each scripted section restarts the same recorded byte stream, in the same
+// order the Rust test replays. The natural section leaves the stream off, so
+// its handshake is cross-checked (Rust opens it) rather than compared byte
+// for byte. Fingerprints, safety numbers and link codes draw no bytes.
 
 import 'dart:convert';
 import 'dart:io';
@@ -13,6 +14,7 @@ import 'dart:typed_data';
 
 import 'package:fireplace/src/crypto/codec.dart';
 import 'package:fireplace/src/crypto/device.dart';
+import 'package:fireplace/src/crypto/fingerprint.dart';
 import 'package:fireplace/src/crypto/identity.dart';
 import 'package:fireplace/src/crypto/link.dart';
 import 'package:fireplace/src/crypto/prekeys.dart';
@@ -78,6 +80,22 @@ Future<Map<String, Object>> scriptedHandshake() async {
     utf8.encode('hello'),
     chatId: 'chat-1',
   );
+  final aliceFingerprint = await identityFingerprint(aliceId.publicBytes);
+  final bobFingerprint = await identityFingerprint(bobId.publicBytes);
+  final safety = await safetyNumber(aliceId.publicBytes, bobId.publicBytes);
+  final safetySwapped = await safetyNumber(
+    bobId.publicBytes,
+    aliceId.publicBytes,
+  );
+  final linkFingerprint = await LinkCrypto.requestFingerprint(
+    bobKeys.x25519Pub,
+    bobKeys.kemPub,
+  );
+  final linkCode = await LinkCrypto.confirmationCode(
+    aliceId.publicBytes,
+    bobKeys.x25519Pub,
+    bobKeys.kemPub,
+  );
   installTestRng(null);
   return {
     'prekeyNow': prekeyNow,
@@ -97,6 +115,96 @@ Future<Map<String, Object>> scriptedHandshake() async {
     'envelope': jsonEncode(envelope.toJson()),
     'plaintext': 'hello',
     'chatId': 'chat-1',
+    'aliceFingerprint': aliceFingerprint,
+    'bobFingerprint': bobFingerprint,
+    'safety': safety,
+    'safetySwapped': safetySwapped,
+    'linkFingerprint': linkFingerprint,
+    'linkCode': linkCode,
+  };
+}
+
+Future<Map<String, Object>> scriptedTranscript() async {
+  installTestRng(pattern());
+  const prekeyNow = 1700000000000;
+  final now = DateTime.fromMillisecondsSinceEpoch(prekeyNow);
+  final aliceId = await AccountIdentity.generate();
+  final aliceKeys = await DeviceKeys.generate();
+  final alice = await aliceKeys.certify(aliceId, 'alice');
+  final bobId = await AccountIdentity.generate();
+  final bobKeys = await DeviceKeys.generate();
+  final bob = await bobKeys.certify(bobId, 'bob');
+  final signedRecord = await PreKeyRecord.generate(now: now);
+  final signed = await PreKeys.sign(
+    signedRecord,
+    bobId,
+    'bob',
+    bobKeys.deviceId,
+  );
+  final oneTimeRecord = await PreKeyRecord.generate(now: now);
+  final (aliceSession, handshake) = await Session.initiate(
+    local: aliceKeys,
+    localBundle: alice,
+    remote: PreKeyBundle(
+      device: bob,
+      signed: signed,
+      oneTime: PreKeys.oneTime(oneTimeRecord),
+    ),
+  );
+  final bobSession = await Session.accept(
+    local: bobKeys,
+    localBundle: bob,
+    remote: alice,
+    handshake: handshake,
+    signedPreKey: signedRecord,
+    oneTimePreKey: oneTimeRecord,
+  );
+  final first = await aliceSession.encrypt(
+    utf8.encode('one'),
+    chatId: 'chat-1',
+  );
+  final second = await aliceSession.encrypt(
+    utf8.encode('two'),
+    chatId: 'chat-1',
+  );
+  final late = await bobSession.decrypt(second, chatId: 'chat-1');
+  if (utf8.decode(late) != 'two') {
+    throw StateError('bob skipped the first message');
+  }
+  final bobAfterSkip = jsonEncode(bobSession.toJson());
+  final early = await bobSession.decrypt(first, chatId: 'chat-1');
+  if (utf8.decode(early) != 'one') {
+    throw StateError('bob missed the skipped message');
+  }
+  final reply0 = await bobSession.encrypt(
+    utf8.encode('three'),
+    chatId: 'chat-1',
+  );
+  final reply1 = await bobSession.encrypt(
+    utf8.encode('four'),
+    chatId: 'chat-1',
+  );
+  final bobFinal = jsonEncode(bobSession.toJson());
+  final aliceLate = await aliceSession.decrypt(reply1, chatId: 'chat-1');
+  if (utf8.decode(aliceLate) != 'four') {
+    throw StateError('alice skipped the first reply');
+  }
+  final aliceAfterSkip = jsonEncode(aliceSession.toJson());
+  final aliceEarly = await aliceSession.decrypt(reply0, chatId: 'chat-1');
+  if (utf8.decode(aliceEarly) != 'three') {
+    throw StateError('alice missed the skipped reply');
+  }
+  installTestRng(null);
+  return {
+    'prekeyNow': prekeyNow,
+    'aliceToBob0': jsonEncode(first.toJson()),
+    'aliceToBob1': jsonEncode(second.toJson()),
+    'bobAfterSkip': bobAfterSkip,
+    'bobToAlice0': jsonEncode(reply0.toJson()),
+    'bobToAlice1': jsonEncode(reply1.toJson()),
+    'bobFinal': bobFinal,
+    'aliceAfterSkip': aliceAfterSkip,
+    'aliceFinal': jsonEncode(aliceSession.toJson()),
   };
 }
 
@@ -186,6 +294,7 @@ Future<void> main(List<String> args) async {
   final doc = {
     'pattern': 'byte i is (i * 17 + 3) mod 256, 8192 bytes',
     'handshake': await scriptedHandshake(),
+    'transcript': await scriptedTranscript(),
     'recovery': await scriptedRecoveryAndLink(),
     'natural': await naturalSession(),
   };
