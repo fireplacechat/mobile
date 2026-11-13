@@ -120,7 +120,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E14ABE29B8AE961B95D684F1 /* NotificationService Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (77813903931081F59ED7B37E, ); runOnlyForDeploymentPostprocessing = 0; };
+		E14ABE29B8AE961B95D684F1 /* NotificationService Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -693,6 +693,8 @@
 			buildSettings = {
 				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/libfireplace_crypto.a", );
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/libfireplace_crypto.a", );
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -721,6 +723,8 @@
 			buildSettings = {
 				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/libfireplace_crypto.a", );
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/libfireplace_crypto.a", );
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
 				CODE_SIGN_STYLE = Automatic;
@@ -749,6 +753,8 @@
 			buildSettings = {
 				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
 				APPLICATION_EXTENSION_API_ONLY = YES;
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/libfireplace_crypto.a", );
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = ("$(inherited)", "$(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/libfireplace_crypto.a", );
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = NotificationService/NotificationService.entitlements;
 				CODE_SIGN_STYLE = Automatic;

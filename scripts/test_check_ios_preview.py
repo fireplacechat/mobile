@@ -32,6 +32,24 @@ class ProjectTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'must not depend'):
                 check(Path(temporary))
 
+    def test_rejects_a_second_xcframework_copy_phase(self):
+        root = Path(__file__).resolve().parent.parent
+        source = (root / 'ios/Runner.xcodeproj/project.pbxproj').read_text(encoding='utf-8')
+        objects = parse_project(source)['objects']
+        target = next(v for v in objects.values()
+                      if v.get('isa') == 'PBXNativeTarget' and v.get('name') == 'NotificationService')
+        phase = next(p for p in target['buildPhases']
+                     if objects[p]['isa'] == 'PBXFrameworksBuildPhase')
+        start = source.index(phase + ' /* NotificationService Frameworks */ = {')
+        source = source[:start] + source[start:].replace(
+            'files = ();', 'files = (77813903931081F59ED7B37E, );', 1)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'ios/Runner.xcodeproj/project.pbxproj'
+            path.parent.mkdir(parents=True)
+            path.write_text(source, encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'another XCFramework copy phase'):
+                check(Path(temporary))
+
 
 if __name__ == '__main__':
     unittest.main()

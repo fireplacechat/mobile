@@ -26,8 +26,8 @@ def check(root):
         raise ValueError('App does not embed its extension')
     phases = [objects[p] for p in target['buildPhases']]
     libraries = [objects[objects[f]['fileRef']]['path'] for p in phases if p['isa'] == 'PBXFrameworksBuildPhase' for f in p['files']]
-    if libraries != [LIBRARY]:
-        raise ValueError('Extension may link only the static core and imported system frameworks')
+    if libraries:
+        raise ValueError('Extension must link the static slice without another XCFramework copy phase')
     paths = [objects[objects[f]['fileRef']]['path'] for p in phases if p['isa'] == 'PBXSourcesBuildPhase' for f in p['files']]
     for path in paths:
         file = (ios / path).resolve()
@@ -43,6 +43,13 @@ def check(root):
     for config in objects[target['buildConfigurationList']]['buildConfigurations']:
         config = objects[config]
         settings = config['buildSettings']
+        # SwiftPM already stages this XCFramework for Runner. A second Xcode
+        # ProcessXCFramework action would copy its bare headers to the same
+        # include directory. Link the exact prebuilt slice directly instead.
+        for sdk, slice in [('iphoneos', 'ios-arm64'), ('iphonesimulator', 'ios-arm64_x86_64-simulator')]:
+            expected = ['$(inherited)', f'$(SRCROOT)/{LIBRARY}/{slice}/libfireplace_crypto.a']
+            if settings.get(f'OTHER_LDFLAGS[sdk={sdk}*]') != expected:
+                raise ValueError('Extension must link the pinned static core slice for each SDK')
         if settings['APPLICATION_EXTENSION_API_ONLY'] != 'YES' or settings['IPHONEOS_DEPLOYMENT_TARGET'] != '15.0':
             raise ValueError('Extension target settings are unsafe')
         if config['name'] != 'Debug' and 'PREVIEW_DIAGNOSTICS' in settings.get('SWIFT_ACTIVE_COMPILATION_CONDITIONS', ''):
