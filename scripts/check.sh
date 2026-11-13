@@ -16,6 +16,9 @@ python3 scripts/test_check_layout.py
 bash scripts/test_build_aab.sh
 [ "${1:-}" = quick ] && { echo "quick checks passed"; exit 0; }
 
+echo "== Rust crypto host library"
+bash scripts/build_crypto_host.sh
+
 echo "== tests (parallel)"
 flutter test --exclude-tags timing
 echo "== tests that measure real time (one at a time)"
