@@ -6,7 +6,7 @@ import subprocess
 import zipfile
 
 TARGETS = {'arm64-v8a': (2, 183), 'armeabi-v7a': (1, 40), 'x86_64': (2, 62)}
-REQUIRED = {'fp_free', 'fp_session_load', 'fp_session_destroy',
+REQUIRED = {'fp_free', 'fp_session_load', 'fp_session_save', 'fp_session_destroy',
             'fp_session_encrypt_handle', 'fp_session_decrypt_handle'}
 FORBIDDEN = {'fp_set_test_rng', 'fp_clear_test_rng'}
 

@@ -41,8 +41,9 @@ class LibraryChecks(unittest.TestCase):
             check_library(arm64_library(), 'arm64-v8a', REQUIRED | {'fp_set_test_rng'})
 
     def test_missing_session_api_is_rejected(self):
-        with self.assertRaises(ValueError):
-            check_library(arm64_library(), 'arm64-v8a', REQUIRED - {'fp_session_load'})
+        for symbol in REQUIRED:
+            with self.subTest(symbol=symbol), self.assertRaises(ValueError):
+                check_library(arm64_library(), 'arm64-v8a', REQUIRED - {symbol})
 
 
 if __name__ == '__main__':
