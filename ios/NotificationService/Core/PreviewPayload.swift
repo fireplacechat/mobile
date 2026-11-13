@@ -17,7 +17,10 @@ public enum PreviewPayload {
     #"\x{FE0F}?[\x{1F3FB}-\x{1F3FF}]?)*|[\x{1F1E6}-\x{1F1FF}]{2}|[0-9#*]\x{FE0F}?\x{20E3})$"#)
 
   private static func matches(_ expression: NSRegularExpression, _ value: String) -> Bool {
-    expression.firstMatch(in: value, range: NSRange(location: 0, length: value.utf16.count)) != nil
+    let full = NSRange(location: 0, length: value.utf16.count)
+    // ICU's dollar anchor also matches before a final newline. Dart's
+    // validator rejects that suffix; require the match to cover every unit.
+    return expression.firstMatch(in: value, range: full)?.range == full
   }
 
   private static func integer(_ value: Any?) -> Int64? {
