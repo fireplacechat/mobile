@@ -76,6 +76,7 @@ class AuthGate extends ConsumerWidget {
         return ref
             .watch(appSessionProvider)
             .when(
+              skipLoadingOnRefresh: false,
               loading: () => _Splash(message: 'Preparing your account…'),
               error: (e, _) => e is AccountDeletionPending
                   ? DeleteAccountScreen(resume: true)
