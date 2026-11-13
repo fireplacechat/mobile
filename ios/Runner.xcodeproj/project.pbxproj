@@ -477,8 +477,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/Headers";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/Headers";
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -497,8 +495,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/Headers";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/Headers";
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -515,8 +511,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				SWIFT_OBJC_BRIDGING_HEADER = NotificationService/Memory/PreviewMemory.h;
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/Headers";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/Headers";
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -712,8 +706,6 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG PREVIEW_DIAGNOSTICS";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/Headers";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/Headers";
 			};
 			name = Debug;
 		};
@@ -742,8 +734,6 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/Headers";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/Headers";
 			};
 			name = Release;
 		};
@@ -772,8 +762,6 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				"SWIFT_INCLUDE_PATHS[sdk=iphoneos*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64/Headers";
-				"SWIFT_INCLUDE_PATHS[sdk=iphonesimulator*]" = "$(inherited) $(SRCROOT)/../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework/ios-arm64_x86_64-simulator/Headers";
 			};
 			name = Profile;
 		};

@@ -50,6 +50,18 @@ class ProjectTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'another XCFramework copy phase'):
                 check(Path(temporary))
 
+    def test_rejects_duplicate_clang_module_search_paths(self):
+        root = Path(__file__).resolve().parent.parent
+        source = (root / 'ios/Runner.xcodeproj/project.pbxproj').read_text(encoding='utf-8')
+        source = source.replace('APPLICATION_EXTENSION_API_ONLY = YES;',
+                                'APPLICATION_EXTENSION_API_ONLY = YES; SWIFT_INCLUDE_PATHS = duplicate;', 1)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'ios/Runner.xcodeproj/project.pbxproj'
+            path.parent.mkdir(parents=True)
+            path.write_text(source, encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'duplicate module paths'):
+                check(Path(temporary))
+
 
 if __name__ == '__main__':
     unittest.main()
