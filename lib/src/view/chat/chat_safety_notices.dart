@@ -8,31 +8,6 @@ import 'package:fireplace/src/view/chat/widgets/new_device_banner.dart';
 import 'package:fireplace/src/view/chat/widgets/request_banner.dart';
 import 'package:fireplace/src/widgets/status.dart';
 
-class SearchLocationNotice extends StatelessWidget {
-  // Rebuild with the screen; keep this extraction non-const.
-  // ignore: prefer_const_constructors_in_immutables
-  SearchLocationNotice({
-    super.key,
-    required this.target,
-    required this.onShowLatest,
-  });
-  final int target;
-  final VoidCallback onShowLatest;
-  @override
-  Widget build(BuildContext context) => UiNotice(
-    key: const Key('searchLocation'),
-    text: target < 0
-        ? 'This search result is no longer on this device.'
-        : 'Search result — showing messages up to this point.',
-    actions: [
-      TextButton(
-        onPressed: onShowLatest,
-        child: const Text('Show latest messages'),
-      ),
-    ],
-  );
-}
-
 class ChatSafetyNotices extends StatelessWidget {
   // Rebuild with the screen; keep this extraction non-const.
   // ignore: prefer_const_constructors_in_immutables

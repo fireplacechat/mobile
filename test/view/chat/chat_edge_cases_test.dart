@@ -234,7 +234,8 @@ void main() {
         '1',
       );
       expect(find.text('Are we still on for Saturday?'), findsOneWidget);
-      expect(find.text('Around two? There is no rush.'), findsNothing);
+      // The whole conversation, not only up to the result.
+      expect(find.byKey(const Key('searchLocation')), findsNothing);
     },
   );
   testWidgets(

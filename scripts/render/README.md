@@ -43,3 +43,7 @@ a side-by-side image and an even blend of the two; `--render-top` and
 contain other people's names and messages: keep them and the comparison images
 out of Git unless the owner has cleared them. The renderer also loads the
 Cupertino icon font from the resolved `cupertino_icons` package.
+
+## Motion
+
+`motion_frames_test.dart` writes frames of the search jump and the reaction lift to `build/frames/`, and `frames_to_gif.py <folder>` turns them into a GIF for review (needs Pillow; set `RENDER_EMOJI_FONT` for emoji). Not part of the catalog above.

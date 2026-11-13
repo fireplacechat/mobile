@@ -290,9 +290,7 @@ void main() {
       final f = UiFixture();
       await f.seed();
       await host(t, f, initialMessageId: '1', reducedMotion: true);
-      expect(find.byKey(const Key('searchLocation')), findsOneWidget);
       await send(t);
-      expect(find.byKey(const Key('searchLocation')), findsNothing);
       expect(
         t
             .widget<ListView>(find.byKey(const Key('messageTimeline')))
