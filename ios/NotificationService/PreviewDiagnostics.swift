@@ -14,11 +14,15 @@ enum PreviewDiagnostics {
       }
     }
     guard result == KERN_SUCCESS else { return 0 }
+    return measuredPeak(info: info, count: count)
+  }
+
+  static func measuredPeak(info: task_vm_info_data_t, count: mach_msg_type_number_t) -> UInt64 {
     let end = (MemoryLayout<task_vm_info_data_t>.offset(of: \.ledger_phys_footprint_peak) ?? Int.max - 8) + 8
-    if Int(count) * MemoryLayout<integer_t>.size >= end {
-      return max(info.phys_footprint, UInt64(max(0, info.ledger_phys_footprint_peak)))
-    }
-    return info.phys_footprint
+    // A current footprint cannot establish the peak. Older API revisions must
+    // show "unavailable" instead of suggesting the memory budget was met.
+    guard Int(count) * MemoryLayout<integer_t>.size >= end else { return 0 }
+    return max(info.phys_footprint, UInt64(max(0, info.ledger_phys_footprint_peak)))
   }
 
   static func record(root: URL, run: UInt64, started: UInt64, outcome: Int) {
