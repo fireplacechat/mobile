@@ -12,6 +12,11 @@ on:
         default: check
         type: choice
         options: [check, upload]
+      preview_diagnostics:
+        description: 'Local preview diagnostics for TestFlight only; never select this build for App Store release'
+        required: true
+        default: false
+        type: boolean
 permissions:
   contents: read
 concurrency: ios-release
@@ -41,6 +46,7 @@ jobs:
       - run: bash scripts/build_crypto_ios.sh
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
+      - run: bash scripts/check_ios_preview_bundle.sh build/ios/iphoneos/Runner.app
       - name: Print built app version
         run: |
           set -euo pipefail
@@ -97,6 +103,7 @@ jobs:
       - name: Run beta lane
         working-directory: ios
         env:
+          PREVIEW_DIAGNOSTICS: ${{ inputs.preview_diagnostics }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

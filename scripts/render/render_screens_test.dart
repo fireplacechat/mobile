@@ -41,6 +41,8 @@ import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/view/safety/blocked_users_screen.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
+import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:flutter/material.dart';
@@ -632,12 +634,38 @@ void main() {
     ),
     const CatalogCase('settings', SettingsScreen()),
     CatalogCase(
+      'preview-diagnostics',
+      const PreviewDiagnosticsScreen(),
+      overrides: [
+        previewDiagnosticRunsProvider.overrideWith(
+          (_) async => [
+            PreviewDiagnosticRun(
+              at: DateTime.utc(2026, 11, 13, 9),
+              elapsedMillis: 430,
+              peakBytes: 11 * 1024 * 1024,
+              outcome: PreviewRunOutcome.preview,
+            ),
+            PreviewDiagnosticRun(
+              at: DateTime.utc(2026, 11, 13, 9, 1),
+              elapsedMillis: 4500,
+              peakBytes: 10 * 1024 * 1024,
+              outcome: PreviewRunOutcome.timeout,
+            ),
+          ],
+        ),
+      ],
+      act: (tester, _) async {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pumpAndSettle();
+      },
+    ),
+    CatalogCase(
       'settings-notifications',
       const SettingsScreen(),
       push: true,
       overrides: [
         appleWordingProvider.overrideWithValue(true),
-        notificationPreviewAvailableProvider.overrideWithValue(false),
+        notificationPreviewAvailableProvider.overrideWithValue(true),
       ],
       act: (t, f) async {
         await t.runAsync(() => Future<void>.delayed(Duration.zero));

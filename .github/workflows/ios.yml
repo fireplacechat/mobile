@@ -16,9 +16,12 @@ jobs:
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with: { flutter-version-file: pubspec.yaml, cache: false }
       - run: bash scripts/build_crypto_ios.sh
+      - run: bash scripts/typecheck_ios_preview.sh
       - run: ruby -c ios/fastlane/Fastfile
+      - run: swift test --package-path ios
       - run: flutter pub get
       - run: flutter build ios --no-codesign
+      - run: bash scripts/check_ios_preview_bundle.sh build/ios/iphoneos/Runner.app
       - run: flutter build ios --simulator --debug --no-codesign
       - name: Check out the source of the published core for its vector tests
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

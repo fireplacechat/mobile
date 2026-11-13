@@ -1,0 +1,37 @@
+"""The project guard must reject regressions that would affect the extension."""
+from pathlib import Path
+import tempfile
+import unittest
+
+from check_ios_preview import check
+from ios_project import parse_project
+
+
+class ProjectTests(unittest.TestCase):
+    def test_reads_comments_quoted_values_and_nested_lists(self):
+        self.assertEqual(parse_project('// comment\n{a = (one, "two words",); b = {c = "x\\ny";};}'),
+                         {'a': ['one', 'two words'], 'b': {'c': 'x\ny'}})
+
+    def test_rejects_duplicate_keys(self):
+        with self.assertRaises(ValueError):
+            parse_project('{a = one; a = two;}')
+
+    def test_real_project_is_isolated_and_rejects_an_app_dependency(self):
+        root = Path(__file__).resolve().parent.parent
+        check(root)
+        source = (root / 'ios/Runner.xcodeproj/project.pbxproj').read_text(encoding='utf-8')
+        target = next(k for k, v in parse_project(source)['objects'].items()
+                      if v.get('isa') == 'PBXNativeTarget' and v.get('name') == 'NotificationService')
+        # A direct dependency is refused before the checker reads source files.
+        start = source.index(target + ' /* NotificationService */ = {')
+        source = source[:start] + source[start:].replace('dependencies = ();', 'dependencies = (unapproved,);', 1)
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'ios/Runner.xcodeproj/project.pbxproj'
+            path.parent.mkdir(parents=True)
+            path.write_text(source, encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'must not depend'):
+                check(Path(temporary))
+
+
+if __name__ == '__main__':
+    unittest.main()

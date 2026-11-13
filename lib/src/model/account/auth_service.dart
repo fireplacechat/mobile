@@ -15,10 +15,16 @@ class AuthException implements Exception {
 /// The email is synthetic (`<username>@users.fireplace.invalid`); it is never
 /// shown or used for mail, and the Firestore rules require it to match the username.
 class AuthService {
-  AuthService(this._auth, this._db, {this._beforeSignOut});
+  AuthService(
+    this._auth,
+    this._db, {
+    this._beforeSignOut,
+    this._beforeLocalSignOut,
+  });
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
   final Future<void> Function()? _beforeSignOut;
+  final Future<void> Function()? _beforeLocalSignOut;
 
   static const emailDomain = 'users.fireplace.invalid';
   static final _usernameRe = RegExp(r'^[a-z0-9_]{3,20}$');
@@ -197,6 +203,11 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    try {
+      await _beforeLocalSignOut?.call();
+    } catch (_) {
+      throw AuthException('Could not sign out. Try again.');
+    }
     try {
       await _beforeSignOut?.call();
     } catch (_) {

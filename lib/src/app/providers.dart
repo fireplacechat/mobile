@@ -17,6 +17,7 @@ import 'package:fireplace/src/model/common/session_scope.dart';
 import 'package:fireplace/src/model/notifications/arrival_notifier.dart';
 import 'package:fireplace/src/model/notifications/preview_notifier.dart';
 import 'package:fireplace/src/model/push/push_chat_index.dart';
+import 'package:fireplace/src/model/push/preview_credentials.dart';
 import 'package:fireplace/src/model/safety/push_challenge.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 
@@ -25,10 +26,21 @@ final firestoreProvider = Provider<FirebaseFirestore>(
   (_) => FirebaseFirestore.instance,
 );
 final secretStoreProvider = Provider<SecretStore>((_) => SecureSecretStore());
+final iosPreviewCredentialsProvider = Provider<IosPreviewCredentials?>((ref) {
+  if (!Platform.isIOS) return null;
+  final credentials = IosPreviewCredentials(
+    ref.watch(authProvider),
+    ref.watch(secretStoreProvider),
+  )..start();
+  ref.onDispose(() => unawaited(credentials.close().catchError((Object _) {})));
+  return credentials;
+});
 final authServiceProvider = Provider<AuthService>((ref) {
   return AuthService(
     ref.watch(authProvider),
     ref.watch(firestoreProvider),
+    beforeLocalSignOut: () async =>
+        ref.read(iosPreviewCredentialsProvider)?.beforeLocalSignOut(),
     // Never wait for a session that is still loading: signing out must not hang.
     beforeSignOut: () async {
       await ref
@@ -47,9 +59,10 @@ final pushMessagingClientProvider = Provider<PushMessagingClient?>(
   (_) => pushEnabled ? FirebasePushMessagingClient() : null,
 );
 
-final authUserProvider = StreamProvider<User?>(
-  (ref) => ref.watch(authProvider).authStateChanges(),
-);
+final authUserProvider = StreamProvider<User?>((ref) {
+  ref.watch(iosPreviewCredentialsProvider);
+  return ref.watch(authProvider).authStateChanges();
+});
 
 /// The lock this account's stores share between the app and the background
 /// push handler: a name in the isolate name server, and a generation file next

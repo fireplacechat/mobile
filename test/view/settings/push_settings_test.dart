@@ -93,6 +93,29 @@ void main() {
   bool enabled(WidgetTester tester, String key) =>
       tester.widget<SwitchListTile>(find.byKey(Key(key))).onChanged != null;
 
+  testWidgets(
+    'iOS exposes the same preview choice through the default provider',
+    (tester) async {
+      await tester.runAsync(service.start);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [systemNotificationsProvider.overrideWithValue(system)],
+          child: MaterialApp(
+            home: Scaffold(
+              body: ListView(children: [PushSettingsSection(service: service)]),
+            ),
+          ),
+        ),
+      );
+      await settle(tester);
+      expect(find.byKey(const Key('pushPreview')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('pushPreview')));
+      await settle(tester);
+      expect(await tester.runAsync(service.showsPreview), isFalse);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.iOS),
+  );
+
   testWidgets('turning notifications on and off', (tester) async {
     await pump(tester);
     expect(find.text('Allow notifications'), findsOneWidget);

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/model/notifications/system_notifications.dart';
@@ -15,11 +16,11 @@ import 'package:fireplace/src/widgets/settings_section.dart';
 /// choose the wording independently of the machine they run on.
 final appleWordingProvider = Provider<bool>((_) => Platform.isIOS);
 
-/// Whether this device can show message previews in notifications. Android
-/// only until the iOS extension exists (decision 0030). A provider so tests
-/// and renders can show either.
+/// Both platforms use the same choice; iOS decrypts in its native extension.
 final notificationPreviewAvailableProvider = Provider<bool>(
-  (_) => Platform.isAndroid,
+  (_) =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS,
 );
 
 class PushSettingsSection extends ConsumerStatefulWidget {

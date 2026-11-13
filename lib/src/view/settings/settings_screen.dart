@@ -22,6 +22,8 @@ import 'package:fireplace/src/widgets/settings_section.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
 import 'package:fireplace/src/model/settings/send_sound_preference.dart';
 import 'package:fireplace/src/view/settings/theme_mode_tile.dart';
+import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
+import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -321,6 +323,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       key: const Key('legalLinks'),
                       leading: const Icon(Icons.policy_outlined),
                       title: const Text('Privacy and terms'),
+                      onLongPress: previewDiagnosticsEnabled
+                          ? () => _open(const PreviewDiagnosticsScreen())
+                          : null,
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _busy
                           ? null

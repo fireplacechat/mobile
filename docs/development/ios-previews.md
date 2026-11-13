@@ -1,7 +1,7 @@
 # iOS preview setup and upgrade checks
 
-The shared-storage foundation is under review. The notification extension
-and preview setting follow separately; this is not a release announcement.
+The notification service and shared-storage foundation are under review;
+this is not a release announcement.
 Only the owner configures Apple identifiers, signs and uploads builds.
 
 ## Apple Developer configuration
@@ -13,11 +13,10 @@ In [Certificates, Identifiers & Profiles](https://developer.apple.com/account/re
 2. Open the existing explicit App ID `com.fireplacechat.app`. Enable
    **App Groups**, select that group, and save the configuration. Preserve
    Push Notifications and all existing capabilities.
-3. For the upcoming extension, register an explicit App ID
+3. Register an explicit App ID
    `com.fireplacechat.app.NotificationService`. Enable App Groups and select
    the same group. No separate App Store Connect app record is needed for
-   the extension. Its target and signing profile are added in the extension
-   PR; creating the identifier does not ship it.
+   the extension. Both App IDs need refreshed App Store profiles.
 4. The repository declares keychain sharing in entitlements. The app retains
    `$(AppIdentifierPrefix)com.fireplacechat.app` first and adds
    `$(AppIdentifierPrefix)com.fireplacechat.app.shared`. The extension will
@@ -36,8 +35,9 @@ In [Certificates, Identifiers & Profiles](https://developer.apple.com/account/re
    cannot silently retain the old capabilities. Inspect its result before
    an upload.
 
-The extension PR will add its profile to the same signing lane and provide
-the final TestFlight inputs. No version bump or upload is requested here.
+The same signing lane refreshes both app and extension profiles. Confirm
+both identifiers appear in its result. Version selection/bump remains a
+separate owner decision; do not reuse the already-uploaded build number.
 
 ## Unsigned Mac validation
 
@@ -68,4 +68,51 @@ Conflicting copies or a failed migration stop access instead of creating new
 keys. Do not delete either copy to force an upgrade through; report the
 failure without attaching keychain contents or encrypted store dumps.
 
-The extension PR adds the notification and iPhone X memory/timing checklist.
+## Diagnostic TestFlight round
+
+After unsigned checks, Apple configuration, signing setup and the reviewed
+version bump have passed, the owner can run:
+
+```sh
+gh workflow run ios-testflight.yml --repo fireplacechat/mobile --ref main -f version=vX.Y.Z -f mode=upload -f preview_diagnostics=true
+```
+
+Replace `vX.Y.Z` with the exact reviewed version in pubspec.yaml. Existing
+environment approval and signing requirements remain. This produces a test
+binary with local diagnostics enabled; it must not be selected for App Store
+release. The final ordinary build needs another reviewed build number and
+`preview_diagnostics=false` (the default). An uploaded binary cannot have
+diagnostics stripped later.
+
+On the iPhone X (iOS 16.7), long-press **Settings > Privacy and terms** for
+**Preview test results**. After each case, refresh and record outcome,
+duration and peak. Aim for about 12 MB peak and under 5 seconds. An incomplete
+run is not proof of memory safety; a missing run can also mean iOS did not
+start the extension. Process reuse can carry an earlier higher peak forward.
+These records stay on the phone and contain no message, key, token or account
+identifier. Peak zero is shown as unavailable.
+
+- Receive ordinary messages with the app closed, open, and phone locked.
+- Restart, then receive before the first unlock: expect the original
+  **New Message**. Unlock once, lock again, and retest previews.
+- Turn **Show message preview** off and confirm the original body; turn it
+  back on. Test hidden sender names and silent notifications too.
+- Test poor/no network, token refresh after more than an hour closed, and
+  a burst of messages. Failures must keep the original body, without losing
+  any message when the app opens.
+- React to an own message in a small chat: expect its quote. Test a long
+  chat and one with an append log: expect a generic reaction body without
+  loading the full history. Also test reactions to the other person's own
+  messages: the generic fallback cannot establish ownership when history
+  is capped; assess this known exception during release review.
+- Edit, delete and clear a reaction. Without Apple's notification-filtering
+  entitlement these retain the incoming push's **New Message**; existing
+  delivered alerts are not updated/removed by this first extension. Confirm
+  the app still applies every stored mutation normally.
+- Sign out during a delayed receive: it must not show new plaintext after
+  credential revocation. Sign in again and verify existing keys/history.
+- Open the app after every case and confirm each message is received once,
+  existing sessions continue and one-time prekeys are consumed by the app.
+
+The production app backend still defaults to Dart. Its explicit Rust switch
+review and a release on Rust precede any removal of the Dart reference.
