@@ -8,7 +8,7 @@ license = "AGPL-3.0-only"
 # Select this dependency directly with `cargo build --package fireplace-crypto`
 # so the host library exports the core's C ABI without another Rust wrapper.
 [dependencies]
-fireplace-crypto = "=0.1.0"
+fireplace-crypto = "=0.1.1"
 
 [profile.release]
 panic = "unwind"

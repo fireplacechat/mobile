@@ -19,7 +19,7 @@ Never add service-account files, signing keys or real account data.
 ## Rust host tests (Linux and Windows)
 
 Install the approved Rust toolchain, version 1.98.1. The in-repo native plugin
-pins `fireplace-crypto = "=0.1.0"` from crates.io, with its dependency graph in
+pins `fireplace-crypto = "=0.1.1"` from crates.io, with its dependency graph in
 `packages/fireplace_native/rust/Cargo.lock`. It does not use a sibling checkout.
 The build downloads these sources on first use; the core has no networking.
 
