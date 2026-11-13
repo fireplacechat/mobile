@@ -12,6 +12,7 @@ import 'outgoing_send_cases.dart';
 import 'theme_cases.dart';
 import 'icon_hold_cases.dart';
 import 'legal_cases.dart';
+import 'startup_cases.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -135,6 +136,7 @@ void main() {
   });
   final cases = [
     ...legalCases,
+    ...startupCases,
     ...iconHoldCases,
     ...themeCases,
     ...outgoingSendCases,

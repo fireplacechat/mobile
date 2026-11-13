@@ -80,6 +80,7 @@ void main() {
 
       await t.tap(find.byKey(const Key('authRetry')));
       await settle(t);
+      await t.pump(const Duration(seconds: 3));
       expect(
         subscriptions,
         2,
@@ -116,6 +117,7 @@ void main() {
       await settle(t);
       await t.tap(find.byKey(const Key('authSignOut')));
       await settle(t);
+      await t.pump(const Duration(seconds: 3));
       expect(auth.signOuts, 1);
       expect(subscriptions, 2);
       expect(find.byKey(const Key('submit')), findsOneWidget);
