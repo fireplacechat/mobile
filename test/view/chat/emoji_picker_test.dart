@@ -200,12 +200,12 @@ void main() {
     bool selected(String name) =>
         t.widget<IconButton>(category(name)).isSelected!;
     expect(selected('Smileys & People'), isTrue);
-    // Buttons are forty points across and forty-four apart.
-    expect(t.getSize(category('Smileys & People')), const Size.square(40));
+    // Category targets are 48 points across, with four points between them.
+    expect(t.getSize(category('Smileys & People')), const Size.square(48));
     expect(
       t.getRect(category('Animals & Nature')).left -
           t.getRect(category('Smileys & People')).left,
-      44,
+      52,
     );
     await t.tap(category('Food & Drink'));
     await t.pumpAndSettle();

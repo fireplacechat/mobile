@@ -18,7 +18,7 @@ abstract final class EmojiPickerMetrics {
   static const double searchHeight = 47;
   static const double headerBlock = 89.5;
   static const double sectionTitle = 41;
-  static const double toolbarButton = 40;
+  static const double toolbarButton = 48;
   static const double toolbarGap = 4;
 }
 

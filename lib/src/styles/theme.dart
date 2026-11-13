@@ -58,6 +58,10 @@ ThemeData fireplaceTheme(
     scaffoldBackgroundColor: t.page,
     visualDensity: VisualDensity.standard,
     materialTapTargetSize: MaterialTapTargetSize.padded,
+    // Keep tooltip names for accessibility without showing labels on a hold.
+    tooltipTheme: const TooltipThemeData(
+      triggerMode: TooltipTriggerMode.manual,
+    ),
     textTheme: TextTheme(
       headlineLarge: TextStyle(
         fontSize: 28,

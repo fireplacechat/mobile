@@ -83,16 +83,16 @@ void main() {
     final message = t.getRect(lifted);
     final menu = t.getRect(panel);
     expect(reactions.left, MessageMenuMetrics.edge);
-    expect(reactions.size, const Size(320, 56));
+    expect(reactions.size, const Size(343, 56));
     expect(message.top - reactions.bottom, moreOrLessEquals(12, epsilon: 4.5));
     expect(menu.width, 250);
     expect(menu.left, MessageMenuMetrics.edge);
-    // Seven 44-point cells with six points at each end.
+    // Seven 48-point targets scroll inside the available width.
     final heart = t.getRect(action('react-❤️'));
     final more = t.getRect(action('moreReactions'));
     expect(heart.left - reactions.left, 6);
-    expect(heart.width, 44);
-    expect(reactions.right - more.right, 6);
+    expect(heart.width, 48);
+    expect(more.right, lessThanOrEqualTo(reactions.right));
     // Each row is the body line plus Signal's 23-point padding.
     final reply = t.getRect(action('reply'));
     final forward = t.getRect(action('forward'));
