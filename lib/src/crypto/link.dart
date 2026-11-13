@@ -116,17 +116,24 @@ class LinkCrypto {
     required Uint8List x25519Pub,
     required Uint8List kemPub,
   }) async {
-    final ek = await _x.newKeyPair();
+    final ekSeed = takeTestBytes(32);
+    final ek = ekSeed == null
+        ? await _x.newKeyPair()
+        : await _x.newKeyPairFromSeed(ekSeed);
     final ekPub = Uint8List.fromList((await ek.extractPublicKey()).bytes);
     final dh = await (await _x.sharedSecretKey(
       keyPair: ek,
       remotePublicKey: SimplePublicKey(x25519Pub, type: KeyPairType.x25519),
     )).extractBytes();
-    final (kemCt, ss) = PqcKem.kyber768.encapsulate(kemPub);
+    final coins = takeTestBytes(32);
+    final (kemCt, ss) = coins == null
+        ? PqcKem.kyber768.encapsulate(kemPub)
+        : PqcKem.kyber768.encapsulate(kemPub, coins);
     final info = _info(uid, deviceId, ekPub, kemCt, x25519Pub, kemPub);
     final box = await _aead.encrypt(
       utf8.encode(jsonEncode(identity.toJson())),
       secretKey: await _key(dh, ss, info),
+      nonce: takeTestBytes(12),
       aad: info,
     );
     return SealedIdentity(

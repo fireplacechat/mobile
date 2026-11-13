@@ -27,7 +27,10 @@ class PreKeyRecord {
     final seed = randomBytes(32);
     final kp = await X25519().newKeyPairFromSeed(seed);
     final pub = Uint8List.fromList((await kp.extractPublicKey()).bytes);
-    final (kemPk, kemSk) = PqcKem.kyber768.generateKeyPair();
+    final kemSeed = takeTestBytes(64);
+    final (kemPk, kemSk) = kemSeed == null
+        ? PqcKem.kyber768.generateKeyPair()
+        : PqcKem.kyber768.generateKeyPair(kemSeed);
     final id = b64(randomBytes(9))
         .replaceAll('+', '-')
         .replaceAll('/', '_'); // 12 url-safe chars

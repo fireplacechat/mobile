@@ -25,7 +25,10 @@ class AccountIdentity {
     final seed = randomBytes(32);
     final kp = await _ed.newKeyPairFromSeed(seed);
     final pub = Uint8List.fromList((await kp.extractPublicKey()).bytes);
-    final (dsaPk, dsaSk) = MlDsa.generateKeyPair(_params);
+    final xi = takeTestBytes(32);
+    final (dsaPk, dsaSk) = xi == null
+        ? MlDsa.generateKeyPair(_params)
+        : MlDsa.generateKeyPairSeeded(_params, xi);
     return AccountIdentity._(seed, pub, dsaSk, dsaPk);
   }
 
@@ -40,6 +43,7 @@ class AccountIdentity {
       Uint8List.fromList(message),
       _params,
       ctx: utf8Bytes(_ctx),
+      rnd: takeTestBytes(32),
     );
     return lp([edSig, dsaSig]);
   }

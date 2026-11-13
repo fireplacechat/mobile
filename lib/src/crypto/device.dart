@@ -88,7 +88,10 @@ class DeviceKeys {
     final seed = randomBytes(32);
     final kp = await X25519().newKeyPairFromSeed(seed);
     final pub = Uint8List.fromList((await kp.extractPublicKey()).bytes);
-    final (kemPk, kemSk) = PqcKem.kyber768.generateKeyPair();
+    final kemSeed = takeTestBytes(64);
+    final (kemPk, kemSk) = kemSeed == null
+        ? PqcKem.kyber768.generateKeyPair()
+        : PqcKem.kyber768.generateKeyPair(kemSeed);
     // 16 random bytes -> 22 url-safe chars, matches the Firestore rules id pattern.
     final id = b64(randomBytes(16))
         .replaceAll('+', '-')
