@@ -78,9 +78,14 @@ final class PreviewSession {
   convenience init(json: [String: Any]) throws {
     try self.init(data: JSONSerialization.data(withJSONObject: json, options: [.sortedKeys, .withoutEscapingSlashes]))
   }
-  deinit { fp_session_destroy(handle) }
+  func close() {
+    fp_session_destroy(handle)
+    handle = nil
+  }
+  deinit { close() }
 
   func decrypt(envelope: [String: Any], chat: String) throws -> Data {
+    guard handle != nil else { throw PreviewFailure.unavailable }
     let input = try CoreInput(json: envelope), context = try CoreInput(Data(chat.utf8))
     var state = FpBuf(ptr: nil, len: 0), plain = FpBuf(ptr: nil, len: 0)
     defer { fp_free(state.ptr, state.len); fp_free(plain.ptr, plain.len) }

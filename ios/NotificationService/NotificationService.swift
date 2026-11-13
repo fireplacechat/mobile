@@ -44,7 +44,9 @@ final class NotificationService: UNNotificationServiceExtension, @unchecked Send
         let store = PreviewKeychain(group: group)
         guard let auth = try store.object("ios-preview-auth", cap: 32 * 1024) else { throw PreviewFailure.unavailable }
         let credentials = try PreviewCredentials(auth)
-        let preview = try await PreviewRunner(store: store, root: root, deadline: deadline).run(key: key, credentials: credentials)
+        let runner = PreviewRunner(store: store, root: root, deadline: deadline)
+        defer { runner.close() }
+        let preview = try await runner.run(key: key, credentials: credentials)
         try deadline.check()
         // Signing out or disabling previews while the fetch was under way must
         // not post its plaintext. Each keychain value is an atomic record.

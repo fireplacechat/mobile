@@ -21,6 +21,12 @@ final class PreviewRunner {
     self.store = store; self.root = root; self.deadline = deadline
   }
 
+  func close() {
+    for session in sessions.values { session.close() }
+    sessions.removeAll()
+    sessionPins.removeAll()
+  }
+
   private func locked<T>(uid: String, _ read: () throws -> T) throws -> T {
     try deadline.check()
     let lock = try PreviewReadLock(file: root.appendingPathComponent("locks/\(uid).lock"),

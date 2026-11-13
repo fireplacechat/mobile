@@ -31,6 +31,9 @@ final class NativePreviewTests: XCTestCase {
       let plain = try first.decrypt(envelope: wire, chat: fixture["chatId"]!)
       XCTAssertEqual(String(data: plain, encoding: .utf8), fixture[expected])
       XCTAssertThrowsError(try first.decrypt(envelope: wire, chat: fixture["chatId"]!))
+      first.close()
+      first.close()
+      XCTAssertThrowsError(try first.decrypt(envelope: wire, chat: fixture["chatId"]!))
       let independent = try PreviewSession(data: data)
       XCTAssertEqual(try independent.decrypt(envelope: wire, chat: fixture["chatId"]!), plain)
     }
