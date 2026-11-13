@@ -31,8 +31,9 @@ enum CryptoBackendKind { dart, rust }
 
 class CryptoBackend {
   static final _zoneKey = Object();
-  // Switching the production default is a separate, explicitly reviewed change.
-  static const production = bool.fromEnvironment('FIREPLACE_RUST_CRYPTO')
+  // A test build may explicitly select Dart while the reference is retained.
+  static const production =
+      bool.fromEnvironment('FIREPLACE_RUST_CRYPTO', defaultValue: true)
       ? CryptoBackendKind.rust
       : CryptoBackendKind.dart;
   static CryptoBackendKind get current =>
