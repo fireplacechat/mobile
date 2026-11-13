@@ -103,7 +103,7 @@ class MessageActionsOverlay extends StatelessWidget {
       return null;
     }
 
-    void highlight(MessageAction? chosen) {
+    void show(MessageAction? chosen) {
       final finger = gesture;
       if (finger == null || identical(finger.highlighted.value, chosen)) {
         return;
@@ -116,6 +116,24 @@ class MessageActionsOverlay extends StatelessWidget {
           ? HapticFeedback.selectionClick()
           : HapticFeedback.lightImpact();
       feedback.catchError((Object _) {});
+    }
+
+    // A menu row lights up at once; a reaction lifts once the finger rests
+    // on it for a moment (MessageMenuGesture.reactionDelay).
+    void highlight(MessageAction? chosen) {
+      final finger = gesture;
+      if (finger == null) return;
+      if (chosen != null &&
+          chosen.reaction &&
+          !identical(finger.highlighted.value, chosen)) {
+        if (finger.highlighted.value?.reaction ?? false) {
+          finger.highlighted.value = null; // the last one settles back
+        }
+        finger.highlightSoon(chosen, () => show(chosen));
+        return;
+      }
+      finger.cancelPending();
+      show(chosen);
     }
 
     void choose(MessageAction action) {
@@ -137,7 +155,8 @@ class MessageActionsOverlay extends StatelessWidget {
       };
       gesture!.onEnd = () {
         if (!context.mounted) return;
-        final chosen = gesture!.highlighted.value;
+        final chosen = gesture!.highlighted.value ?? gesture!.pending;
+        gesture!.cancelPending();
         if (chosen != null) {
           choose(chosen);
         } else if (gesture!.armed) {
@@ -223,7 +242,9 @@ class MessageActionsOverlay extends StatelessWidget {
                         gesture: gesture,
                         onPoint: (point) => highlight(reactionAt(point)),
                         onRelease: () {
-                          final chosen = gesture?.highlighted.value;
+                          final chosen =
+                              gesture?.highlighted.value ?? gesture?.pending;
+                          gesture?.cancelPending();
                           gesture?.highlighted.value = null;
                           if (chosen != null && chosen.reaction) {
                             choose(chosen);
