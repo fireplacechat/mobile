@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:fireplace/fireplace_services.dart';
+import 'package:fireplace/src/app/account_history.dart';
 import 'package:fireplace/src/model/account/profile_ready.dart';
 import 'package:fireplace/src/model/chat/chat_sync_coordinator.dart';
 import 'package:fireplace/src/model/common/session_scope.dart';
@@ -54,7 +55,12 @@ final authUserProvider = StreamProvider<User?>(
 /// push handler: a name in the isolate name server, and a generation file next
 /// to the history (decision 0030).
 SharedLock accountLock(String uid, Directory historyDir) => SharedLock(
-  gate: IsolateLockGate('fireplace.account.$uid'),
+  gate: Platform.isIOS
+      ? CrossProcessLockGate(
+          File('${historyDir.parent.path}/locks/$uid.lock'),
+          isolateGate: IsolateLockGate('fireplace.account.$uid'),
+        )
+      : IsolateLockGate('fireplace.account.$uid'),
   generation: FileLockGeneration(File('${historyDir.path}/lock.gen')),
 );
 
@@ -160,7 +166,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     // safe alongside receiving) instead of holding up the chat list.
     final docs = await getApplicationDocumentsDirectory();
     scope.checkActive();
-    final historyDir = Directory('${docs.path}/messages_${user.uid}');
+    final historyDir = await accountHistoryDirectory(user.uid, docs);
     await historyDir.create(recursive: true);
     final lock = accountLock(user.uid, historyDir);
     scope.add(() async => lock.close());
@@ -185,7 +191,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     scope.add(store.close);
     scope.checkActive();
     final chatPreferences = await LocalChatPreferences.open(
-      dir: Directory('${docs.path}/messages_${user.uid}'),
+      dir: historyDir,
       secrets: secrets,
       uid: user.uid,
     );

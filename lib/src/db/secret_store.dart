@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import 'package:fireplace/src/db/ios_shared_storage.dart';
 
 /// Small key/value store for secrets (private keys, session state, pinned identities).
 abstract class SecretStore {
@@ -12,30 +15,55 @@ abstract class SecretStore {
 
 /// iOS Keychain / Android Keystore backed store.
 class SecureSecretStore implements SecretStore {
-  SecureSecretStore([FlutterSecureStorage? storage])
-    : _s = storage ?? const FlutterSecureStorage(iOptions: iosOptions);
-  final FlutterSecureStorage _s;
+  SecureSecretStore([FlutterSecureStorage? storage]) : _injected = storage;
+  final FlutterSecureStorage? _injected;
+  Future<FlutterSecureStorage>? _configured;
 
-  /// Keep new iOS items non-migratable without widening locked-device access.
-  /// Background key access needs a separate decision before it is enabled.
+  /// After the first unlock, previews can read while locked (0035). Items
+  /// remain device-only and are never synchronised through iCloud.
   static const iosOptions = IOSOptions(
-    accessibility: KeychainAccessibility.unlocked_this_device,
+    accessibility: KeychainAccessibility.first_unlock_this_device,
     synchronizable: false,
   );
 
+  Future<FlutterSecureStorage> _store() async {
+    if (_injected != null) return _injected;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+      return const FlutterSecureStorage(iOptions: iosOptions);
+    }
+    return _configured ??= _configureIos();
+  }
+
+  Future<FlutterSecureStorage> _configureIos() async {
+    try {
+      final shared = await IosSharedStorage.prepare();
+      return FlutterSecureStorage(
+        iOptions: IOSOptions(
+          groupId: shared.keychainGroup,
+          accessibility: KeychainAccessibility.first_unlock_this_device,
+          synchronizable: false,
+        ),
+      );
+    } catch (_) {
+      _configured =
+          null; // A failed migration never falls back to an empty store.
+      rethrow;
+    }
+  }
+
   @override
-  Future<String?> read(String key) => _s.read(key: key);
+  Future<String?> read(String key) async => (await _store()).read(key: key);
   @override
-  Future<void> write(String key, String value) =>
-      _s.write(key: key, value: value);
+  Future<void> write(String key, String value) async =>
+      (await _store()).write(key: key, value: value);
   @override
-  Future<void> delete(String key) => _s.delete(key: key);
+  Future<void> delete(String key) async => (await _store()).delete(key: key);
 
   /// Intentional whole-install reset, including any old account's key remnants.
   /// Do not replace with guessed UID prefixes: session keys also use device IDs.
   /// Revisit deletion isolation before supporting concurrent local accounts.
   @override
-  Future<void> clear() => _s.deleteAll();
+  Future<void> clear() async => (await _store()).deleteAll();
 }
 
 /// For tests.

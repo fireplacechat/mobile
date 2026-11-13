@@ -21,6 +21,7 @@ platform :ios do
     match(
       type: 'appstore',
       readonly: false,
+      force: true, # Refresh capabilities in profiles after owner setup.
       api_key: fireplace_api_key,
       team_id: ENV.fetch('APPLE_TEAM_ID')
     )
