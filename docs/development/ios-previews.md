@@ -73,7 +73,9 @@ failure without attaching keychain contents or encrypted store dumps.
 For an upgrade incident, use `mode=inspect` in the existing TestFlight workflow
 to build and inspect a signed IPA without uploading it. It uses the protected
 owner signing environment and can reuse the current version because it does
-not upload a build. Validation checks the main executable's actual dynamic
+not upload a build. Inspection skips the redundant unsigned compilation and
+goes directly to the protected signed build after checking the requested version.
+Validation checks the main executable's actual dynamic
 Rust exports and compares both bundles' runtime keychain configuration with
 their signed entitlements, including the app's original default group. Logs
 report check results, never keychain values or private signing material.

@@ -45,14 +45,20 @@ jobs:
           PREVIEW_DIAGNOSTICS: ${{ inputs.preview_diagnostics }}
         run: printf 'Operation=%s PreviewDiagnostics=%s\n' "$REQUESTED_MODE" "$PREVIEW_DIAGNOSTICS"
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        if: inputs.mode != 'inspect'
         with:
           flutter-version-file: pubspec.yaml
           cache: false
       - run: bash scripts/build_crypto_ios.sh
+        if: inputs.mode != 'inspect'
       - run: flutter pub get
+        if: inputs.mode != 'inspect'
       - run: flutter build ios --release --no-codesign
+        if: inputs.mode != 'inspect'
       - run: bash scripts/check_ios_preview_bundle.sh build/ios/iphoneos/Runner.app
+        if: inputs.mode != 'inspect'
       - name: Print built app version
+        if: inputs.mode != 'inspect'
         run: |
           set -euo pipefail
           /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' build/ios/iphoneos/Runner.app/Info.plist
