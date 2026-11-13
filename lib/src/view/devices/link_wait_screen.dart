@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:fireplace/src/crypto/link.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/model/keys/recovery_service.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';

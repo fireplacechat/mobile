@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/crypto/link.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
 import 'package:fireplace/src/view/devices/recovery_entry_screen.dart';
 import 'package:fireplace/src/view/devices/link_wait_screen.dart';

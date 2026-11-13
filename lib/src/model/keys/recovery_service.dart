@@ -3,10 +3,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:fireplace/src/crypto/device.dart';
-import 'package:fireplace/src/crypto/identity.dart';
-import 'package:fireplace/src/crypto/link.dart';
-import 'package:fireplace/src/crypto/recovery.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 

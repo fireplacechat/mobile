@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:fireplace/src/crypto/codec.dart';
-import 'package:fireplace/src/crypto/device.dart';
-import 'package:fireplace/src/crypto/identity.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 
 /// This account already has devices but this install has no keys. Recovery or

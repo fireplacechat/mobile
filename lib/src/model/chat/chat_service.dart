@@ -6,7 +6,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
-import 'package:fireplace/src/crypto/session.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/db/secret_store.dart';

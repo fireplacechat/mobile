@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:fireplace/src/crypto/device.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 
 /// Verified device lists of the accounts this device sends to, kept current
