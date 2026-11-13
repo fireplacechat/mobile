@@ -1,4 +1,5 @@
 import 'package:fireplace/src/view/chat/quote_navigation.dart';
+import 'package:fireplace/src/view/chat/search_jump.dart';
 import 'package:fireplace/src/model/chat/pending_reactions.dart';
 import 'package:fireplace/src/view/chat/composer/message_composer_context.dart';
 import 'package:fireplace/src/model/chat/message_compose_target.dart';
@@ -52,8 +53,8 @@ class ChatScreen extends ConsumerStatefulWidget {
 class _ChatScreenState extends ConsumerState<ChatScreen> {
   String? _ownerUid;
   late final RouteVisibility _routeVisibility;
-  bool _showAll = false;
-  String? get _location => widget.initialMessageId;
+
+  late final _jump = SearchJump(widget.initialMessageId);
   late final ChatDraftController _text;
   late final SendController _sendController;
   late final TimelineScroll _timeline;
@@ -149,9 +150,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final activity = ref.read(chatActivityProvider.notifier);
     if (summary == null || !activity.eligible(summary)) return;
     final messages = ref.read(messagesProvider(widget.chatId)).value ?? [];
-    final index = !_showAll && _location != null
-        ? messages.indexWhere((m) => m.id == _location)
-        : -1;
+    final upTo = _jump.seenUpTo(awayFromLatest: _timeline.awayFromLatest);
+    final index = upTo != null ? messages.indexWhere((m) => m.id == upTo) : -1;
     activity
         .seen(widget.chatId, index < 0 ? messages : messages.take(index + 1))
         .catchError((Object _) {
@@ -174,9 +174,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _latest() {
-    if (!_showAll && _location != null) {
-      setState(() => _showAll = true);
-    }
+    _jump.reachedLatest();
     _timeline.scrollToLatest(
       reduceMotion: MediaQuery.disableAnimationsOf(context),
     );
@@ -265,13 +263,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       );
     }
     _reconcilePending(stored, ref.watch(pendingLocalSendsProvider).values);
-    final (:history, :target, :outgoing, shown: msgs) = timelineMessages(
+    final (:history, :outgoing, shown: msgs) = timelineMessages(
       chatId: widget.chatId,
       stored: stored,
       pending: _sendController.memoryPending.values,
       session: session,
-      location: _location,
-      showAll: _showAll,
       outgoingSends: ref.watch(outgoingSendsProvider),
     );
     reviewIdentityOnFailedSend(
@@ -284,6 +280,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _markSeen();
     });
+    _jump.runOnceLoaded(
+      history,
+      loaded: messageState.hasValue,
+      timeline: _timeline,
+      reduceMotion: MediaQuery.disableAnimationsOf(context),
+      isMounted: () => mounted,
+      unavailable: () =>
+          _snack('This search result is no longer on this device.'),
+      done: _markSeen,
+    );
     final visibleIds = msgs.map((m) => m.id).toSet();
     _timeline.pruneAnchors(visibleIds);
     final summary = ref.watch(chatSummaryProvider(widget.chatId));
@@ -368,14 +374,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         anchorBottom: true,
         child: Column(
           children: [
-            if (!_showAll && _location != null)
-              SearchLocationNotice(
-                target: target,
-                onShowLatest: () {
-                  setState(() => _showAll = true);
-                  _latest();
-                },
-              ),
             ChatSafetyNotices(
               peerUid: peerUid,
               name: name,
@@ -408,6 +406,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       alignment: 0.3,
                       duration: const Duration(milliseconds: 200),
                     );
+                    _timeline.flash(id);
                   }
                 },
               ),
@@ -424,6 +423,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 viewportKey: _timeline.viewportKey,
                 scrollController: _timeline.controller,
                 anchorFor: _timeline.anchorFor,
+                flashed: _timeline.flashed,
                 send: _sendController,
                 outgoing: outgoing,
                 onFailedSend: (send) => chooseForFailedSend(
@@ -453,8 +453,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   _timeline,
                   history,
                   id,
-                  revealAll: () => setState(() => _showAll = true),
                   notice: _snack,
+                  onFound: _timeline.flash,
                 ),
                 onLatest: _latest,
               ),

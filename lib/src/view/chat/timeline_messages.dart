@@ -11,14 +11,11 @@ typedef TimelineMessages = ({
   /// deleted for everyone.
   List<LocalMessage> history,
 
-  /// Index in [history] of the message the person jumped to, or -1.
-  int target,
-
   /// Sends of this chat in flight, by their local id.
   Map<String, OutgoingSend> outgoing,
 
-  /// The rows on screen: [history] with the sends in flight after it, or,
-  /// after a jump, [history] up to the message jumped to.
+  /// The rows on screen: [history] with the sends in flight after it. A jump
+  /// to a message (search, a quote) scrolls to it; it never cuts the rest off.
   List<LocalMessage> shown,
 });
 
@@ -27,8 +24,6 @@ TimelineMessages timelineMessages({
   required List<LocalMessage> stored,
   required Iterable<MemoryPending> pending,
   required AppSession? session,
-  required String? location,
-  required bool showAll,
   required Iterable<OutgoingSend> outgoingSends,
 }) {
   final storedIds = {for (final m in stored) m.id};
@@ -45,15 +40,13 @@ TimelineMessages timelineMessages({
     for (final message in all)
       if (!message.remotelyDeleted) message,
   ];
-  final target = !showAll && location != null
-      ? history.indexWhere((m) => m.id == location)
-      : -1;
   final outgoing = {
     for (final send in outgoingSends)
       if (send.chatId == chatId) send.id: send,
   };
-  final shown = target < 0
-      ? [...history, ...outgoingBubbles(outgoing.values, stored, session)]
-      : history.take(target + 1).toList();
-  return (history: history, target: target, outgoing: outgoing, shown: shown);
+  final shown = [
+    ...history,
+    ...outgoingBubbles(outgoing.values, stored, session),
+  ];
+  return (history: history, outgoing: outgoing, shown: shown);
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -16,13 +18,34 @@ class TimelineScroll extends ChangeNotifier {
   Object? _latestScroll;
   bool get awayFromLatest => _awayFromLatest;
 
+  /// Scrolled this far up from the newest message, the view counts as away
+  /// from it: it no longer follows new messages.
+  static const awayThreshold = 96.0;
+
+  /// The message briefly highlighted after a jump to it, or null.
+  final flashed = ValueNotifier<String?>(null);
+  Timer? _flashTimer;
+
+  /// How long a jumped-to message stays highlighted.
+  static const flashFor = Duration(milliseconds: 1400);
+
+  /// Highlights [id] for [flashFor], so the eye finds it after a jump.
+  void flash(String id) {
+    if (_disposed) return;
+    _flashTimer?.cancel();
+    flashed.value = id;
+    _flashTimer = Timer(flashFor, () {
+      if (!_disposed && flashed.value == id) flashed.value = null;
+    });
+  }
+
   /// True while the view animates back to the newest message after one's own
   /// send. A message stored meanwhile must not be taken for an arrival while
   /// reading, which would hold the view where it was.
   bool get returningToLatest => _latestScroll != null;
 
   void _onTimelineScroll() {
-    final away = controller.hasClients && controller.offset > 96;
+    final away = controller.hasClients && controller.offset > awayThreshold;
     if (away != _awayFromLatest && isMounted()) {
       _awayFromLatest = away;
       if (!_disposed) notifyListeners();
@@ -53,7 +76,7 @@ class TimelineScroll extends ChangeNotifier {
       if (_disposed ||
           !isMounted() ||
           !controller.hasClients ||
-          controller.offset <= 96) {
+          controller.offset <= awayThreshold) {
         return;
       }
       final box = anchor.$1.currentContext?.findRenderObject();
@@ -158,7 +181,7 @@ class TimelineScroll extends ChangeNotifier {
     AsyncValue<List<LocalMessage>> next,
   ) {
     if (!controller.hasClients || next.hasError) return;
-    if (controller.offset > 96 && !returningToLatest) {
+    if (controller.offset > awayThreshold && !returningToLatest) {
       final anchor = readingAnchor();
       if (anchor != null) keepReadingAnchor(anchor);
       return;
@@ -178,7 +201,7 @@ class TimelineScroll extends ChangeNotifier {
     if (!_disposed &&
         isMounted() &&
         controller.hasClients &&
-        controller.offset <= 96) {
+        controller.offset <= awayThreshold) {
       controller.jumpTo(0);
     }
   }
@@ -186,6 +209,8 @@ class TimelineScroll extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _flashTimer?.cancel();
+    flashed.dispose();
     controller.removeListener(_onTimelineScroll);
     controller.dispose();
     super.dispose();
