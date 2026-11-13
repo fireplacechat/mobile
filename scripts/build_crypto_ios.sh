@@ -18,6 +18,11 @@ crate_dir="$(cargo metadata --locked --format-version 1 | python3 -c 'import jso
 stage="$(mktemp -d "$target_dir/xcframework.XXXXXX")"
 mkdir -p "$stage/headers" "$stage/simulator"
 cp "$crate_dir/include/fireplace_crypto.h" "$stage/headers/"
+# The extension's bridging header consumes this exact header without a second
+# module map. SwiftPM stages its own module for the main app.
+preview_headers="$root/ios/NotificationService/Memory/.generated"
+mkdir -p "$preview_headers"
+cp "$crate_dir/include/fireplace_crypto.h" "$preview_headers/fireplace_crypto.h"
 cat > "$stage/headers/module.modulemap" <<'MODULE'
 module FireplaceCrypto {
   header "fireplace_crypto.h"

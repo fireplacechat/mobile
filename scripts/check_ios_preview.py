@@ -7,7 +7,7 @@ import sys
 from ios_project import parse_project
 
 LIBRARY = '../packages/fireplace_native/ios/fireplace_native/Frameworks/FireplaceCrypto.xcframework'
-IMPORTS = {'Foundation', 'CoreFoundation', 'Darwin', 'Security', 'UserNotifications', 'CryptoKit', 'FireplaceCrypto'}
+IMPORTS = {'Foundation', 'CoreFoundation', 'Darwin', 'Security', 'UserNotifications', 'CryptoKit'}
 
 
 def check(root):
@@ -28,6 +28,12 @@ def check(root):
     libraries = [objects[objects[f]['fileRef']]['path'] for p in phases if p['isa'] == 'PBXFrameworksBuildPhase' for f in p['files']]
     if libraries:
         raise ValueError('Extension must link the static slice without another XCFramework copy phase')
+    # The app's SwiftPM product stages the C module in BUILT_PRODUCTS_DIR.
+    # Adding its original module-map directory again breaks Xcode's scanner.
+    for name in ('NotificationService', 'RunnerTests'):
+        for config in objects[targets[name][1]['buildConfigurationList']]['buildConfigurations']:
+            if any(key.startswith('SWIFT_INCLUDE_PATHS') for key in objects[config]['buildSettings']):
+                raise ValueError('Preview targets must use the private bridging header, not duplicate module paths')
     paths = [objects[objects[f]['fileRef']]['path'] for p in phases if p['isa'] == 'PBXSourcesBuildPhase' for f in p['files']]
     for path in paths:
         file = (ios / path).resolve()

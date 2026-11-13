@@ -1,5 +1,4 @@
 import Darwin
-import FireplaceCrypto
 import Foundation
 
 private final class CoreInput {
