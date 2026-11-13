@@ -32,6 +32,7 @@ jobs:
       - run: python3 scripts/check_layout.py .
       - run: python3 scripts/test_check_layout.py
       - run: python3 scripts/test_check_ios_preview.py
+      - run: python3 scripts/test_check_ios_upgrade.py
       - run: bash scripts/test_build_aab.sh
       - run: python3 scripts/test_check_crypto_apk.py
       - run: node --test .github/scripts/cla-check.test.js
