@@ -66,6 +66,19 @@ class FixtureChat extends Fake implements ChatService {
   String peerOf(String chatId) => chatId.split('_').last;
   @override
   void prepareToSend(String chatId) {}
+  final cleared = <String>{};
+  final _clearedChanges = StreamController<void>.broadcast();
+  @override
+  Future<Set<String>> clearedChats() async => {...cleared};
+  @override
+  Stream<void> get clearedChatsChanges => _clearedChanges.stream;
+  @override
+  Future<void> deleteChatHere(String chatId) async {
+    await store.clearChat(chatId);
+    cleared.add(chatId);
+    _clearedChanges.add(null);
+  }
+
   final publishedColors = <String>[];
   @override
   Future<void> publishColor(String color) async => publishedColors.add(color);

@@ -12,6 +12,7 @@ import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 import 'package:fireplace/src/db/shared_lock.dart';
 import 'package:fireplace/src/model/chat/chat_directory.dart';
+import 'package:fireplace/src/model/chat/cleared_chats.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/chat_summary.dart';
 import 'package:fireplace/src/model/chat/chat_tuning.dart';
@@ -163,6 +164,7 @@ class ChatService {
     await _deviceCache.close();
     unawaited(_alerts.close());
     unawaited(_arrivals.close());
+    unawaited(_cleared.close());
   });
 
   static String chatIdFor(String a, String b) => ChatDirectory.chatIdFor(a, b);
@@ -213,6 +215,27 @@ class ChatService {
   /// Device-only deletion. No Firebase access or ratchet work.
   Future<void> deleteMessageLocally(String chatId, String messageId) =>
       _messages.remove(chatId, messageId);
+
+  /// The conversations deleted on this phone (issue 123), which the chat
+  /// list leaves out while they have nothing to show.
+  late final _cleared = ClearedChats(_secrets, uid);
+  late final Future<void> _clearedLoaded = _cleared.load();
+  Future<Set<String>> clearedChats() async {
+    await _clearedLoaded;
+    return _cleared.chats;
+  }
+
+  Stream<void> get clearedChatsChanges => _cleared.changes;
+
+  /// Deletes a conversation on this phone only: its messages are erased here
+  /// (their replay tombstones stay) and it leaves the chat list until a new
+  /// message arrives or is sent. No Firebase access or ratchet work.
+  Future<void> deleteChatHere(String chatId) => _lock.run(() async {
+    peerOf(chatId);
+    await _clearedLoaded;
+    await _messages.clearChat(chatId);
+    await _cleared.add(chatId);
+  });
 
   // -------------------------------------------------------------------- send
 

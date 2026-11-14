@@ -240,6 +240,18 @@ class EncryptedFileMessageStore implements LocalMessageStore {
   }
 
   @override
+  Future<void> clearChat(String chatId) {
+    return _write(() async {
+      final current = await _load(chatId);
+      if (current.isEmpty) return;
+      // Erases content: a new snapshot, never a log entry.
+      await _save(chatId, current, {
+        for (final id in current.keys) id: LocalMessage.tombstone(chatId, id),
+      }, rewrite: true);
+    });
+  }
+
+  @override
   Future<void> deleteChat(String chatId) {
     return _write(() async {
       final f = await _file(chatId);

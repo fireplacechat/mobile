@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/view/chat_list/chat_row_menu.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
@@ -44,22 +45,17 @@ class GroupTile extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     bool muted,
-    Offset? at,
   ) async {
-    final box = context.findRenderObject()! as RenderBox;
-    final overlay =
-        Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final point = at ?? box.localToGlobal(box.size.center(Offset.zero));
-    final chosen = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        point & Size.zero,
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem(
-          value: 'mute',
-          child: Text(muted ? 'Unmute chat' : 'Mute chat'),
+    final chosen = await showChatRowMenu(
+      context,
+      title: group.name,
+      actions: [
+        ChatRowAction(
+          id: 'mute',
+          label: muted ? 'Unmute chat' : 'Mute chat',
+          icon: muted
+              ? Icons.notifications_outlined
+              : Icons.notifications_off_outlined,
         ),
       ],
     );
@@ -72,7 +68,6 @@ class GroupTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = FireplaceUiTokens.of(context);
     final muted = ref.watch(groupMutedProvider(group.gid));
-    var pressedAt = Offset.zero;
     final messages =
         ref.watch(groupMessagesProvider(group.gid)).value ??
         const <LocalMessage>[];
@@ -110,10 +105,8 @@ class GroupTile extends ConsumerWidget {
     return InkWell(
       key: Key('group_${group.gid}'),
       onTap: onOpen,
-      onTapDown: (details) => pressedAt = details.globalPosition,
-      onLongPress: () => _showActions(context, ref, muted, pressedAt),
-      onSecondaryTapUp: (details) =>
-          _showActions(context, ref, muted, details.globalPosition),
+      onLongPress: () => _showActions(context, ref, muted),
+      onSecondaryTapUp: (details) => _showActions(context, ref, muted),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: ChatTile.edge),
         child: Row(

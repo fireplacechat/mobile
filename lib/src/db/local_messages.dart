@@ -189,6 +189,12 @@ abstract class LocalMessageStore {
 
   /// Forget a whole conversation on this device.
   Future<void> deleteChat(String chatId);
+
+  /// Erases the content of every message of a conversation on this device
+  /// and keeps their hidden replay tombstones, as [remove] does for one. For
+  /// a conversation that still exists on the server: a message seen again
+  /// must not be decrypted a second time.
+  Future<void> clearChat(String chatId);
 }
 
 class MemoryMessageStore implements LocalMessageStore {
@@ -230,6 +236,16 @@ class MemoryMessageStore implements LocalMessageStore {
   @override
   Future<void> deleteChat(String chatId) async {
     _chats.remove(chatId);
+    _ctrls[chatId]?.add(const []);
+  }
+
+  @override
+  Future<void> clearChat(String chatId) async {
+    final records = _chats[chatId];
+    if (records == null) return;
+    _chats[chatId] = {
+      for (final id in records.keys) id: LocalMessage.tombstone(chatId, id),
+    };
     _ctrls[chatId]?.add(const []);
   }
 
