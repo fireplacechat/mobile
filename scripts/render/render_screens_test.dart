@@ -12,7 +12,6 @@ import 'outgoing_send_cases.dart';
 import 'theme_cases.dart';
 import 'icon_hold_cases.dart';
 import 'legal_cases.dart';
-import 'licence_cases.dart';
 import 'selection_copy_cases.dart';
 import 'startup_cases.dart';
 import 'account_deletion_cases.dart';
@@ -139,7 +138,6 @@ void main() {
     ).writeAsStringSync(const JsonEncoder.withIndent('  ').convert(manifest));
   });
   final cases = [
-    ...licenceCases,
     ...selectionCopyCases,
     ...legalCases,
     ...startupCases,
