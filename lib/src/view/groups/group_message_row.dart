@@ -8,7 +8,7 @@ import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
-import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
+import 'package:fireplace/src/view/chat/message_widgets.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 
 /// Layout shared by the rows of a group conversation.

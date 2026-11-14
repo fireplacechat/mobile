@@ -8,7 +8,7 @@ import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_stamp.dart';
-import 'package:fireplace/src/view/chat_list/widgets/chat_tile.dart';
+import 'package:fireplace/src/view/chat_list/chat_row.dart';
 import 'package:fireplace/src/view/groups/group_avatar.dart';
 import 'package:fireplace/src/view/groups/group_message_row.dart';
 

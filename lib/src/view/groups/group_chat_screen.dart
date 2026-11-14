@@ -12,7 +12,7 @@ import 'package:fireplace/src/view/chat/chat_composer.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/view/chat/message_menu_parts.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
-import 'package:fireplace/src/view/chat/widgets/day_separator.dart';
+import 'package:fireplace/src/view/chat/message_widgets.dart';
 import 'package:fireplace/src/view/groups/group_info_screen.dart';
 import 'package:fireplace/src/view/groups/group_message_row.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
