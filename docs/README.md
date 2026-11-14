@@ -8,7 +8,9 @@
 | [development/ios-release.md](development/ios-release.md) | owner checklist for protected iOS signing and TestFlight |
 | [development/releasing.md](development/releasing.md) | draft releases and locally signed store bundles |
 | [protocol/](protocol/) | threat model, crypto evaluation notes, account deletion |
+| [protocol/group-chat-design.md](protocol/group-chat-design.md) | proposed MLS groups, Signal comparison, device lifecycle and delivery costs |
 | [decisions/](decisions/) | numbered design decisions (0001 onward): why each choice was made |
+| [decisions/0050-group-chats.md](decisions/0050-group-chats.md) | group chats: chosen suite, rules-first delivery, limits and release gates |
 | [decisions/0017-app-check.md](decisions/0017-app-check.md) | monitoring-only app attestation decision |
 | [roadmap/](roadmap/) | planned features and the feature matrix |
 | [assets/](assets/) | images used by the documentation |

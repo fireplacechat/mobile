@@ -108,6 +108,10 @@ Firestore stores public keys, ciphertext and account/chat metadata. Secure stora
 
 ## Feature responsibilities
 
+Group chats are designed, not built: [MLS in the shared Rust core](decisions/0036-groups-use-mls.md),
+with the owner's choices in [0050](decisions/0050-group-chats.md) and the
+[full proposal](protocol/group-chat-design.md). The current 1:1 implementation is unchanged.
+
 Shared presentation widgets live in `widgets/`; the message bubble and day separator live in `view/chat/widgets/`. `message_bubble_body.dart` draws the quote, text and time inside the bubble. `message_actions_controls.dart` draws the reaction bar and the action list in the hold menu.
 
 Recovery-key, device-linking and password-change flows live in `view/recovery/`, `view/devices/` and `view/account/`.
