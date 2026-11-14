@@ -10,6 +10,7 @@ import 'src/crypto/memory.dart';
 part 'src/crypto/calls.dart';
 part 'src/crypto/sessions.dart';
 part 'src/crypto/api.dart';
+part 'src/crypto/groups.dart';
 
 class NativeCryptoException implements Exception {
   const NativeCryptoException(this.code);

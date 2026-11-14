@@ -1,6 +1,8 @@
 # Group chats, version 1: specification
 
-Date: 2026-11-14. Status: **design for review**. Implements
+Date: 2026-11-14. Status: **design for review**; sections 2 to 4 were amended by
+*Changes after the first emulator test* in decision 0050 (the invitation carries the Add; `hello` profiles;
+lines; roles), and where they differ that note wins. Implements
 [decision 0050](../decisions/0050-group-chats.md) and the
 [proposal](group-chat-design.md) it amends. Fixes the interfaces three pieces of
 work will build against at the same time: the Rust core, the backend, and the app.
@@ -58,7 +60,8 @@ Handle-based and bounded, wiping buffers with `fp_free`, like `FpSession`:
 
 A staged commit's summary lists the leaves added, removed and updated and the new
 name and roles, so the app can check it against the server roster and its rules
-(only administrators change membership, names and roles) before merging.
+(only administrators remove people and change names and roles; any member's device
+may add someone whose invitation was accepted) before merging.
 
 The **name and roles** live in an application-defined group-context extension, changed
 only by Commits. They are therefore encrypted, authenticated by MLS, and included in a
@@ -126,9 +129,10 @@ challenge, roles and limits.
 | Operation | Who | What the transaction does |
 |---|---|---|
 | `create` | any account (5 a day) | `groups/{gid}`, creator as administrator, `groupRefs` |
-| `invite(uid)` | administrator | `groups/{gid}/invites/{uid}`, refused if either has blocked the other; at most 20 pending per recipient |
-| `accept` / `decline` | the invitee | marks the invite |
-| `add(uid, epoch, commit, welcomes, packages)` | an administrator's device, after `accept` | checks `epoch`, consumes the packages, writes the Commit, the Welcomes, `members` and `groupRefs`, and raises `epoch`, all at once |
+| `invite(uid, devices, epoch, commit, welcome, packages)` | any member's device | needs an accepted 1:1 chat between the two; refused if either has blocked the other; at most 20 pending per recipient. Checks `epoch`, consumes the packages, writes the Commit and the Welcome, records the account in `invited`, and raises `epoch`, all at once |
+| `accept` | the invitee | moves the account from `invited` to `members`, writes `groupRefs` with `joinedAt`. No Commit |
+| `decline`, `expire(uid)` | the invitee; any member after 7 days | removes the account from `invited` and fences its devices |
+| `roles(admins, epoch, commit)` | administrator | the Commit carrying the new list; sets each member's `role` |
 | `addDevice(device, …)` | the same account's other device | the same, for a newly linked device |
 | `remove(uid, epoch, commit)` | administrator | removes every leaf of that account |
 | `leave` | a member | removes it from `members` and `groupRefs` at once (it can no longer read) and adds its leaves to `fence` |
@@ -172,8 +176,9 @@ devices, rechecking fences, as `pushOnMessage` does.
   group*. *New group* asks for a name (up to 40 characters) and lets you tick people
   from your accepted chats, at most 15 besides you, then *Create group*. The people
   are invited, not added: each joins when they accept.
-- **In the chat list.** A group's avatar is its name's first letter in a rounded
-  square, so groups have a different shape from people's round avatars. The preview
+- **In the chat list.** A group's avatar is its name's first letter in a circle,
+  like a person's (the first version used a rounded square; the owner changed it in
+  the emulator test). The preview
   names the sender: *Mira: See you at 7?* A group you've been invited to doesn't
   appear until you join.
 - **Invitations** show in both places:
@@ -186,8 +191,11 @@ devices, rechecking fences, as `pushOnMessage` does.
   the first bubble and a small avatar beside the last. The header shows the group
   name and the number of people. Tapping it opens *Group info*:
   - the members and who are administrators;
-  - for administrators: *Add people*, *Rename* and *Remove*;
-  - for everyone: *Leave*.
+  - for everyone: *Add people* (from your 1:1 contacts) and *Leave*;
+  - for administrators also: *Rename* and *Remove*.
+- **Message actions.** Hold a message: react (anyone); *Edit* and *Delete for
+  everyone* (your own messages only; every member's phone applies them only from the
+  author); *Delete for me* (any message, this phone only).
 - **Colours.**
   - **Your** messages use your primary chat colour, as in 1:1 chats.
   - **Each other member's** messages use the secondary (soft) version of *their own*
@@ -195,7 +203,10 @@ devices, rechecking fences, as `pushOnMessage` does.
     chose Plum, everyone sees her bubbles in the plum tint.
   - A member's colour is shared only inside the group, as an encrypted `profile`
     message (`type: profile, color`) sent on joining and whenever they change it. The
-    server never stores it, and 1:1 chats are unchanged.
+    server never stores it, and 1:1 chats are unchanged. A newcomer's is marked
+    `hello: true`, and each member answers it with their own.
+  - `type: notice` messages (`kind: left`, or `kind: removing, uid` from an
+    administrator) say why a removal is about to happen, for the line it shows.
   - A member whose colour hasn't arrived yet shows in Stone.
 - **System lines**, small and centred: *Rowan added Mira*, *Elliot left*, *Rowan
   renamed the group*. They come from the authenticated Commits, never from the

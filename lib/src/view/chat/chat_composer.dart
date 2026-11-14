@@ -20,7 +20,7 @@ class ChatComposer extends StatelessWidget {
     required this.identityHeld,
     required this.hasSession,
     required this.contactBusy,
-    required this.send,
+    this.send,
     required this.onUnblock,
     this.onInteraction,
     this.contextBar,
@@ -43,7 +43,10 @@ class ChatComposer extends StatelessWidget {
       identityHeld,
       hasSession,
       contactBusy;
-  final SendController send;
+
+  /// Sends the text when [submit] is not given. A group conversation always
+  /// gives [submit] and has no 1:1 send controller.
+  final SendController? send;
   final Future<void> Function() onUnblock;
   final VoidCallback? onInteraction;
   @override
@@ -78,9 +81,9 @@ class ChatComposer extends StatelessWidget {
         child: CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.enter, control: true):
-                submit ?? send.send,
+                submit ?? send!.send,
             const SingleActivator(LogicalKeyboardKey.enter, meta: true):
-                submit ?? send.send,
+                submit ?? send!.send,
           },
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
@@ -178,7 +181,7 @@ class ChatComposer extends StatelessWidget {
                                 text.text.trim().isEmpty ||
                                 !hasSession
                             ? null
-                            : submit ?? send.send,
+                            : submit ?? send!.send,
                         tooltip: editing ? 'Save edit' : 'Send message',
                         icon: editing && editingBusy
                             ? SizedBox.square(

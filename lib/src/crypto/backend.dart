@@ -56,6 +56,10 @@ NativeCrypto get _nativeCrypto => _core ??= NativeCrypto(
         ),
 );
 
+/// One device's MLS group store (decision 0050); groups use the Rust core only.
+NativeGroupStore openNativeGroupStore(List<int> records) =>
+    _nativeCrypto.openGroupStore(records);
+
 T _sessionOperation<T>(T Function() operation) {
   try {
     return operation();

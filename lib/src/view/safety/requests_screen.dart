@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/view/groups/group_invitation_card.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
@@ -74,9 +76,10 @@ class RequestsScreen extends ConsumerWidget {
             !hidden.contains(c.chatId))
           c,
     ];
+    final invitations = ref.watch(groupInvitationsProvider).value ?? const [];
     return Scaffold(
       appBar: UiAppBar(context: context, title: Text('Message requests')),
-      body: requests.isEmpty
+      body: requests.isEmpty && invitations.isEmpty
           ? const UiEmptyState(
               title: 'No message requests',
               message: 'New requests will appear here. Messages stay hidden until you accept.',
@@ -84,14 +87,20 @@ class RequestsScreen extends ConsumerWidget {
             )
           : UiPageScroll(
               children: [
-                Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'These people want to chat. You will not see what they '
-                    'wrote until you accept. They cannot see whether you '
-                    'have looked.',
+                for (final i in invitations)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: GroupInvitationCard(invitation: i),
                   ),
-                ),
+                if (requests.isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                      'These people want to chat. You will not see what they '
+                      'wrote until you accept. They cannot see whether you '
+                      'have looked.',
+                    ),
+                  ),
                 for (final c in requests)
                   _RequestTile(chat: c, session: session!),
               ],

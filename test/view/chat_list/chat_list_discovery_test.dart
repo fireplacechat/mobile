@@ -92,7 +92,7 @@ void main() {
     await t.tap(find.byKey(const Key('newChat')));
     await t.pumpAndSettle();
     await t.enterText(find.byKey(const Key('peerUsername')), 'a');
-    await t.tap(find.byKey(const Key('startChat')));
+    await t.testTextInput.receiveAction(TextInputAction.go);
     await t.pump();
     expect(f.chat.starts, isEmpty);
     expect(
@@ -100,14 +100,15 @@ void main() {
       findsOneWidget,
     );
     f.chat.startHold = Completer<String>();
-    await t.enterText(find.byKey(const Key('peerUsername')), 'fred');
+    await t.enterText(find.byKey(const Key('peerUsername')), 'mira_k');
+    await t.pump();
     final submit = t
         .widget<TextField>(find.byKey(const Key('peerUsername')))
         .onSubmitted!;
-    submit('fred');
-    submit('fred');
+    submit('mira_k');
+    submit('mira_k');
     await t.pump();
-    expect(f.chat.starts, ['fred']);
+    expect(f.chat.starts, ['mira_k']);
     expect(
       t.widget<TextField>(find.byKey(const Key('peerUsername'))).enabled,
       isFalse,

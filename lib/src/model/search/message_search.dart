@@ -33,7 +33,10 @@ List<MessageSearchHit> searchMessages(
 
   for (final messages in history.values) {
     for (final m in messages) {
-      if (m.status == MessageStatus.undecryptable || m.remotelyDeleted) {
+      // A line about a group ("alice added bob") is not text anyone wrote.
+      if (m.status == MessageStatus.undecryptable ||
+          m.status == MessageStatus.notice ||
+          m.remotelyDeleted) {
         continue;
       }
       final text = displayMessage(m.body).plain;

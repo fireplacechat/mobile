@@ -5,7 +5,7 @@ import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/auth/auth_screen.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
-import 'package:fireplace/src/view/chat_list/start_chat_dialog.dart';
+import 'package:fireplace/src/view/chat_list/new_chat_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -299,25 +299,22 @@ void main() {
     'dialog fields dismiss on outside touches without closing dialog',
     (tester) async {
       await pumpApp(tester);
-      unawaited(
-        showDialog<void>(
-          context: tester.element(find.byType(AuthScreen)),
-          builder: (_) => const StartChatDialog(),
-        ),
-      );
+      unawaited(NewChatSheet.show(tester.element(find.byType(AuthScreen))));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('peerUsername')));
       await tester.pumpAndSettle();
       expect(field(tester, 'peerUsername').focusNode.hasFocus, isTrue);
-      await tester.tap(find.text('Start a chat'));
+      await tester.tap(find.text('New chat'));
       await tester.pumpAndSettle();
       expect(field(tester, 'peerUsername').focusNode.hasFocus, isFalse);
       expect(tester.testTextInput.isVisible, isFalse);
-      expect(find.byType(StartChatDialog), findsOneWidget);
+      expect(find.byType(NewChatSheet), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('peerUsername')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Cancel'));
+      await tester.tap(find.byKey(const Key('cancelNewChat')));
       await tester.pumpAndSettle();
-      expect(find.byType(StartChatDialog), findsNothing);
+      expect(find.byType(NewChatSheet), findsNothing);
       expect(tester.testTextInput.isVisible, isFalse);
     },
     variant: platforms,

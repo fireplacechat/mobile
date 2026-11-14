@@ -1,7 +1,8 @@
 # 0050: Group chats: profile, delivery and limits
 
-Date: 2026-11-14. Status: **decisions accepted by the owner; implementation gated**
-(see the end). Develops [0036](0036-groups-use-mls.md). The full proposal, written
+Date: 2026-11-14, amended the same day (*Changes after the first emulator test*,
+below). Status: **decisions
+accepted by the owner; implementation gated** (see the end). Develops [0036](0036-groups-use-mls.md). The full proposal, written
 with GPT, is [protocol/group-chat-design.md](../protocol/group-chat-design.md); this
 note records the owner's choices and **amends the proposal's delivery path**. Where
 they differ, this note wins.
@@ -17,6 +18,22 @@ The interfaces, Firestore schema, rules, function and screens are specified in
 | Delivery | Messages and Commits written directly under Firestore rules; one small function only for membership changes and revocation fences |
 | Size | 16 accounts, 4 participating devices each (64 leaves), 32 groups per account |
 | Dependency | OpenMLS 0.9.2 with openmls_rust_crypto 0.6.0 approved **for a spike only**; production use needs a second approval |
+
+### Who may do what (owner, 2026-11-14)
+
+| Action | Who |
+|---|---|
+| Create a group | anyone (5 a day; at most 32 groups per account) |
+| Invite someone | **any member**, but only a person they already have an accepted 1:1 chat with; the backend function checks this. The invitee must accept. |
+| Add the invited person to MLS | the inviter's device, **when it sends the invitation** (amended; see below). Joining then needs no other phone. |
+| Remove someone, change roles | administrators |
+| Rename | administrators; other members' phones refuse anyone else's rename |
+| Leave | anyone, at any time |
+| Last administrator leaves | every remaining member becomes an administrator |
+| End a group | no one ends it for others; it ends when its last member leaves, and the server then deletes all its records. Members keep their own copies of past messages. |
+| Edit, delete for everyone | **only the message's author**, as in 1:1 chats (edits up to 10 times within 24 hours); the change shows on every member's phone |
+| React | anyone |
+| Delete for me | anyone, on their own phone only |
 
 ### What the suite means
 
@@ -77,6 +94,137 @@ document. So:
 | Recipient reads | one per listening device | the same |
 
 Membership changes cost more under either plan and are rare.
+
+## Changes after the first emulator test (2026-11-14)
+
+The owner tried groups on the Android emulator and asked for six changes. The
+server's rules and membership function changed with them.
+
+### Joining must not wait for the inviter's phone
+
+MLS is end to end, so the server cannot add anyone: only a member's device can sign
+the Add Commit and write the Welcome. The first version did that after the invitee
+tapped Join, on the inviter's phone, while its app was open. In testing Join did
+nothing until the inviter opened the app.
+
+Now the **invitation does the Add**. The inviter's phone is online when it invites,
+so it fetches a key package for each of the invitee's devices (up to four), and
+sends the Commit, the Welcome and the packages it used in the same request.
+
+- **Join** processes the Welcome the phone already has, so the group opens at once.
+  The server then moves the account from *invited* into the roster, which is what
+  lets the phone read and send.
+- **Decline, or seven days without an answer:** the server fences the invited
+  devices as it does for a leave, and any member's phone sends the removing Commit
+  through `finalize`. The server has no scheduler, so the first member's phone to
+  notice an invitation past its seven days asks for the expiry.
+- **Declining stays quiet.** The group sees only that the person is no longer
+  listed; nothing says whether they declined or the invitation ran out.
+- **The trade-off.** From the invitation on, the invited devices are MLS members
+  and hold the keys for messages sent afterwards, before the person accepts. The
+  rules still refuse them everything but their own Welcome, and the app shows
+  nothing from before they joined. The group chose to invite them, and *Group info*
+  lists people who are **Invited**, apart from the members, so nobody is surprised.
+- **Limits.** The 16 people and 64 devices count people who are invited.
+- **Key packages run out:** the invitation is refused with "They need to open
+  Fireplace before they can be invited." A device that had none, or is linked
+  later, is added by the account's own device after it joins (`addDevice`; the
+  server has it, the app does not send it yet).
+- **A phone that was offline** when someone was invited and then declined still
+  applies both Commits in order. It does not check an Add against the roster,
+  because the roster it can read is today's, not the one at that epoch.
+
+**Cost** (Blaze; all bounded by the 100 membership requests an account may make a
+day):
+
+| | Writes | Reads | Functions |
+|---|---|---|---|
+| An invitation | 5 + one delete per key package (≤4) | about 13 + one per device and package (≤8); the inviter's phone reads the invitee's device list and one package each (≤5) | 1 request, 1 push |
+| Joining | 4 | 3 + the account's group list; the phone reads its Welcome | 1 request |
+| Declining or an expiry | 3 | 4 | 1 request, then a `finalize` (4 writes, 5 reads, 1 request) |
+| A newcomer's colours | one message from the newcomer and one from each member (≤16 messages, 2 writes each) | | ≤16 push triggers, throttled per person |
+| A member applying a membership Commit | | 1 extra read of the roster | |
+
+### Colours
+
+Your own messages use your primary colour; every other member's use the soft tint
+of **that member's** primary colour, and their name and avatar its text shade. The
+colour travels only inside the group, as an encrypted `profile` message.
+
+The first version sent a profile only on creating or joining a group or changing
+the colour, so a later joiner never received the earlier members' colours and saw
+them in Stone. Now a newcomer's profile is marked `hello`, and **every member
+answers a `hello` with their own profile**, once. Colours are kept per group, and
+avatars use them too.
+
+### The start of the history
+
+Someone who joins a group that already existed sees a quiet line above their first
+message: *Messages sent before you joined aren’t shown.* The phone reads and shows
+nothing from before the time the server recorded the join.
+
+### The same look as 1:1 chats
+
+The group row reuses the 1:1 row's layout (avatar size, bold name, date, two-line
+preview, hairline). Its avatar is a **circle** with the group's initial, like a
+person's: the owner changed this from the first version's rounded square after
+seeing it on the emulator (2026-11-14). The conversation reuses the
+1:1 bubble, held-message menu, reactions, day separators and composer, and editing
+happens in the composer, not a dialog. The differences are the sender's name above
+the first bubble of a run, their avatar beside the last, and the colours.
+
+### Unread counts, lines and pushes
+
+- **Unread count** on the group row, counted on the phone from the local history
+  with the same per-chat record of what has been shown as 1:1 chats. No server
+  field and no read receipt. Group messages count on the app icon's badge too.
+- **Muting a group** works as for a 1:1 chat: hold the row, or use *Group info*.
+  It is kept on the phone with the 1:1 mutes; the server and the other members
+  are not told. A muted group keeps its count on the row, in grey, and is left
+  out of the app icon's badge. Pushes are unchanged, as for a muted 1:1 chat.
+- **Lines in the conversation**, small and centred: *alice added bob_jones*,
+  *mira left*, *alice removed mira*, *alice made bob_jones an administrator*,
+  *alice renamed the group*. They are built on the phone from the MLS state before
+  and after each **authenticated Commit**, never from the server's roster.
+  - A removal looks the same in MLS whether the person left or was removed. So a
+    member who leaves first says so in an encrypted group message, and an
+    administrator who removes someone says that; MLS vouches for the sender. With
+    neither (a declined invitation, a deleted account) the line reads *… is no
+    longer in the group*.
+  - The lines are stored in the encrypted local history, are never counted as
+    unread and are never matched by search.
+- **Push when someone is invited:** one, to the invited person only (owner's
+  choice), following their existing notification settings: *Fireplace / You were
+  invited by alice.* when the sender's name is shown, *Fireplace / New Invitation*
+  when it is hidden. The owner asked for the group's name as the title; the server
+  never has it, so that waits for the phone to read the Welcome in the background.
+
+### Administrators
+
+In *Group info* an administrator taps a member for **Make administrator** or
+**Remove as administrator**. It is an MLS Commit carrying the new list (group-context
+extension `0xF0F1`) and the same list to the server (`roles`). Every phone refuses
+a role change, like a rename, from someone who is not an administrator. Someone
+invited cannot be made one until they join. If the last administrator leaves,
+everyone left is one, as before.
+
+### Tests
+
+`test/model/groups/group_service_test.dart` (23, two and three phones on the real
+Rust core): joining with the inviter's phone off, key packages run out, expiry,
+decline, removing someone invited, colours for a later joiner, each line, roles,
+and a refused role change. `test/view/groups/group_screens_test.dart` (11): the
+1:1 menu and composer editing, colours of bubbles, names and avatars, the lines,
+the start-of-history line, the unread count, muting, Make administrator, and
+*Invited*.
+`scripts/render/render_groups_test.dart` renders the screens for review.
+
+### Not in this round
+
+- The invitation card inside the 1:1 chat with the inviter (it shows in Message
+  requests): [issue #164](https://github.com/fireplacechat/mobile/issues/164).
+- `addDevice` from the app.
+- The group's name in the invitation push.
 
 ## Spike results
 

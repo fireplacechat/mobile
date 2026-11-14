@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/model/groups/group_models.dart';
+import 'package:fireplace/src/view/groups/group_chat_screen.dart';
+import 'package:fireplace/src/view/groups/group_tile.dart';
+import 'package:fireplace/src/view/groups/new_group_screen.dart';
 import 'package:fireplace/src/model/chat/chat_preview.dart';
+import 'package:fireplace/src/model/chat/chat_summary.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/brand/logo.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
@@ -12,7 +18,7 @@ import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';
-import 'package:fireplace/src/view/chat_list/start_chat_dialog.dart';
+import 'package:fireplace/src/view/chat_list/new_chat_sheet.dart';
 import 'package:fireplace/src/view/chat_list/widgets/chat_search_field.dart';
 import 'package:fireplace/src/view/chat_list/widgets/chat_tile.dart';
 import 'package:fireplace/src/view/chat_list/widgets/new_chat_icon.dart';
@@ -60,6 +66,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     final chats = ref.watch(chatsProvider);
+    // Shares a new primary colour with your groups when it changes.
+    ref.watch(groupColorSyncProvider);
     return Scaffold(
       appBar: UiAppBar(
         context: context,
@@ -167,6 +175,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     for (final c in live)
                       if (c.isIncomingRequest(me)) c,
                   ];
+                  // Group invitations wait in Message requests too.
+                  final invitations =
+                      ref.watch(groupInvitationsProvider).value ?? const [];
+                  final requestCount = requests.length + invitations.length;
+                  final groups = [
+                    for (final g
+                        in (ref.watch(groupsProvider).value ?? const {}).values)
+                      if (_query.isEmpty ||
+                          g.name.toLowerCase().contains(_query))
+                        g,
+                  ];
                   // Newest first, by the newest message this phone knows of: a
                   // message just sent or received moves its chat up at once.
                   final epoch = DateTime.fromMillisecondsSinceEpoch(0);
@@ -217,15 +236,13 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       key: const Key('globalSearchResults'),
                       padding: const EdgeInsets.only(bottom: 96),
                       children: [
-                        if (requests.isNotEmpty)
+                        if (requestCount > 0)
                           ListTile(
                             key: const Key('requestsTile'),
                             leading: const Icon(
                               Icons.mark_email_unread_outlined,
                             ),
-                            title: Text(
-                              'Message requests (${requests.length})',
-                            ),
+                            title: Text('Message requests ($requestCount)'),
                             subtitle: const Text(
                               'People who want to chat with you',
                             ),
@@ -253,11 +270,42 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                             onOpen: () =>
                                 _open(ChatScreen(chatId: chat.chatId)),
                           ),
+                        if (groups.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                            child: Text(
+                              'Groups',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                          ),
+                        for (final g in groups)
+                          GroupTile(
+                            group: g,
+                            onOpen: () => _open(GroupChatScreen(gid: g.gid)),
+                          ),
                         GlobalMessageResults(query: _query, onOpen: _open),
                       ],
                     );
                   }
-                  if (sorted.isEmpty && requests.isEmpty) {
+                  // Chats and groups together, newest activity first.
+                  final groupActivity = {
+                    for (final g in groups)
+                      g.gid:
+                          (ref
+                              .watch(groupMessagesProvider(g.gid))
+                              .value
+                              ?.lastOrNull
+                              ?.sentAt) ??
+                          epoch,
+                  };
+                  final entries = <Object>[...sorted, ...groups]
+                    ..sort((a, b) {
+                      DateTime at(Object e) => e is GroupInfo
+                          ? groupActivity[e.gid]!
+                          : activity[(e as ChatSummary).chatId]!;
+                      return at(b).compareTo(at(a));
+                    });
+                  if (entries.isEmpty && requestCount == 0) {
                     if (_query.isNotEmpty) {
                       return UiEmptyState(
                         title: emptyTitle,
@@ -266,14 +314,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     }
                     return _Empty();
                   }
-                  final requestOffset = requests.isEmpty ? 0 : 1;
+                  final requestOffset = requestCount == 0 ? 0 : 1;
                   return ListView.separated(
                     key: const Key('conversationList'),
                     padding: const EdgeInsets.only(bottom: 96),
                     itemCount:
-                        sorted.length +
+                        entries.length +
                         requestOffset +
-                        (sorted.isEmpty ? 1 : 0),
+                        (entries.isEmpty ? 1 : 0),
                     // A hairline from the text edge to the row's end.
                     separatorBuilder: (_, _) => const Divider(
                       height: 1 / 3,
@@ -282,7 +330,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       endIndent: ChatTile.edge,
                     ),
                     itemBuilder: (_, i) {
-                      if (requests.isNotEmpty && i == 0) {
+                      if (requestCount > 0 && i == 0) {
                         return ListTile(
                           key: Key('requestsTile'),
                           leading: CircleAvatar(
@@ -294,7 +342,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                             child: Icon(Icons.mark_email_unread_outlined),
                           ),
                           title: Text(
-                            'Message requests (${requests.length})',
+                            'Message requests ($requestCount)',
                             style: TextStyle(fontWeight: FontWeight.w700),
                           ),
                           subtitle: Text('People who want to chat with you'),
@@ -302,7 +350,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                           onTap: () => _open(const RequestsScreen()),
                         );
                       }
-                      if (sorted.isEmpty) {
+                      if (entries.isEmpty) {
                         return _query.isEmpty
                             ? const UiEmptyState(
                                 title: 'No conversations yet',
@@ -313,7 +361,14 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                 message: 'Try another username. Your message requests are shown above.',
                               );
                       }
-                      final chat = sorted[i - requestOffset];
+                      final entry = entries[i - requestOffset];
+                      if (entry is GroupInfo) {
+                        return GroupTile(
+                          group: entry,
+                          onOpen: () => _open(GroupChatScreen(gid: entry.gid)),
+                        );
+                      }
+                      final chat = entry as ChatSummary;
                       return ChatTile(
                         chat: chat,
                         onOpen: () => _open(ChatScreen(chatId: chat.chatId)),
@@ -329,20 +384,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
   }
 
+  /// New chat: a panel to pick someone you chat with, type a username, or
+  /// create a group.
   Future<void> _newChat(BuildContext context, WidgetRef ref) async {
     if (_opening) return;
-    _opening = true;
-    try {
-      final chatId = await showDialog<String>(
-        context: context,
-        builder: (_) => const StartChatDialog(),
-      );
-      if (chatId == null || !context.mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => ChatScreen(chatId: chatId)),
-      );
-    } finally {
-      _opening = false;
+    final choice = await NewChatSheet.show(context);
+    if (choice == null || !context.mounted) return;
+    switch (choice) {
+      case OpenChat(:final chatId):
+        await _open(ChatScreen(chatId: chatId));
+      case CreateGroup():
+        final gid = await Navigator.of(context).push<String>(
+          MaterialPageRoute(builder: (_) => const NewGroupScreen()),
+        );
+        if (gid != null && context.mounted) {
+          await _open(GroupChatScreen(gid: gid));
+        }
     }
   }
 }
