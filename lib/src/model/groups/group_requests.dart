@@ -50,15 +50,20 @@ class GroupRequests {
       await batch.commit();
     });
     final done = Completer<void>();
-    final sub = ref.snapshots().listen((snap) {
-      final status = snap.data()?['status'];
-      if (status == 'done' && !done.isCompleted) done.complete();
-      if (status == 'refused' && !done.isCompleted) {
-        done.completeError(GroupRefused('${snap.data()?['reason'] ?? 'refused'}'));
-      }
-    }, onError: (Object e) {
-      if (!done.isCompleted) done.completeError(e);
-    });
+    final sub = ref.snapshots().listen(
+      (snap) {
+        final status = snap.data()?['status'];
+        if (status == 'done' && !done.isCompleted) done.complete();
+        if (status == 'refused' && !done.isCompleted) {
+          done.completeError(
+            GroupRefused('${snap.data()?['reason'] ?? 'refused'}'),
+          );
+        }
+      },
+      onError: (Object e) {
+        if (!done.isCompleted) done.completeError(e);
+      },
+    );
     try {
       await done.future.timeout(_timeout);
     } finally {

@@ -50,7 +50,9 @@ class GroupInfo {
     final admins = {...(j['admins'] as List).cast<String>()};
     final byUid = <String, List<String>>{};
     for (final m in (j['members'] as List).cast<Map>()) {
-      byUid.putIfAbsent(m['uid'] as String, () => []).add(m['device'] as String);
+      byUid
+          .putIfAbsent(m['uid'] as String, () => [])
+          .add(m['device'] as String);
     }
     return GroupInfo(
       gid: j['gid'] as String,
@@ -59,7 +61,11 @@ class GroupInfo {
       active: j['active'] as bool,
       members: [
         for (final e in byUid.entries)
-          GroupMember(uid: e.key, devices: e.value, admin: admins.contains(e.key)),
+          GroupMember(
+            uid: e.key,
+            devices: e.value,
+            admin: admins.contains(e.key),
+          ),
       ],
     );
   }
@@ -67,7 +73,11 @@ class GroupInfo {
 
 /// An invitation waiting for this account to answer.
 class GroupInvitation {
-  const GroupInvitation({required this.gid, required this.inviter, required this.at});
+  const GroupInvitation({
+    required this.gid,
+    required this.inviter,
+    required this.at,
+  });
   final String gid;
   final String inviter;
   final DateTime at;
@@ -87,7 +97,8 @@ class GroupRefused implements Exception {
   /// Plain words for people.
   String get message => switch (reason) {
     'full' => 'This group is full.',
-    'limit' => 'You have made the most groups allowed today. Try again tomorrow.',
+    'limit' =>
+      'You have made the most groups allowed today. Try again tomorrow.',
     'too many groups' => 'You are in the most groups allowed.',
     'not an administrator' => 'Only administrators can do that.',
     'expired' => 'This invitation has expired.',

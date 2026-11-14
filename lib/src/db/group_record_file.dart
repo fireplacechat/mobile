@@ -72,6 +72,23 @@ class GroupRecordFile {
 
   bool get isEmpty => _records.isEmpty;
 
+  // App records (cursors) live beside the core's, under `app:` names, and are
+  // saved in the same atomic write. The core ignores them.
+  static String _appKey(String name) => b64(utf8Bytes('app:$name'));
+
+  Uint8List? app(String name) => _records[_appKey(name)];
+
+  void setApp(Map<String, List<int>?> values) {
+    for (final e in values.entries) {
+      final v = e.value;
+      if (v == null) {
+        _records.remove(_appKey(e.key));
+      } else {
+        _records[_appKey(e.key)] = Uint8List.fromList(v);
+      }
+    }
+  }
+
   /// Applies `changes` from a core result: `[{k, v | null}]`, base64.
   void apply(Object? changes) {
     if (changes is! List) return;
