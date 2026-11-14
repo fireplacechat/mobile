@@ -236,6 +236,7 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
           const Divider(),
           for (final m in members)
             _MemberRow(
+              gid: widget.gid,
               member: m,
               me: m.uid == me,
               isAdmin: m.admin || !named,
@@ -267,6 +268,7 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
             ),
             for (final m in waiting)
               _MemberRow(
+                gid: widget.gid,
                 member: m,
                 me: false,
                 isAdmin: false,
@@ -326,6 +328,7 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
 /// One person in the member list.
 class _MemberRow extends ConsumerWidget {
   const _MemberRow({
+    required this.gid,
     required this.member,
     required this.me,
     required this.isAdmin,
@@ -334,6 +337,7 @@ class _MemberRow extends ConsumerWidget {
     this.invited = false,
     this.onRole,
   });
+  final String gid;
   final GroupMember member;
   final bool me, isAdmin, canRemove, invited;
   final ValueChanged<String> onRemove;
@@ -342,9 +346,20 @@ class _MemberRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final name = ref.watch(peerUsernameProvider(member.uid)).value ?? '…';
+    // Other people's avatars use their own colour, as in the conversation.
+    final colors = ref.watch(groupColorsProvider(gid)).value ?? const {};
     return ListTile(
       key: Key('member_${member.uid}'),
-      leading: PersonAvatar(name: name, size: 40),
+      leading: PersonAvatar(
+        name: name,
+        size: 40,
+        color: me
+            ? null
+            : memberColor(
+                colors,
+                member.uid,
+              ).accentText(Theme.of(context).brightness),
+      ),
       title: Text(me ? 'You' : '@$name'),
       subtitle: invited
           ? const Text('Invited')
