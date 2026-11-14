@@ -274,7 +274,7 @@ void main() {
       return gid;
     }))!;
     await pump(t, const RequestsScreen());
-    expect(find.text('@bob invited you to a group'), findsOneWidget);
+    expect(find.text('bob invited you to a group'), findsOneWidget);
     await t.tap(find.byKey(const Key('joinGroup')));
     await settle(t, () => alice.service.groups.containsKey(gid));
     await settle(
@@ -303,7 +303,7 @@ void main() {
     await pump(t, const SizedBox());
     await pump(t, const ChatScreen(chatId: 'alice_bob'));
     expect(card, findsOneWidget);
-    expect(find.text('@bob invited you to a group'), findsOneWidget);
+    expect(find.text('bob invited you to a group'), findsOneWidget);
     await t.tap(find.byKey(const Key('declineGroup')));
     await settle(t, () => alice.service.invitations.isEmpty);
     await settle(t, () => card.evaluate().isEmpty);

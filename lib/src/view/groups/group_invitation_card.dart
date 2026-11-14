@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
-import 'package:fireplace/src/view/groups/group_avatar.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
+import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/view/groups/group_chat_screen.dart';
 import 'package:fireplace/src/widgets/status.dart';
 
@@ -56,26 +57,29 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
     return Card(
       key: Key('groupInvite_${widget.invitation.gid}'),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const GroupAvatar(name: '', size: 40),
+                // The person who invited, as everywhere else: their initial
+                // in their colour.
+                PersonAvatar(
+                  name: inviter,
+                  size: 40,
+                  color: ref
+                      .watch(knownPeerColorProvider(widget.invitation.inviter))
+                      ?.outgoing,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    '@$inviter invited you to a group',
+                    '$inviter invited you to a group',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'If you join, everyone in the group can read what you send '
-              'there. You can leave at any time.',
             ),
             if (_error != null) UiActionError(message: _error!),
             const SizedBox(height: 8),
