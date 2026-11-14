@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-/// Tracks busy/error state for contact actions and identity review in the chat UI.
-/// The view supplies the actions and the callback for explicit identity review.
+/// Busy and error state for the chat screen's contact actions and key review.
 class ContactController extends ChangeNotifier {
   ContactController({required this.reviewOnce});
   final Future<void> Function(String, List<int>) reviewOnce;
@@ -21,8 +20,6 @@ class ContactController extends ChangeNotifier {
     super.dispose();
   }
 
-  /// Lets the user compare and explicitly decide about a changed contact key.
-  /// Nothing is trusted automatically.
   Future<void> contactAction(Future<void> Function() action) async {
     if (_contactBusy) return;
     _contactBusy = true;
@@ -43,6 +40,8 @@ class ContactController extends ChangeNotifier {
     }
   }
 
+  /// Lets the user compare and explicitly decide about a changed contact key.
+  /// Nothing is trusted automatically.
   Future<void> reviewIdentity(String peerUid, List<int> pub) async {
     if (_reviewing) return;
     _reviewing = true;

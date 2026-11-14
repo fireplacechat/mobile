@@ -3,7 +3,9 @@
 Plans have no promised dates. The [feature status](roadmap/feature-matrix.md)
 describes current source; [open issues](https://github.com/fireplacechat/mobile/issues)
 track work and [Discussions](https://github.com/fireplacechat/mobile/discussions)
-is for ideas.
+is for ideas. Work that is ready to pick up is labelled
+[`help wanted`](https://github.com/fireplacechat/mobile/labels/help%20wanted) and
+[`good first issue`](https://github.com/fireplacechat/mobile/labels/good%20first%20issue).
 
 ## Current work
 
@@ -12,14 +14,18 @@ is for ideas.
   [version 1 specification](protocol/group-chats-v1.md). The current app is 1:1.
 - Improve reliability and keep contributor documentation aligned with the code.
 
-## Needs a separate design or decision
+## Next
 
-Attachments, calls, disappearing messages, translations, and richer chat-list
-organization have no implementation commitment here. Offline wording must preserve
-the distinction between a definite send failure and an unknown publish outcome;
-it must not imply automatic resend of an uncertain message.
+- A clear offline state ("this will send when you are back online"). It must keep
+  a definite failure apart from an unknown outcome and never imply an automatic resend.
 
-## Excluded by project policy
+## Under consideration
 
-Typing indicators, read receipts, delivered ticks, online/last-seen indicators,
-analytics and tracking. See [repository rules](../AGENTS.md).
+Tappable links, compact bubbles with the time inline, attachments, disappearing
+messages, chat archive/pin and translations. Each needs its own design first.
+
+## Not planned
+
+- Voice and video calls, stickers and GIFs.
+- Typing indicators, read receipts, delivered ticks, online/last seen. Left out on purpose.
+- Analytics, crash reporting or any tracking. See [repository rules](../AGENTS.md).

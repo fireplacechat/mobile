@@ -17,8 +17,9 @@ Checked against mobile source on 2026-11-14. "Implemented" describes code on
 | Block and report | Implemented; reports exclude message text; unblock waits for acknowledgement | [Safety service](../../lib/src/model/safety/safety_service.dart), [0051](../decisions/0051-block-unblock-confirmation.md) |
 | Recovery key | Restores account identity, not old message history | [Key service](../../lib/src/model/keys/key_service.dart) |
 | Groups | Specified, not implemented; MLS with one leaf per participating device | [Version 1 specification](../protocol/group-chats-v1.md) |
-| Attachments, calls, disappearing timers, chat archive/pin | Not implemented | [Roadmap](../ROADMAP.md) |
-| Typing, delivered/read status, online/last seen, tracking | Excluded by policy | [Repository rules](../../AGENTS.md) |
+| Tappable links, attachments, disappearing timers, chat archive/pin, offline state | Not implemented | [Roadmap](../ROADMAP.md) |
+| Calls, stickers, GIFs | Not planned | [Roadmap](../ROADMAP.md) |
+| Typing, delivered/read status, online/last seen, analytics, crash reporting, tracking | Excluded by policy | [Repository rules](../../AGENTS.md) |
 
 Message text stays on the phones except as encrypted envelopes. Account, device
 and chat metadata remain visible to the service; see the

@@ -5,8 +5,8 @@ import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/chat_summary.dart';
 import 'package:fireplace/src/model/common/daily_counter.dart';
 
-/// Manages one account's Firestore chat metadata and message requests.
-/// Uses safety checks when starting chats and local history during peer deletion.
+/// One account's Firestore chat documents: start, accept, list, and remove
+/// (with the local copy) once the peer has deleted their account.
 class ChatDirectory {
   ChatDirectory(this._db, this._messages, this.uid, this._safety);
 

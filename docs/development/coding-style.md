@@ -16,10 +16,10 @@ Errors shown in the app should explain what the user can do. Distinguish a defin
 
 Comments should explain a constraint or decision that the code cannot make obvious. A behavioral fix needs a regression test that reproduces the failure. Use fictional accounts and records, and keep tests independent of production credentials.
 
-Document non-obvious public classes in one to three `///` lines: responsibility,
-collaborators and caller constraints. Skip field-by-field narration. Keep commands
-in the development guides, boundaries in architecture, and decision rationale in
-decision records. Update the existing explanation when behavior changes; link to
-details rather than copying them.
+Give a class a `///` comment only when its name and code do not make its job
+obvious: one to three short lines on what it owns and any rule its callers must
+follow. Do not restate the constructor or narrate fields. Keep commands in the
+development guides, boundaries in architecture and rationale in decision records;
+when behavior changes, update the existing explanation and link instead of copying.
 
 Protocol, key-handling and authentication changes require a design decision and tests. Reuse existing mechanisms and avoid adding packages or server data without an approved reason.
