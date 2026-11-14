@@ -50,8 +50,12 @@ class GroupRequests {
       await batch.commit();
     });
     final done = Completer<void>();
+    var seen = false;
     final sub = ref.snapshots().listen(
       (snap) {
+        // The last member leaving deletes the group with its requests: done.
+        if (!snap.exists && seen && !done.isCompleted) done.complete();
+        if (snap.exists) seen = true;
         final status = snap.data()?['status'];
         if (status == 'done' && !done.isCompleted) done.complete();
         if (status == 'refused' && !done.isCompleted) {

@@ -9,6 +9,8 @@ import 'package:fireplace/src/crypto/group_crypto.dart';
 import 'package:fireplace/src/db/group_record_file.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/secret_store.dart';
+import 'package:fireplace/src/db/message_mutation.dart';
+import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_payload.dart';
 import 'package:fireplace/src/model/chat/send_allowance.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
@@ -86,6 +88,10 @@ class GroupService {
     yield _invitations;
     yield* _invitesCtrl.stream;
   }
+
+  /// A group's history on this device, newest last.
+  Stream<List<LocalMessage>> watchMessages(String gid) =>
+      _messages.watch(groupChatId(gid));
 
   MemberColors colorsOf(String gid) =>
       Map.unmodifiable(_colors[gid] ?? const {});
@@ -432,7 +438,9 @@ class GroupService {
     if (kind == 'update' || kind == 'meta') {
       return added.isEmpty && removed.isEmpty;
     }
-    final addsOk = added.every((m) => admin || m['uid'] == committer);
+    // Any member may add someone (owner's choice); the server allowed it only
+    // for an accepted invitation.
+    const addsOk = true;
     final removesOk = removed.every((m) {
       if (admin) return true;
       // Fenced by the server: no longer in its roster for that device.
@@ -484,14 +492,21 @@ class GroupService {
       );
       return;
     }
-    if (!info.isAdmin(uid)) return;
     final accepted = await _db
         .collection('groups/$gid/invites')
         .where('status', isEqualTo: 'accepted')
-        .limit(1)
         .get();
-    if (accepted.docs.isEmpty) return;
-    final invite = accepted.docs.first;
+    // The inviter's device adds the person; administrators step in for an
+    // inviter who has left.
+    final invite = accepted.docs
+        .where(
+          (d) =>
+              d.data()['by'] == uid ||
+              (info.isAdmin(uid) &&
+                  !info.members.any((m) => m.uid == d.data()['by'])),
+        )
+        .firstOrNull;
+    if (invite == null) return;
     final devices = ((invite.data()['devices'] as List?) ?? const [])
         .cast<String>();
     final packages = <Map<String, Object>>[];
@@ -603,7 +618,8 @@ class GroupService {
       // Not a profile message.
     }
     final decoded = decodeMessagePayload(plain);
-    if (decoded.mutation != null) return; // reactions and edits: later version
+    // Edits, reactions and deletes are stored like 1:1 ones: the history's
+    // projection applies an edit or delete only from the message's author.
     await _messages.add(
       LocalMessage(
         id: id,
@@ -615,20 +631,102 @@ class GroupService {
         body: decoded.body,
         status: decoded.status,
         quote: decoded.quote,
+        mutation: decoded.mutation,
       ),
     );
   }
 
   // ---------------------------------------------------------------- sending
 
+  /// Edits one of this account's own messages, for everyone (up to 10 times
+  /// within 24 hours, as in 1:1 chats).
+  Future<void> edit(String gid, String targetId, String body) async {
+    final target = await _own(gid, targetId);
+    final age = _now().difference(target.sentAt);
+    if (age.isNegative ||
+        age > const Duration(hours: 24) ||
+        target.editClock >= 10) {
+      throw GroupActionError(
+        'You can edit your messages up to 10 times within 24 hours.',
+      );
+    }
+    if (body.trim() == target.body) {
+      throw GroupActionError('Make a change before saving.');
+    }
+    if (messageTooLong(body)) throw GroupActionError(messageLimitError);
+    await _control(
+      gid,
+      MessageMutation(
+        kind: MessageMutationKind.edit,
+        targetId: targetId,
+        body: body.trim(),
+        revision: target.editClock + 1,
+      ),
+    );
+  }
+
+  /// Deletes one of this account's own messages for everyone.
+  Future<void> deleteForEveryone(String gid, String targetId) async {
+    await _own(gid, targetId);
+    await _control(
+      gid,
+      MessageMutation(kind: MessageMutationKind.delete, targetId: targetId),
+    );
+  }
+
+  /// Adds, changes or (the same emoji again) removes this account's reaction.
+  Future<void> react(String gid, String targetId, String emoji) async {
+    final target = await _messages.get(groupChatId(gid), targetId);
+    if (target == null || !target.visible) {
+      throw GroupActionError('That message is no longer here.');
+    }
+    final previous = target.reactions[uid];
+    await _control(
+      gid,
+      MessageMutation(
+        kind: MessageMutationKind.reaction,
+        targetId: targetId,
+        emoji: emoji,
+        operation: previous?.emoji == emoji
+            ? ReactionOperation.clear
+            : ReactionOperation.set,
+        revision: (target.reactionClocks[uid] ?? previous?.revision ?? 0) + 1,
+      ),
+    );
+  }
+
+  /// Removes a message from this phone only.
+  Future<void> deleteLocally(String gid, String messageId) =>
+      _messages.add(LocalMessage.tombstone(groupChatId(gid), messageId));
+
+  Future<LocalMessage> _own(String gid, String targetId) async {
+    final target = await _messages.get(groupChatId(gid), targetId);
+    if (target == null || target.senderUid != uid || target.remotelyDeleted) {
+      throw GroupActionError('You can only change your own messages.');
+    }
+    return target;
+  }
+
+  Future<void> _control(String gid, MessageMutation mutation) {
+    final checked = MessageMutation.fromJson(mutation.toJson());
+    return _publish(
+      gid,
+      encodeMessagePayload(text: '', now: _now(), mutation: checked),
+      mutation: checked,
+    );
+  }
+
   /// Encrypts and publishes one text message. The message is saved first
   /// (unconfirmed); a definite refusal removes it, an unknown outcome keeps
   /// it unconfirmed, and it is never resent automatically.
-  Future<void> send(String gid, String text) => _publish(
-    gid,
-    encodeMessagePayload(text: text, now: _now()),
-    text: text,
-  );
+  Future<void> send(String gid, String text) {
+    if (messageTooLong(text)) throw GroupActionError(messageLimitError);
+    return _publish(
+      gid,
+      encodeMessagePayload(text: text, now: _now()),
+      text: text,
+    );
+  }
 
   /// This account's primary colour name, kept current by the app layer.
   String ownColor = 'ember';
@@ -651,7 +749,12 @@ class GroupService {
     }
   }
 
-  Future<void> _publish(String gid, List<int> payload, {String? text}) async {
+  Future<void> _publish(
+    String gid,
+    List<int> payload, {
+    String? text,
+    MessageMutation? mutation,
+  }) async {
     final n = _now().microsecondsSinceEpoch;
     final id = '$deviceId-$n';
     final chatId = groupChatId(gid);
@@ -727,6 +830,20 @@ class GroupService {
         },
       );
       if (text != null) await _messages.add(local(MessageStatus.ok));
+      if (mutation != null) {
+        await _messages.add(
+          LocalMessage(
+            id: id,
+            chatId: chatId,
+            senderUid: uid,
+            senderDevice: deviceId,
+            outgoing: true,
+            sentAt: sentAt,
+            body: '',
+            mutation: mutation,
+          ),
+        );
+      }
     } on FirebaseException {
       // Refused in every form: nothing was published.
       if (text != null) await _messages.remove(chatId, id);

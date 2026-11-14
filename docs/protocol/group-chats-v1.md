@@ -58,7 +58,8 @@ Handle-based and bounded, wiping buffers with `fp_free`, like `FpSession`:
 
 A staged commit's summary lists the leaves added, removed and updated and the new
 name and roles, so the app can check it against the server roster and its rules
-(only administrators change membership, names and roles) before merging.
+(only administrators remove people and change names and roles; any member's device
+may add someone whose invitation was accepted) before merging.
 
 The **name and roles** live in an application-defined group-context extension, changed
 only by Commits. They are therefore encrypted, authenticated by MLS, and included in a
@@ -126,9 +127,9 @@ challenge, roles and limits.
 | Operation | Who | What the transaction does |
 |---|---|---|
 | `create` | any account (5 a day) | `groups/{gid}`, creator as administrator, `groupRefs` |
-| `invite(uid)` | administrator | `groups/{gid}/invites/{uid}`, refused if either has blocked the other; at most 20 pending per recipient |
+| `invite(uid)` | any member | `groups/{gid}/invites/{uid}`; needs an accepted 1:1 chat between the two; refused if either has blocked the other; at most 20 pending per recipient |
 | `accept` / `decline` | the invitee | marks the invite |
-| `add(uid, epoch, commit, welcomes, packages)` | an administrator's device, after `accept` | checks `epoch`, consumes the packages, writes the Commit, the Welcomes, `members` and `groupRefs`, and raises `epoch`, all at once |
+| `add(uid, epoch, commit, welcomes, packages)` | any member's device (the inviter's, or an administrator's if the inviter left), after `accept` | checks `epoch`, consumes the packages, writes the Commit, the Welcomes, `members` and `groupRefs`, and raises `epoch`, all at once |
 | `addDevice(device, …)` | the same account's other device | the same, for a newly linked device |
 | `remove(uid, epoch, commit)` | administrator | removes every leaf of that account |
 | `leave` | a member | removes it from `members` and `groupRefs` at once (it can no longer read) and adds its leaves to `fence` |
@@ -186,8 +187,11 @@ devices, rechecking fences, as `pushOnMessage` does.
   the first bubble and a small avatar beside the last. The header shows the group
   name and the number of people. Tapping it opens *Group info*:
   - the members and who are administrators;
-  - for administrators: *Add people*, *Rename* and *Remove*;
-  - for everyone: *Leave*.
+  - for everyone: *Add people* (from your 1:1 contacts) and *Leave*;
+  - for administrators also: *Rename* and *Remove*.
+- **Message actions.** Hold a message: react (anyone); *Edit* and *Delete for
+  everyone* (your own messages only; every member's phone applies them only from the
+  author); *Delete for me* (any message, this phone only).
 - **Colours.**
   - **Your** messages use your primary chat colour, as in 1:1 chats.
   - **Each other member's** messages use the secondary (soft) version of *their own*

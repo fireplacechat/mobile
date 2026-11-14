@@ -1,4 +1,9 @@
 /// Group chats (mobile decision 0050, `docs/protocol/group-chats-v1.md`).
+///
+/// Off unless the app is built with `--dart-define=FIREPLACE_GROUPS=true`, so
+/// release builds have no groups until the release gates in 0050 are met.
+const groupsEnabled = bool.fromEnvironment('FIREPLACE_GROUPS');
+
 abstract final class GroupLimits {
   static const maxMembers = 16;
   static const maxNameChars = 40;
@@ -101,8 +106,17 @@ class GroupRefused implements Exception {
       'You have made the most groups allowed today. Try again tomorrow.',
     'too many groups' => 'You are in the most groups allowed.',
     'not an administrator' => 'Only administrators can do that.',
+    'not a contact' => 'You can invite only people you already chat with.',
     'expired' => 'This invitation has expired.',
     'no invite' => 'This invitation is no longer open.',
     _ => 'That did not work. Try again.',
   };
+}
+
+/// An action this device refused before sending, in plain words.
+class GroupActionError implements Exception {
+  GroupActionError(this.message);
+  final String message;
+  @override
+  String toString() => message;
 }

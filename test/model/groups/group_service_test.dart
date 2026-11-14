@@ -9,56 +9,7 @@ import 'package:fireplace/src/model/groups/group_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_group_server.dart';
-
-class Phone {
-  Phone._(this.uid, this.service, this.messages, this.secrets);
-  final String uid;
-  final GroupService service;
-  final MemoryMessageStore messages;
-  final MemorySecretStore secrets;
-
-  static Future<Phone> create(
-    FakeFirebaseFirestore db,
-    String uid,
-    Directory root,
-  ) async {
-    await db.collection('usernames').doc(uid).set({'uid': uid});
-    await db.collection('users').doc(uid).set({
-      'username': uid,
-      'displayName': uid,
-    });
-    final secrets = MemorySecretStore();
-    final device = await KeyService(db, secrets).ensureDevice(uid);
-    final messages = MemoryMessageStore();
-    final service = GroupService(
-      db: db,
-      uid: uid,
-      device: device,
-      secrets: secrets,
-      historyDir: Directory('${root.path}/$uid')..createSync(recursive: true),
-      messages: messages,
-      requestTimeout: const Duration(seconds: 10),
-    );
-    await service.start();
-    return Phone._(uid, service, messages, secrets);
-  }
-}
-
-/// Waits (in real time) until [ready] holds.
-Future<void> until(
-  Future<bool> Function() ready, {
-  String what = 'condition',
-}) async {
-  final end = DateTime.now().add(const Duration(seconds: 20));
-  while (!await ready()) {
-    if (DateTime.now().isAfter(end)) fail('Timed out waiting for $what');
-    await Future<void>.delayed(const Duration(milliseconds: 50));
-  }
-}
-
-Future<List<String>> texts(Phone p, String gid) async => [
-  for (final m in await p.messages.watch(groupChatId(gid)).first) m.body,
-];
+import '../../support/group_phones.dart';
 
 void main() {
   late Directory root;
@@ -178,11 +129,12 @@ void main() {
   test('an administrator renames the group for everyone', () async {
     final gid = await bookClub();
     await alice.service.rename(gid, 'Tea club');
-    await until(
-      () async => bob.service.groups[gid]?.name == 'Tea club',
-      what: 'rename',
-    );
-    expect(alice.service.groups[gid]!.name, 'Tea club');
+    for (final p in [alice, bob]) {
+      await until(
+        () async => p.service.groups[gid]?.name == 'Tea club',
+        what: 'rename on ${p.uid}',
+      );
+    }
   });
 
   test("a member's rename is refused by the others", () async {
@@ -213,6 +165,107 @@ void main() {
       await alice.service.send(gid, 'still here');
     },
   );
+
+  test(
+    'only the author edits or deletes for everyone; anyone reacts',
+    () async {
+      final gid = await bookClub();
+      await alice.service.send(gid, 'See you at 7');
+      Future<LocalMessage?> bobsCopy() async =>
+          (await bob.messages.watch(groupChatId(gid)).first)
+              .where((m) => m.senderUid == 'alice' && m.visible)
+              .firstOrNull;
+      await until(() async => (await bobsCopy()) != null, what: 'delivered');
+      final id = (await bobsCopy())!.id;
+
+      await alice.service.edit(gid, id, 'See you at 8');
+      await until(
+        () async => (await bobsCopy())?.body == 'See you at 8',
+        what: 'edit',
+      );
+      // Bob cannot edit or delete Alice's message.
+      await expectLater(
+        bob.service.edit(gid, id, 'hacked'),
+        throwsA(isA<GroupActionError>()),
+      );
+      await expectLater(
+        bob.service.deleteForEveryone(gid, id),
+        throwsA(isA<GroupActionError>()),
+      );
+
+      await bob.service.react(gid, id, '👍');
+      await until(
+        () async =>
+            (await alice.messages.get(
+              groupChatId(gid),
+              id,
+            ))?.reactions['bob']?.emoji ==
+            '👍',
+        what: 'reaction',
+      );
+
+      await alice.service.deleteForEveryone(gid, id);
+      await until(
+        () async =>
+            (await bob.messages.get(groupChatId(gid), id))?.remotelyDeleted ==
+            true,
+        what: 'deleted for everyone',
+      );
+    },
+  );
+
+  test('a member deletes a message from their own phone only', () async {
+    final gid = await bookClub();
+    await alice.service.send(gid, 'only mine to hide');
+    await until(
+      () async => (await texts(bob, gid)).contains('only mine to hide'),
+      what: 'delivered',
+    );
+    final id = (await bob.messages.watch(groupChatId(gid)).first).first.id;
+    await bob.service.deleteLocally(gid, id);
+    expect(await texts(bob, gid), isNot(contains('only mine to hide')));
+    expect(await texts(alice, gid), contains('only mine to hide'));
+  });
+
+  test(
+    'any member invites, and their device adds the person who accepts',
+    () async {
+      final gid = await bookClub();
+      final carol = await Phone.create(db, 'carol', root);
+      server.watchAccount('carol');
+      await bob.service.invite(gid, 'carol');
+      await until(
+        () async => carol.service.invitations.isNotEmpty,
+        what: 'invitation',
+      );
+      await carol.service.accept(gid);
+      await until(
+        () async => carol.service.groups.containsKey(gid),
+        what: 'Carol joins',
+      );
+      await until(
+        () async => alice.service.groups[gid]!.members.length == 3,
+        what: 'Alice sees Carol',
+      );
+      await carol.service.send(gid, 'hello from Carol');
+      await until(
+        () async => (await texts(alice, gid)).contains('hello from Carol'),
+        what: 'Carol speaks',
+      );
+      await carol.service.close();
+    },
+  );
+
+  test('the group ends when its last member leaves', () async {
+    final gid = await bookClub();
+    await bob.service.leave(gid);
+    await alice.service.leave(gid);
+    expect(alice.service.groups, isEmpty);
+    await until(
+      () async => !(await db.doc('groups/$gid').get()).exists,
+      what: 'group deleted',
+    );
+  });
 
   test('a declined invitation goes away and adds nobody', () async {
     final gid = await alice.service.create('Book club', ['bob']);

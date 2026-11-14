@@ -2,6 +2,10 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:fireplace/src/app/chat_color_preference.dart';
+import 'package:fireplace/src/model/groups/group_models.dart'
+    show groupsEnabled;
+import 'package:fireplace/src/model/groups/group_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -127,6 +131,7 @@ class AppSession {
     required this.keys,
     required this.safety,
     this.pushNotifications,
+    this.groups,
     LocalChatPreferences? chatPreferences,
     required StreamSubscription<void> chatsSub,
     required this.dispose,
@@ -142,6 +147,9 @@ class AppSession {
   final KeyService keys;
   final SafetyService safety;
   final PushNotificationService? pushNotifications;
+
+  /// Group chats (decision 0050); null unless built with FIREPLACE_GROUPS.
+  final GroupService? groups;
   final StreamSubscription<void> _chatsSub;
   final Future<void> Function() dispose;
 
@@ -321,6 +329,27 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       );
       scope.add(onMessage.cancel);
     }
+    // 9b. Group chats (decision 0050), only in builds with FIREPLACE_GROUPS.
+    // A failure here leaves groups unavailable and 1:1 chats untouched.
+    GroupService? groups;
+    if (groupsEnabled) {
+      try {
+        final service = GroupService(
+          db: db,
+          uid: user.uid,
+          device: device,
+          secrets: secrets,
+          historyDir: historyDir,
+          messages: store,
+        )..ownColor = ref.read(chatBubbleColorsProvider).outgoing.name;
+        await service.start();
+        scope.add(service.close);
+        groups = service;
+      } catch (_) {
+        groups = null;
+      }
+      scope.checkActive();
+    }
     // 10. Return the session with cleanup and local-data removal.
     final session = AppSession(
       uid: user.uid,
@@ -330,6 +359,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       keys: keys,
       safety: safety,
       pushNotifications: pushNotifications,
+      groups: groups,
       chatPreferences: chatPreferences,
       chatsSub: chatsSub,
       destroyLocalData: () async {

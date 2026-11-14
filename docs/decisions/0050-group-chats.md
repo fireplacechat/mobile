@@ -18,6 +18,22 @@ The interfaces, Firestore schema, rules, function and screens are specified in
 | Size | 16 accounts, 4 participating devices each (64 leaves), 32 groups per account |
 | Dependency | OpenMLS 0.9.2 with openmls_rust_crypto 0.6.0 approved **for a spike only**; production use needs a second approval |
 
+### Who may do what (owner, 2026-11-14)
+
+| Action | Who |
+|---|---|
+| Create a group | anyone (5 a day; at most 32 groups per account) |
+| Invite someone | **any member**, but only a person they already have an accepted 1:1 chat with; the backend function checks this. The invitee must accept. |
+| Add the person who accepted | the inviter's device (an administrator's if the inviter has left) |
+| Remove someone, change roles | administrators |
+| Rename | administrators; other members' phones refuse anyone else's rename |
+| Leave | anyone, at any time |
+| Last administrator leaves | every remaining member becomes an administrator |
+| End a group | no one ends it for others; it ends when its last member leaves, and the server then deletes all its records. Members keep their own copies of past messages. |
+| Edit, delete for everyone | **only the message's author**, as in 1:1 chats (edits up to 10 times within 24 hours); the change shows on every member's phone |
+| React | anyone |
+| Delete for me | anyone, on their own phone only |
+
 ### What the suite means
 
 - **Confidentiality is post-quantum:** every key exchange is hybrid X25519 + ML-KEM-768,

@@ -38,12 +38,25 @@ class FakeGroupServer {
     );
   }
 
+  // One request at a time, as the backend's transactions serialise them.
+  Future<void> _queue = Future<void>.value();
+
   Future<void> _handle(
     DocumentReference<Map<String, dynamic>> ref,
     Map<String, dynamic> op,
     Future<void> Function(Map<String, dynamic>) run,
+  ) {
+    if (op['status'] != null || !_done.add(ref.path)) return Future.value();
+    final next = _queue.then((_) => _handleNow(ref, op, run));
+    _queue = next.catchError((Object _) {});
+    return next;
+  }
+
+  Future<void> _handleNow(
+    DocumentReference<Map<String, dynamic>> ref,
+    Map<String, dynamic> op,
+    Future<void> Function(Map<String, dynamic>) run,
   ) async {
-    if (op['status'] != null || !_done.add(ref.path)) return;
     try {
       await run(op);
       processed.add('${op['kind']}');
@@ -91,7 +104,8 @@ class FakeGroupServer {
 
   Future<void> _group(String gid, Map<String, dynamic> op) async {
     final groupRef = db.doc('groups/$gid');
-    final group = (await groupRef.get()).data()!;
+    final group = (await groupRef.get()).data();
+    if (group == null) throw _Refused('no group');
     final members = Map<String, dynamic>.from(group['members'] as Map);
     final by = op['by'] as String;
     final epoch = group['epoch'] as int;
@@ -110,8 +124,7 @@ class FakeGroupServer {
 
     switch (op['kind']) {
       case 'invite':
-        if ((members[by] as Map)['role'] != 'admin')
-          throw _Refused('not an administrator');
+        // Any member invites (the backend also requires a 1:1 contact).
         final target = op['uid'] as String;
         await db.doc('groups/$gid/invites/$target').set({
           'by': by,
@@ -150,8 +163,13 @@ class FakeGroupServer {
       case 'leave':
         final leaving = members.remove(by) as Map;
         await db.doc('users/$by/groupRefs/$gid').delete();
+        if (members.isEmpty) {
+          await groupRef.delete();
+          return;
+        }
+        // The fake merges map fields on update, so delete the key itself.
         await groupRef.update({
-          'members': members,
+          'members.$by': FieldValue.delete(),
           'fence': [
             ...(group['fence'] as List),
             {'uid': by, 'devices': leaving['devices']},
@@ -162,8 +180,10 @@ class FakeGroupServer {
         await groupRef.update({'fence': <Object>[], 'epoch': epoch + 1});
       case 'remove':
         await commit('membership');
-        members.remove(op['uid']);
-        await groupRef.update({'members': members, 'epoch': epoch + 1});
+        await groupRef.update({
+          'members.${op['uid']}': FieldValue.delete(),
+          'epoch': epoch + 1,
+        });
         await db.doc('users/${op['uid']}/groupRefs/$gid').delete();
     }
   }
