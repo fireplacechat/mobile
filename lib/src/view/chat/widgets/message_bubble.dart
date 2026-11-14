@@ -187,6 +187,8 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
     final t = FireplaceUiTokens.of(context);
     final colors = ref.watch(chatBubbleColorsProvider);
     final mine = message.outgoing;
+    final ChatBubbleColor theirs =
+        widget.incomingColor ?? ref.watch(peerColorProvider(message.senderUid));
     final bad = message.status == MessageStatus.undecryptable;
     final fg = mine ? t.outgoingText : t.incomingText;
     final time = clockTime(message.sentAt, MaterialLocalizations.of(context));
@@ -205,9 +207,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
               : widget.senderName!);
     final base = mine
         ? colors.outgoing.outgoing
-        : (widget.incomingColor ?? colors.incoming).incoming(
-            Theme.of(context).brightness,
-          );
+        // Someone else's message: the soft tint of that person's own
+        // colour (decision 0052).
+        : theirs.incoming(Theme.of(context).brightness);
     final quoted = message.quote != null && !message.remotelyDeleted;
     // With a quote the bubble's own padding shrinks to frame the panel, so
     // the text keeps its usual distance from the edge with this.

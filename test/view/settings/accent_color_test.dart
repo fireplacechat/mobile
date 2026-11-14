@@ -103,14 +103,5 @@ void main() {
       (fill.gradient! as LinearGradient).colors.last,
       ChatBubbleColor.ocean.outgoing,
     );
-    // The color of received messages is not the accent.
-    ProviderScope.containerOf(avatar)
-        .read(chatBubbleColorsProvider.notifier)
-        .incoming(ChatBubbleColor.plum);
-    await tester.pumpAndSettle();
-    expect(
-      FireplaceUiTokens.of(tester.element(find.byType(PersonAvatar))).accent,
-      ChatBubbleColor.ocean.outgoing,
-    );
   });
 }

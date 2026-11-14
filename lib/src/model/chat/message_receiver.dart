@@ -107,6 +107,9 @@ class MessageReceiver {
   /// message is reported by whichever isolate received it (decision 0030).
   void Function(LocalMessage message)? onArrival;
 
+  /// Called with the colour a message from someone else carried.
+  void Function(String peerUid, String color)? onPeerColor;
+
   /// No prekey upkeep from here (the background push handler).
   bool upkeep = true;
 
@@ -475,7 +478,9 @@ class MessageReceiver {
     }
 
     // The message authenticated, so its key is spent whatever the payload holds.
-    final (:body, :status, :mutation, :quote) = decodeMessagePayload(plain);
+    final (:body, :status, :mutation, :quote, :color) = decodeMessagePayload(
+      plain,
+    );
     // Everything below is one recoverable unit: record the outcome in the journal, then
     // apply it. A crash or storage failure after this point is completed on the next run
     // instead of leaving the history written but the ratchet (or prekey erasure) undone.
@@ -494,6 +499,8 @@ class MessageReceiver {
     };
     await _journal.writeJournal(journal);
     await _journal.applyJournal(journal);
+    // The sender's own colour, for showing their messages (decision 0052).
+    if (su != uid && color != null) onPeerColor?.call(su, color);
     if (su != uid) {
       onArrival?.call(
         LocalMessage(

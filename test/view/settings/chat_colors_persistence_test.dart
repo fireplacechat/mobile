@@ -70,19 +70,13 @@ void main() {
     await first
         .read(chatBubbleColorsProvider.notifier)
         .outgoing(ChatBubbleColor.plum);
-    await first
-        .read(chatBubbleColorsProvider.notifier)
-        .incoming(ChatBubbleColor.ocean);
     first.dispose();
     expect(
       await loaded(containerFor(store)),
-      const ChatBubbleColors(
-        outgoing: ChatBubbleColor.plum,
-        incoming: ChatBubbleColor.ocean,
-      ),
+      const ChatBubbleColors(outgoing: ChatBubbleColor.plum),
     );
-    // Only the two names are written, under one key.
-    expect(store.data, {ChatAppearance.storageKey: 'plum,ocean'});
+    // Only the colour's name is written, under one key.
+    expect(store.data, {ChatAppearance.storageKey: 'plum'});
   });
 
   test('reset is remembered too', () async {
@@ -103,7 +97,9 @@ void main() {
         'ocean,unknown,extra',
         const ChatBubbleColors(outgoing: ChatBubbleColor.ocean),
       ),
-      (',forest', const ChatBubbleColors(incoming: ChatBubbleColor.forest)),
+      // An older save named a second colour for other people's messages.
+      (',forest', const ChatBubbleColors()),
+      ('plum,forest', const ChatBubbleColors(outgoing: ChatBubbleColor.plum)),
     ]) {
       final store = MemorySecretStore()
         ..data[ChatAppearance.storageKey] = saved;
@@ -148,7 +144,7 @@ void main() {
       expect(store.data, isEmpty);
       store.failWrite = false;
       await controller.outgoing(ChatBubbleColor.forest);
-      expect(store.data[ChatAppearance.storageKey], 'forest,stone');
+      expect(store.data[ChatAppearance.storageKey], 'forest');
     },
   );
 
@@ -189,13 +185,13 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.textContaining('kept on this device'), findsOneWidget);
+    expect(find.byKey(const Key('colorExplanation')), findsOneWidget);
     expect(find.textContaining('reset when the app restarts'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('outgoing-ocean')));
     await tester.pumpAndSettle();
     expect(
       find.text(
-        'Could not save your colors. They will last until the app closes.',
+        'Could not save your color. It will last until the app closes.',
       ),
       findsOneWidget,
     );

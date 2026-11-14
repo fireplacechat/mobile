@@ -12,11 +12,16 @@ import 'package:fireplace/src/db/message_quote.dart';
 ///
 /// Each message also carries the sender's clock time `ts`. Changing these
 /// fields changes the wire format, which needs a decision record.
+///
+/// A text message may carry `color`, the name of the sender's own chat colour
+/// (decision 0052), so the other person's phone can show their messages in
+/// it. Apps from before it ignore the field.
 List<int> encodeMessagePayload({
   required String text,
   required DateTime now,
   MessageQuote? quote,
   MessageMutation? mutation,
+  String? color,
 }) => utf8.encode(
   jsonEncode({
     'v': quote != null || mutation?.kind == MessageMutationKind.edit
@@ -28,6 +33,7 @@ List<int> encodeMessagePayload({
       'type': 'text',
       'body': text,
       if (quote != null) 'quote': quote.toJson(),
+      'color': ?color,
     } else
       ...mutation.toJson(),
     'ts': now.millisecondsSinceEpoch,
@@ -41,6 +47,9 @@ typedef DecodedPayload = ({
   MessageStatus status,
   MessageMutation? mutation,
   MessageQuote? quote,
+
+  /// The sender's own colour name, when the message carried a well-formed one.
+  String? color,
 });
 
 DecodedPayload decodeMessagePayload(List<int> plain) {
@@ -56,6 +65,7 @@ DecodedPayload decodeMessagePayload(List<int> plain) {
         quote: payload['v'] == 3 && payload['quote'] != null
             ? MessageQuote.fromJson(Map<String, dynamic>.from(payload['quote']))
             : null,
+        color: _colorName(payload['color']),
       );
     }
     if (payload is Map &&
@@ -68,6 +78,7 @@ DecodedPayload decodeMessagePayload(List<int> plain) {
         status: MessageStatus.ok,
         mutation: MessageMutation.fromJson(Map<String, dynamic>.from(payload)),
         quote: null,
+        color: null,
       );
     }
     return (
@@ -75,6 +86,7 @@ DecodedPayload decodeMessagePayload(List<int> plain) {
       status: MessageStatus.ok,
       mutation: null,
       quote: null,
+      color: null,
     );
   } catch (_) {
     return (
@@ -82,6 +94,12 @@ DecodedPayload decodeMessagePayload(List<int> plain) {
       status: MessageStatus.undecryptable,
       mutation: null,
       quote: null,
+      color: null,
     );
   }
 }
+
+/// A colour name is lower-case letters only; anything else is dropped, never
+/// shown or stored.
+String? _colorName(Object? value) =>
+    value is String && RegExp(r'^[a-z]{1,24}$').hasMatch(value) ? value : null;

@@ -6,16 +6,21 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/ui_fixture.dart';
 
 class Safety extends FixtureSafety {}
 
-Future<void> openChat(WidgetTester t, UiFixture f) async {
+Future<void> openChat(
+  WidgetTester t,
+  UiFixture f, {
+  List<Override> overrides = const [],
+}) async {
   await t.pumpWidget(
     ProviderScope(
-      overrides: f.overrides,
+      overrides: [...f.overrides, ...overrides],
       child: MaterialApp(
         theme: fireplaceTheme(Brightness.light),
         home: const ChatScreen(chatId: 'alice_fred'),

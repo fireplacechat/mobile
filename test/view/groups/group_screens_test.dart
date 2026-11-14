@@ -427,17 +427,6 @@ void main() {
       plum,
     );
     expect(find.descendant(of: panel, matching: find.text('bob')), findsOne);
-    // A 1:1 reply to Bob uses the same colour, known from this group.
-    expect(
-      ProviderScope.containerOf(t.element(find.byType(GroupChatScreen)))
-          .read(peerColorProvider('bob')),
-      ChatBubbleColor.plum,
-    );
-    expect(
-      ProviderScope.containerOf(t.element(find.byType(GroupChatScreen)))
-          .read(peerColorProvider('fred')),
-      isNull,
-    );
 
     await t.enterText(find.byKey(const Key('composer')), 'to Bob');
     await t.pump();

@@ -33,6 +33,7 @@ Future<void> eraseAccountSecrets(SecretStore store, String uid) async {
     'msgkey',
     'groupkey',
     'groupcolors',
+    'peercolors',
     'chatprefskey',
     'hidden',
     'pushasked',

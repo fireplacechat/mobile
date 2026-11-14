@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
-import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/chat/message_compose_target.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
@@ -153,16 +152,14 @@ class _MessageComposerContextState
                 author: target.message.senderUid == uid ? 'You' : widget.name,
                 body: clipMessage(live?.body ?? '', 1024),
                 unavailable: live == null || live.remotelyDeleted,
-                // The colour of the person replied to: this account's own;
-                // or theirs, which this phone knows if it shares a group with
-                // them; or else the one their messages have on this phone.
+                // The colour of the person replied to: theirs, or this
+                // account's own when replying to oneself.
                 color:
                     (target.message.senderUid == uid
                             ? colors.outgoing
                             : ref.watch(
-                                    peerColorProvider(target.message.senderUid),
-                                  ) ??
-                                  colors.incoming)
+                                peerColorProvider(target.message.senderUid),
+                              ))
                         .accentText(Theme.of(context).brightness),
                 onCancel: () => ref.read(provider.notifier).clear(),
               ),

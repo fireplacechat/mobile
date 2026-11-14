@@ -50,6 +50,8 @@ class ChatService {
     required LocalMessageStore messages,
     SafetyService? safety,
     SharedLock? lock,
+    this.ownColor,
+    this.onPeerColor,
     @visibleForTesting Future<void> Function(WriteBatch batch)? commitBatch,
     @visibleForTesting Future<void> Function()? beforeChatListBump,
   }) : _db = db,
@@ -68,6 +70,11 @@ class ChatService {
     // Another isolate (the push handler) may have received meanwhile.
     _lock.onInvalidate(_secrets.forget);
   }
+
+  /// This account's own colour name, sent inside its text messages, and what
+  /// to do with the colour another person's message carries (decision 0052).
+  final String? Function()? ownColor;
+  final void Function(String peerUid, String color)? onPeerColor;
 
   final FirebaseFirestore _db;
   final String uid;
@@ -116,7 +123,7 @@ class ChatService {
     alerts: _alerts,
     peerOf: peerOf,
     messageRetention: messageRetention,
-  );
+  )..ownColor = ownColor;
 
   late final _receiver = MessageReceiver(
     db: _db,
@@ -135,7 +142,7 @@ class ChatService {
     journal: _journal,
     recovery: _recovery,
     peerOf: peerOf,
-  );
+  )..onPeerColor = onPeerColor;
 
   /// Serializes all session-state changes, also with a background isolate
   /// that shares this account's stores (decision 0030).

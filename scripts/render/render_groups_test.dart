@@ -19,6 +19,7 @@ import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/groups/group_chat_screen.dart';
 import 'package:fireplace/src/view/groups/group_info_screen.dart';
+import 'package:fireplace/src/view/groups/new_group_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -131,7 +132,11 @@ void main() {
             overrides: [
               ...fixture.overrides,
               groupServiceProvider.overrideWithValue(alice.service),
-              groupContactsProvider.overrideWithValue(const ['bob_jones']),
+              groupContactsProvider.overrideWithValue(const [
+                'bob_jones',
+                'carol',
+                'dana',
+              ]),
             ],
             child: RepaintBoundary(
               key: boundary,
@@ -209,6 +214,16 @@ void main() {
           for (var i = 0; i < 10; i++) {
             await t.pump(const Duration(milliseconds: 100));
           }
+        },
+      );
+      await render(
+        'new-group',
+        const NewGroupScreen(),
+        act: () async {
+          await t.enterText(find.byKey(const Key('groupName')), 'Hill walkers');
+          await t.pump(const Duration(milliseconds: 100));
+          await t.tap(find.byKey(const Key('pick_bob_jones')));
+          await t.pump(const Duration(milliseconds: 300));
         },
       );
       await render('joined-later', GroupChatScreen(gid: theirs));

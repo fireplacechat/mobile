@@ -42,9 +42,7 @@ class ChatAppearance extends Notifier<ChatBubbleColors> {
   /// If saving fails the future fails; the choice still lasts until the app
   /// closes.
   Future<void> outgoing(ChatBubbleColor color) =>
-      _choose(ChatBubbleColors(outgoing: color, incoming: state.incoming));
-  Future<void> incoming(ChatBubbleColor color) =>
-      _choose(ChatBubbleColors(outgoing: state.outgoing, incoming: color));
+      _choose(ChatBubbleColors(outgoing: color));
   Future<void> reset() => _choose(const ChatBubbleColors());
 
   Future<void> _choose(ChatBubbleColors colors) {
@@ -63,3 +61,19 @@ class ChatAppearance extends Notifier<ChatBubbleColors> {
 
 final chatBubbleColorsProvider =
     NotifierProvider<ChatAppearance, ChatBubbleColors>(ChatAppearance.new);
+
+/// The colour to show another person's 1:1 messages in: the one they chose,
+/// once a message of theirs has carried it; the default before that.
+final peerColorProvider = Provider.autoDispose.family<ChatBubbleColor, String>((
+  ref,
+  peerUid,
+) {
+  final peers = ref.watch(appSessionProvider).value?.peerColors;
+  if (peers == null) return ChatBubbleColors.unknown;
+  final changes = peers.changes.listen((changed) {
+    if (changed == peerUid) ref.invalidateSelf();
+  });
+  ref.onDispose(changes.cancel);
+  return ChatBubbleColor.values.asNameMap()[peers.of(peerUid)] ??
+      ChatBubbleColors.unknown;
+});

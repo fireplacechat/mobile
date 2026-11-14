@@ -40,13 +40,10 @@ void main() {
           c.outgoing,
           reason: 'outgoing ${c.label}',
         );
-        expect(
-          swatch(t, 'incoming-${c.name}'),
-          c.incoming(b),
-          reason: 'incoming ${c.label} must show the bubble colour',
-        );
+        // One colour to choose: there is no second row for other people's.
+        expect(find.byKey(ValueKey('incoming-${c.name}')), findsNothing);
         // The whole block is the colour, with its name inside.
-        for (final side in ['outgoing', 'incoming']) {
+        for (final side in ['outgoing']) {
           final key = find.byKey(ValueKey('$side-${c.name}'));
           final fill = t.widget<Material>(
             find.descendant(of: key, matching: find.byType(Material)),
@@ -61,10 +58,9 @@ void main() {
         }
       }
       expect(find.byType(ChoiceChip), findsNothing);
-      // Only the chosen block in each group carries the ring.
+      // Only the chosen block carries the ring.
       for (final c in ChatBubbleColor.values) {
         expect(block(t, 'outgoing-${c.name}').selected, c.name == 'ember');
-        expect(block(t, 'incoming-${c.name}').selected, c.name == 'stone');
       }
       Color ring(String key) =>
           ((t

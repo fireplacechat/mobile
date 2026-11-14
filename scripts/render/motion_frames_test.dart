@@ -229,15 +229,8 @@ void main() {
 
   const pairs = {
     'ember-stone': ChatBubbleColors(),
-    'ember-ember': ChatBubbleColors(incoming: ChatBubbleColor.ember),
-    'forest-forest': ChatBubbleColors(
-      outgoing: ChatBubbleColor.forest,
-      incoming: ChatBubbleColor.forest,
-    ),
-    'ocean-ocean': ChatBubbleColors(
-      outgoing: ChatBubbleColor.ocean,
-      incoming: ChatBubbleColor.ocean,
-    ),
+    'forest-stone': ChatBubbleColors(outgoing: ChatBubbleColor.forest),
+    'ocean-stone': ChatBubbleColors(outgoing: ChatBubbleColor.ocean),
   };
   for (final brightness in Brightness.values) {
     for (final pair in pairs.entries) {
