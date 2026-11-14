@@ -54,8 +54,17 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
     final service = ref.watch(groupServiceProvider);
     final inviter =
         ref.watch(peerUsernameProvider(widget.invitation.inviter)).value ?? '…';
+    // The card's own look, with the slightly rounded corners of the invite
+    // tickets and theme previews.
+    final cardShape = Theme.of(context).cardTheme.shape;
     return Card(
       key: Key('groupInvite_${widget.invitation.gid}'),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(6),
+        side: cardShape is RoundedRectangleBorder
+            ? cardShape.side
+            : BorderSide.none,
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
         child: Column(
