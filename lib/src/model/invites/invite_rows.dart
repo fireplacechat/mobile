@@ -1,6 +1,6 @@
 import 'dart:math';
 
-/// Person-to-person invites (app decision 0048, backend decision 0021).
+/// Person-to-person invites (app decision 0049, backend decision 0021).
 ///
 /// Every account has invite rows that unlock some time after it was created.
 /// The operator sets the schedule on the server; these defaults match the

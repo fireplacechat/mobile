@@ -13,7 +13,8 @@ import 'package:fireplace/src/model/settings/account_preferences.dart';
 ///  1. re-authenticate with the password,
 ///  2. flag the profile as `deleting` (so the app resumes deletion, not normal use),
 ///  3. stop the running session and freeze this account's preferences,
-///  4. delete sent messages, devices/prekeys, backup and named private records,
+///  4. delete sent messages, devices/prekeys, backup, named private records
+///     and the invite codes it made for others,
 ///  5. erase only this account's local history, settings and keychain entries,
 ///  6. release its username and delete its profile,
 ///  7. delete the Firebase Auth user and explicitly sign out.
@@ -167,6 +168,7 @@ class AccountService {
       await profileRef.collection('limits').doc(name).delete();
     }
     await profileRef.collection('challengeProof').doc('current').delete();
+    await _deleteInviteRows(profileRef);
 
     _onStep?.call('local');
     _requireAccount(uid);
@@ -196,6 +198,30 @@ class AccountService {
     // local auth session too. Never sign out an account selected meanwhile.
     if (_auth.currentUser == null || _auth.currentUser?.uid == uid) {
       await _auth.signOut();
+    }
+  }
+
+  /// The codes this account made for other people (decision 0049). Each row
+  /// holds a code in clear, so it goes with the account; an unused code's
+  /// invite goes too. A used invite stays, and the rules refuse to delete it.
+  /// The server already refuses every code of a deleting account, so a retry
+  /// may find an invite gone or not deletable; neither stops the deletion.
+  Future<void> _deleteInviteRows(
+    DocumentReference<Map<String, dynamic>> profileRef,
+  ) async {
+    final rows = await profileRef
+        .collection('inviteSlots')
+        .get(const GetOptions(source: Source.server));
+    for (final row in rows.docs) {
+      final invite = row.data()['invite'];
+      if (row.data()['used'] != true && invite is String) {
+        try {
+          await _db.collection('invites').doc(invite).delete();
+        } on FirebaseException catch (e) {
+          if (e.code != 'permission-denied' && e.code != 'not-found') rethrow;
+        }
+      }
+      await row.reference.delete();
     }
   }
 

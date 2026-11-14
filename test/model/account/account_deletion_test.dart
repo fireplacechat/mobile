@@ -5,6 +5,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:fireplace/fireplace_services.dart';
+import 'package:fireplace/src/model/invites/invite_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class Phone {
@@ -113,6 +114,29 @@ void main() {
     spies[auth] = user;
     return auth;
   }
+
+  test('deletes the invite codes it made, keeps used invites (0049)', () async {
+    final service = InviteService(db);
+    await service.create('alice', 0);
+    await service.create('alice', 1);
+    final rows = (await db.collection('users/alice/inviteSlots').get()).docs;
+    final unused = rows.firstWhere((r) => r.id == '0').data()['invite'];
+    final used = rows.firstWhere((r) => r.id == '1').data()['invite'];
+    await db.doc('invites/$used').update({'usedBy': 'dan'});
+    await db.doc('users/alice/inviteSlots/1').update({'used': true});
+    // An operator code the account itself signed up with is not its own.
+    await db.doc('invites/operator').set({'note': 'ops', 'usedBy': 'alice'});
+
+    await serviceFor(
+      signedInAs('alice'),
+      alice,
+    ).deleteAccount(password: 'correct horse');
+
+    expect(await count(db, 'users/alice/inviteSlots'), 0);
+    expect((await db.doc('invites/$unused').get()).exists, isFalse);
+    expect((await db.doc('invites/$used').get()).exists, isTrue);
+    expect((await db.doc('invites/operator').get()).exists, isTrue);
+  });
 
   test('deletes everything personal, keeps what belongs to others', () async {
     final auth = signedInAs('alice');

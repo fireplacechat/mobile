@@ -1,7 +1,8 @@
-# 0048: Invite page
+# 0049: Invite page
 
 Date: 2026-11-14. Status: proposed (issue #115). Server side: backend decision 0021,
-which holds the rules, the operator tools and their costs.
+which holds the rules, the operator tools and their costs. Builds on 0048 (account
+deletion isolation).
 
 ## What people see
 
@@ -36,6 +37,15 @@ With no rows the page says *You have no invites right now.*
   Operator codes cannot be read, and the batch is as before.
 - The code is drawn in the normal typeface, not monospace: codes contain the letter O
   but never zero, and the monospace O looks like a zero.
+
+## Account deletion
+
+Each row holds its code in clear, so deleting the account deletes them (0048's
+named-records step): the rows, and the invite of each unused code. Used invites stay,
+as backend 0021 and 0022 keep used invite records. A retry may find an invite gone or
+already refused; that does not stop the deletion, because the server refuses every
+code of a deleting or deleted account anyway. The Invite page's listeners belong to
+the signed-in account and stop when 0048 drops the session.
 
 ## Emulator builds
 
