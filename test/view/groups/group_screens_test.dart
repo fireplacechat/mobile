@@ -191,6 +191,24 @@ void main() {
     await tearDownPhones(t);
   });
 
+  testWidgets('editing your message through the dialog saves it', (t) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await t.runAsync(() => alice.service.send(gid, 'See you at 7'));
+    await pump(t, GroupChatScreen(gid: gid));
+    await settle(t, () => find.text('See you at 7').evaluate().isNotEmpty);
+    await t.longPress(find.text('See you at 7'));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('editGroupMessage')));
+    await t.pumpAndSettle();
+    await t.enterText(find.byType(TextField).last, 'See you at 8');
+    await t.tap(find.byKey(const Key('saveEdit')));
+    // The dialog closes while its field animates out; nothing may throw.
+    await settle(t, () => find.text('See you at 8').evaluate().isNotEmpty);
+    expect(t.takeException(), isNull);
+    await tearDownPhones(t);
+  });
+
   testWidgets('an administrator sees rename and remove; a member does not', (
     t,
   ) async {

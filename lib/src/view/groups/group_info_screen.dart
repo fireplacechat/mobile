@@ -5,6 +5,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/view/groups/contact_picker.dart';
 import 'package:fireplace/src/view/groups/group_avatar.dart';
+import 'package:fireplace/src/view/groups/text_prompt_dialog.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
@@ -67,31 +68,17 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
       false;
 
   Future<void> _rename(GroupInfo group) async {
-    final controller = TextEditingController(text: group.name);
-    final name = await showDialog<String>(
+    final entered = await showDialog<String>(
       context: context,
-      builder: (ctx) => UiDialog(
-        title: const Text('Rename group'),
-        content: TextField(
-          key: const Key('renameField'),
-          controller: controller,
-          autofocus: true,
-          maxLength: GroupLimits.maxNameChars,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            key: const Key('saveRename'),
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
+      builder: (_) => TextPromptDialog(
+        title: 'Rename group',
+        initial: group.name,
+        maxLength: GroupLimits.maxNameChars,
+        fieldKey: const Key('renameField'),
+        saveKey: const Key('saveRename'),
       ),
     );
-    controller.dispose();
+    final name = entered?.trim();
     final service = ref.read(groupServiceProvider);
     if (name == null || name.isEmpty || name == group.name || service == null) {
       return;

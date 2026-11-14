@@ -7,10 +7,10 @@ import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/groups/group_info_screen.dart';
+import 'package:fireplace/src/view/groups/text_prompt_dialog.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/widgets/clock_time.dart';
-import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
 
@@ -111,30 +111,14 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     if (choice.startsWith('react:')) {
       await _run(() => service.react(widget.gid, m.id, choice.substring(6)));
     } else if (choice == 'edit') {
-      final controller = TextEditingController(text: m.body);
       final body = await showDialog<String>(
         context: context,
-        builder: (ctx) => UiDialog(
-          title: const Text('Edit message'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            maxLines: null,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              key: const Key('saveEdit'),
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Save'),
-            ),
-          ],
+        builder: (_) => TextPromptDialog(
+          title: 'Edit message',
+          initial: m.body,
+          saveKey: const Key('saveEdit'),
         ),
       );
-      controller.dispose();
       if (body != null) await _run(() => service.edit(widget.gid, m.id, body));
     } else if (choice == 'deleteAll') {
       await _run(() => service.deleteForEveryone(widget.gid, m.id));
