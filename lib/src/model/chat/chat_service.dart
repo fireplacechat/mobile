@@ -36,8 +36,9 @@ export 'package:fireplace/src/model/chat/chat_summary.dart';
 /// today; an automatic TTL is planned). Messages live on in the recipients' own phones.
 const messageRetention = Duration(days: 30);
 
-/// Encrypts/decrypts messages and moves ciphertext through Firestore.
-/// Plaintext never leaves this class except into the on-device [LocalMessageStore].
+/// Account/device chat facade, wiring Firestore, keys and local storage.
+/// Shares one account lock across sending, receiving and recovery; views read
+/// message content from [LocalMessageStore], never from Firestore plaintext.
 class ChatService {
   ChatService({
     required FirebaseFirestore db,

@@ -22,6 +22,9 @@ import 'package:fireplace/src/model/chat/chat_tuning.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/message_payload.dart';
 
+/// Receives Firestore ciphertext into local history under the account lock.
+/// Uses [SessionStore] and [ReceiveJournal] for durable decryption effects, and
+/// retains deferred work without advancing the recovery cursor past it.
 class MessageReceiver {
   MessageReceiver({
     required FirebaseFirestore db,

@@ -7,6 +7,9 @@ import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
 import 'package:fireplace/src/model/chat/message_recovery_action.dart';
 
+/// Coordinates chat-screen sends and explicit recovery through [ChatService].
+/// Uses view callbacks for drafts, notices and confirmation; keeps warnings whose
+/// local history write failed in memory until the user resolves them.
 class SendController extends ChangeNotifier {
   SendController({
     required this.chatId,

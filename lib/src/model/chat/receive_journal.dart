@@ -9,6 +9,9 @@ import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/keys/prekey_service.dart';
 import 'package:fireplace/src/model/chat/session_store.dart';
 
+/// Records authenticated receive effects in [SecretStore] for replay after a crash.
+/// Applies history, session and prekey changes through the supplied stores;
+/// callers hold the account lock while writing or recovering a journal.
 class ReceiveJournal {
   ReceiveJournal(
     this._secrets,

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+/// Tracks busy/error state for contact actions and identity review in the chat UI.
+/// The view supplies the actions and the callback for explicit identity review.
 class ContactController extends ChangeNotifier {
   ContactController({required this.reviewOnce});
   final Future<void> Function(String, List<int>) reviewOnce;

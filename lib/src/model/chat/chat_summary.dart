@@ -1,3 +1,5 @@
+/// Firestore chat metadata for list ordering and message-request eligibility.
+/// Contains no message text; the chat list reads previews from local history.
 class ChatSummary {
   ChatSummary(
     this.chatId,

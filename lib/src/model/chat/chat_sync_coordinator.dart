@@ -5,6 +5,9 @@ import 'package:fireplace/src/model/safety/safety_service.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 
+/// Keeps receive subscriptions aligned with chat requests, blocks and hidden chats.
+/// Uses [ChatService] for sync and local history/preferences to baseline unread
+/// counts before starting a chat's subscription.
 class ChatSyncCoordinator {
   ChatSyncCoordinator({
     required this.uid,

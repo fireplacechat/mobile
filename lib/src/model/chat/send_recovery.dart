@@ -4,6 +4,8 @@ import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 
+/// Checks uncertain sends against Firestore and repairs local message history.
+/// Resending is an explicit new send through the supplied callbacks.
 class SendRecovery {
   SendRecovery(
     this._db,
