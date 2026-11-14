@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
@@ -23,7 +25,7 @@ class ChatBackButton extends StatelessWidget {
   );
 }
 
-class ChatTitle extends StatelessWidget {
+class ChatTitle extends ConsumerWidget {
   // Rebuild with the screen; keep this extraction non-const.
   // ignore: prefer_const_constructors_in_immutables
   ChatTitle({
@@ -38,36 +40,44 @@ class ChatTitle extends StatelessWidget {
   final bool hasSession;
   final void Function(BuildContext) onOpenDetails;
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      PersonAvatar(name: name, size: 36),
-      SizedBox(width: 10),
-      Expanded(
-        child: InkWell(
-          key: const Key('chatDetails'),
-          onTap: peerUid == null || !hasSession
-              ? null
-              : () => onOpenDetails(context),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Text(
-              name,
-              overflow: TextOverflow.ellipsis,
-              // Same size as the name on a conversation in the chat list.
-              // The app bar's own title style is larger and must not apply.
-              style: TextStyle(
-                fontSize: 16,
-                height: 1.2,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0,
-                color: FireplaceUiTokens.of(context).text,
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Their own colour, once the chat is accepted (decision 0053).
+    final theirs = peerUid == null
+        ? null
+        : ref.watch(acceptedPeerColorProvider(peerUid!));
+    return Row(
+      children: [
+        PersonAvatar(name: name, size: 36, color: theirs?.outgoing),
+        SizedBox(width: 10),
+        Expanded(
+          child: InkWell(
+            key: const Key('chatDetails'),
+            onTap: peerUid == null || !hasSession
+                ? null
+                : () => onOpenDetails(context),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(
+                name,
+                overflow: TextOverflow.ellipsis,
+                // Same size as the name on a conversation in the chat list.
+                // The app bar's own title style is larger and must not apply.
+                style: TextStyle(
+                  fontSize: 16,
+                  height: 1.2,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0,
+                  color:
+                      theirs?.accentText(Theme.of(context).brightness) ??
+                      FireplaceUiTokens.of(context).text,
+                ),
               ),
             ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class ChatVerifyButton extends StatelessWidget {
