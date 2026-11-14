@@ -2,3 +2,7 @@
 # Tag them `timing`; CI and scripts/check.sh run them alone, one at a time.
 tags:
   timing:
+  # Repeats what every pull request already checks (more screen sizes, the
+  # reference crypto). Runs in the nightly workflow and with
+  # `scripts/check.sh full`.
+  nightly:

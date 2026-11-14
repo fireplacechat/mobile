@@ -2,6 +2,7 @@
 # The same checks CI runs, in one command. Run it before you push.
 #   scripts/check.sh          format, analyze, layer check and all tests
 #   scripts/check.sh quick    everything except the tests (about 20 seconds)
+#   scripts/check.sh full     also the tests CI runs only at night
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export TZ=UTC
@@ -24,7 +25,11 @@ bash scripts/build_crypto_host.sh
 bash scripts/build_crypto_host.sh test-rng
 
 echo "== tests (parallel)"
-flutter test --exclude-tags timing
+flutter test --exclude-tags timing --exclude-tags nightly
 echo "== tests that measure real time (one at a time)"
 scripts/run_timing_tests.sh
+if [ "${1:-}" = full ]; then
+  echo "== nightly tests"
+  scripts/run_nightly_tests.sh
+fi
 echo "all checks passed"
