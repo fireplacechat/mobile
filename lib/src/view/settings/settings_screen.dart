@@ -4,6 +4,7 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
+import 'package:fireplace/src/view/settings/licences_screen.dart';
 import 'package:fireplace/src/view/settings/browser_error_dialog.dart';
 import 'package:fireplace/src/model/common/external_browser.dart';
 import 'package:fireplace/fireplace_crypto.dart';
@@ -358,12 +359,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       leading: const Icon(Icons.description_outlined),
                       title: const Text('Open-source licences'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: _busy
-                          ? null
-                          : () => showLicensePage(
-                              context: context,
-                              applicationName: 'fireplace.',
-                            ),
+                      onTap: _busy ? null : () => _open(const LicencesScreen()),
                     ),
                   ],
                 ),

@@ -1,28 +1,26 @@
+import 'package:fireplace/src/model/settings/licence_catalog.dart';
+import 'package:fireplace/src/view/settings/licences_screen.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/ui_fixture.dart';
+import '../../support/licence_fixture.dart';
 
 void main() {
   testWidgets('Settings opens licences and returns without losing the page', (
     tester,
   ) async {
-    LicenseRegistry.addLicense(
-      () => Stream.value(
-        const LicenseEntryWithLineBreaks([
-          'fixture-package',
-        ], 'Fixture licence'),
-      ),
-    );
     final fixture = UiFixture();
     addTearDown(fixture.session.close);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: fixture.overrides,
+        overrides: [
+          ...fixture.overrides,
+          licenceCatalogProvider.overrideWith((_) => fixtureLicences()),
+        ],
         child: MaterialApp(
           theme: fireplaceTheme(Brightness.light),
           home: const SettingsScreen(),
@@ -39,15 +37,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('openLicences')));
     await tester.pumpAndSettle();
-    expect(find.byType(LicensePage), findsOneWidget);
-    expect(find.text('fireplace.'), findsOneWidget);
-    expect(find.text('fixture-package'), findsOneWidget);
-    await tester.tap(find.text('fixture-package'));
+    expect(find.byType(LicencesScreen), findsOneWidget);
+    expect(find.byType(LicensePage), findsNothing);
+    expect(find.text('example_clock, example_parser'), findsOneWidget);
+    await tester.tap(find.text('example_clock, example_parser'));
     await tester.pumpAndSettle();
-    expect(
-      find.textContaining('Fixture licence', findRichText: true),
-      findsOneWidget,
-    );
+    expect(find.byKey(const Key('fullLicenceText')), findsOneWidget);
     await tester.pageBack();
     await tester.pumpAndSettle();
     await tester.pageBack();
