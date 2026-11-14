@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 
 /// Keep chat/search controls scroll-reachable when a keyboard leaves little space.
@@ -50,10 +51,13 @@ class UiPageScroll extends StatelessWidget {
       alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
-        child: ListView(
+        child: ThinScrollbar(
           controller: controller,
-          padding: padding,
-          children: children,
+          child: ListView(
+            controller: controller,
+            padding: padding,
+            children: children,
+          ),
         ),
       ),
     ),
