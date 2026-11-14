@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
@@ -13,7 +14,68 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+class _DisposedSession extends Fake implements AppSession {
+  @override
+  Future<void> close() async =>
+      throw StateError('Session is already disposed.');
+}
+
 void main() {
+  for (final loading in [false, true]) {
+    test(
+      'resume ignores a disposed session retained by ${loading ? 'loading' : 'error'} state',
+      () async {
+        final auth = MockFirebaseAuth(
+          signedIn: true,
+          mockUser: MockUser(
+            uid: 'alice',
+            email: 'alice@users.fireplace.invalid',
+          ),
+        );
+        final db = FakeFirebaseFirestore(), store = MemorySecretStore();
+        await db.doc('users/alice').set({
+          'username': 'alice',
+          'deleting': true,
+        });
+        store.data['identity:alice'] = 'fictional';
+        final stale = _DisposedSession();
+        var refreshing = false;
+        final next = Completer<AppSession?>();
+        final container = ProviderContainer(
+          retry: (_, _) => null,
+          overrides: [
+            authProvider.overrideWithValue(auth),
+            firestoreProvider.overrideWithValue(db),
+            secretStoreProvider.overrideWithValue(store),
+            iosPreviewCredentialsProvider.overrideWithValue(null),
+            appSessionProvider.overrideWith(
+              (_) => refreshing ? next.future : Future.value(stale),
+            ),
+            accountErasureDirectoriesProvider.overrideWithValue(() async => []),
+          ],
+        );
+        addTearDown(container.dispose);
+        container.listen(appSessionProvider, (_, _) {});
+        await container.read(appSessionProvider.future);
+        refreshing = true;
+        container.invalidate(appSessionProvider);
+        final refreshed = container.read(appSessionProvider.future);
+        if (!loading) {
+          next.completeError(AccountDeletionPending('alice'));
+          await expectLater(refreshed, throwsA(isA<AccountDeletionPending>()));
+        }
+        await container.pump();
+        expect(container.read(appSessionProvider).value, same(stale));
+        await container
+            .read(accountServiceProvider)
+            .deleteAccount(password: 'fixture');
+        expect(auth.currentUser, isNull);
+        expect(store.data, isEmpty);
+        if (loading) next.complete(null);
+      },
+    );
+  }
+
   test('cold pending deletion erases account data and resets UI without opening a session', () async {
     final dir = await Directory.systemTemp.createTemp(
       'fireplace-resume-delete-',

@@ -15,6 +15,8 @@ matches before destructive boundaries; coalesce duplicate requests. Set the
 existing irreversible `deleting` fence, suspend iOS preview credentials, invalidate
 the normal session and drain its work. Freeze/drain that account's preference
 writes. No account data is erased on an unrelated startup/crypto/runtime error.
+Only an active data state supplies a session to close. A loading/error state may
+retain an already-disposed previous value; deletion resume must ignore it.
 
 Delete sent-message documents in sender-filtered pages of 400. Delete all
 enumerated devices/prekeys, push tokens, the backup, link requests and blocks.

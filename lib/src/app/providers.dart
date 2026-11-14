@@ -356,7 +356,10 @@ final chatsProvider = StreamProvider.autoDispose<List<ChatSummary>>((ref) {
 const deletedAccountLabel = 'Deleted account';
 
 final accountServiceProvider = Provider<AccountService>((ref) {
-  final session = ref.watch(appSessionProvider).value;
+  // Refresh/error states may retain the previous, already-disposed session.
+  // A resume must not close or invalidate that stale session again.
+  final current = ref.watch(appSessionProvider);
+  final session = current.isLoading ? null : current.asData?.value;
   final auth = ref.watch(authProvider);
   final secrets = ref.watch(secretStoreProvider);
   final preferences = ref.watch(accountPreferencesProvider);
