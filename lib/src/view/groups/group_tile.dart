@@ -13,9 +13,9 @@ import 'package:fireplace/src/view/groups/group_avatar.dart';
 import 'package:fireplace/src/view/groups/group_message_row.dart';
 
 /// A group in the chat list. The row is a 1:1 row (the same avatar size, bold
-/// name, date, two-line preview, unread count and spacing) with two
-/// differences: the avatar is the group's rounded square, and the preview
-/// names who wrote the newest message ("Mira: See you at 7?").
+/// name, date, two-line preview, unread count and spacing) with one
+/// difference: the preview names who wrote the newest message
+/// ("Mira: See you at 7?"). The avatar is a circle with the group's initial.
 class GroupTile extends ConsumerWidget {
   const GroupTile({super.key, required this.group, required this.onOpen});
   final GroupInfo group;

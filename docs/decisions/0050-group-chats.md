@@ -165,7 +165,9 @@ nothing from before the time the server recorded the join.
 ### The same look as 1:1 chats
 
 The group row reuses the 1:1 row's layout (avatar size, bold name, date, two-line
-preview, hairline), keeping the rounded-square letter. The conversation reuses the
+preview, hairline). Its avatar is a **circle** with the group's initial, like a
+person's: the owner changed this from the first version's rounded square after
+seeing it on the emulator (2026-11-14). The conversation reuses the
 1:1 bubble, held-message menu, reactions, day separators and composer, and editing
 happens in the composer, not a dialog. The differences are the sender's name above
 the first bubble of a run, their avatar beside the last, and the colours.

@@ -176,8 +176,9 @@ devices, rechecking fences, as `pushOnMessage` does.
   group*. *New group* asks for a name (up to 40 characters) and lets you tick people
   from your accepted chats, at most 15 besides you, then *Create group*. The people
   are invited, not added: each joins when they accept.
-- **In the chat list.** A group's avatar is its name's first letter in a rounded
-  square, so groups have a different shape from people's round avatars. The preview
+- **In the chat list.** A group's avatar is its name's first letter in a circle,
+  like a person's (the first version used a rounded square; the owner changed it in
+  round 2). The preview
   names the sender: *Mira: See you at 7?* A group you've been invited to doesn't
   appear until you join.
 - **Invitations** show in both places:
