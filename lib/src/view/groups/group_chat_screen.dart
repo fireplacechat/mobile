@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
@@ -370,65 +371,69 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                         'Messages are end-to-end encrypted. Say hello when '
                         'you’re ready.',
                   )
-                : ListView.builder(
-                    key: const Key('groupMessages'),
-                    reverse: true,
-                    // The same insets as a 1:1 timeline, so a held message is
-                    // lifted without moving.
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: MessageMenuMetrics.edge,
-                      vertical: 12,
-                    ),
-                    itemCount: rows.length + (joinedLater ? 1 : 0),
-                    itemBuilder: (_, i) {
-                      if (i == rows.length) {
-                        // MLS gives a newcomer no keys for earlier messages.
-                        return const GroupQuietLine(
-                          key: Key('historyStart'),
-                          text: 'Messages sent before you joined aren’t shown.',
-                        );
-                      }
-                      final index = rows.length - 1 - i;
-                      final m = rows[index];
-                      final before = index == 0 ? null : rows[index - 1];
-                      final after = index == rows.length - 1
-                          ? null
-                          : rows[index + 1];
-                      final showDate =
-                          before == null ||
-                          !sameLocalDay(before.sentAt, m.sentAt);
-                      final notice = m.status == MessageStatus.notice
-                          ? GroupNotice.decode(m.body)
-                          : null;
-                      return Column(
-                        key: ValueKey(m.id),
-                        children: [
-                          if (showDate) DaySeparator(date: m.sentAt),
-                          if (m.status == MessageStatus.notice)
-                            if (notice != null) GroupNoticeLine(notice: notice),
-                          if (m.status != MessageStatus.notice)
-                            GroupMessageRow(
-                              gid: widget.gid,
-                              message: m,
-                              color: memberColor(colors, m.senderUid),
-                              showName: !m.outgoing && !sameRun(m, before),
-                              showAvatar: !m.outgoing && !sameRun(m, after),
-                              actions: _actionsFor(m, me),
-                              onReactions: () => _showReactions(m, me),
-                            ),
-                          if (m.outgoing &&
-                              m.status == MessageStatus.unconfirmed)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                'Not confirmed',
-                                key: Key('unconfirmed_${m.id}'),
-                                style: Theme.of(context).textTheme.bodySmall,
+                : ThinScrollbar(
+                    child: ListView.builder(
+                      key: const Key('groupMessages'),
+                      reverse: true,
+                      // The same insets as a 1:1 timeline, so a held message is
+                      // lifted without moving.
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: MessageMenuMetrics.edge,
+                        vertical: 12,
+                      ),
+                      itemCount: rows.length + (joinedLater ? 1 : 0),
+                      itemBuilder: (_, i) {
+                        if (i == rows.length) {
+                          // MLS gives a newcomer no keys for earlier messages.
+                          return const GroupQuietLine(
+                            key: Key('historyStart'),
+                            text:
+                                'Messages sent before you joined aren’t shown.',
+                          );
+                        }
+                        final index = rows.length - 1 - i;
+                        final m = rows[index];
+                        final before = index == 0 ? null : rows[index - 1];
+                        final after = index == rows.length - 1
+                            ? null
+                            : rows[index + 1];
+                        final showDate =
+                            before == null ||
+                            !sameLocalDay(before.sentAt, m.sentAt);
+                        final notice = m.status == MessageStatus.notice
+                            ? GroupNotice.decode(m.body)
+                            : null;
+                        return Column(
+                          key: ValueKey(m.id),
+                          children: [
+                            if (showDate) DaySeparator(date: m.sentAt),
+                            if (m.status == MessageStatus.notice)
+                              if (notice != null)
+                                GroupNoticeLine(notice: notice),
+                            if (m.status != MessageStatus.notice)
+                              GroupMessageRow(
+                                gid: widget.gid,
+                                message: m,
+                                color: memberColor(colors, m.senderUid),
+                                showName: !m.outgoing && !sameRun(m, before),
+                                showAvatar: !m.outgoing && !sameRun(m, after),
+                                actions: _actionsFor(m, me),
+                                onReactions: () => _showReactions(m, me),
                               ),
-                            ),
-                        ],
-                      );
-                    },
+                            if (m.outgoing &&
+                                m.status == MessageStatus.unconfirmed)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  'Not confirmed',
+                                  key: Key('unconfirmed_${m.id}'),
+                                  style: Theme.of(context).textTheme.bodySmall,
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
                   ),
           ),
           if (_error != null)
