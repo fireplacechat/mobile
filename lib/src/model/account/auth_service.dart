@@ -95,6 +95,7 @@ class AuthService {
       await user.getIdToken().timeout(const Duration(seconds: 10));
     } catch (_) {}
     try {
+      final row = await _personInviteRow(inviteId);
       final batch = _db.batch();
       batch.set(_db.collection('usernames').doc(name), {'uid': user.uid});
       batch.set(_db.collection('users').doc(user.uid), {
@@ -111,6 +112,8 @@ class AuthService {
         'usedBy': user.uid,
         'usedAt': FieldValue.serverTimestamp(),
       });
+      // A code from a person: the rules also require their row marked used.
+      if (row != null) batch.update(row, {'used': true});
       await batch.commit();
     } on FirebaseException catch (e) {
       // Invite invalid/used, or name already claimed. The profile batch is
@@ -141,6 +144,27 @@ class AuthService {
       throw AuthException(reason);
     }
     return user;
+  }
+
+  /// The invite row of the person who made this code, or null for an operator
+  /// code. The rules let whoever holds an unused person's code read whose row
+  /// it is; operator codes, used codes and unknown ones cannot be read.
+  Future<DocumentReference<Map<String, dynamic>>?> _personInviteRow(
+    String inviteId,
+  ) async {
+    try {
+      final snap = await _db
+          .doc('invites/$inviteId')
+          .get()
+          .timeout(const Duration(seconds: 10));
+      final by = snap.data()?['by'], slot = snap.data()?['slot'];
+      if (by is String && slot is int) {
+        return _db.doc('users/$by/inviteSlots/$slot');
+      }
+    } catch (_) {
+      // Not readable: an operator code or no such code. The batch decides.
+    }
+    return null;
   }
 
   Future<User> signIn({

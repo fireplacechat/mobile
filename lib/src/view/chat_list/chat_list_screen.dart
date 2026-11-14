@@ -6,6 +6,7 @@ import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/brand/logo.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
+import 'package:fireplace/src/view/invites/invite_screen.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';
@@ -44,22 +45,46 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     }
   }
 
+  /// The invite page slides in from the left, the side its button is on.
+  Future<void> _openInvites() async {
+    if (_opening) return;
+    _opening = true;
+    try {
+      await Navigator.of(context).push(InviteScreen.route());
+    } finally {
+      _opening = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final chats = ref.watch(chatsProvider);
     return Scaffold(
       appBar: UiAppBar(
         context: context,
+        centerTitle: true,
+        leadingWidth: 64,
+        leading: Center(
+          child: IconButton(
+            key: const Key('inviteFriends'),
+            tooltip: 'Invite friends',
+            onPressed: () => _openInvites(),
+            style: IconButton.styleFrom(
+              backgroundColor: FireplaceUiTokens.of(context).accent,
+              foregroundColor: Colors.white,
+              // A 40 px circle; the tap target stays 48 px.
+              fixedSize: const Size.square(40),
+              minimumSize: const Size.square(40),
+            ),
+            icon: const Icon(Icons.add_rounded),
+          ),
+        ),
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             FireplaceLogo(size: 30),
             SizedBox(width: 10),
-            Expanded(
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: FireplaceWordmark(height: 24),
-              ),
-            ),
+            Flexible(child: FireplaceWordmark(height: 24)),
           ],
         ),
         actions: [

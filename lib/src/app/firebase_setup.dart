@@ -22,7 +22,13 @@ Future<void> setUpFirebase() async {
       'EMULATOR_HOST',
       defaultValue: '10.0.2.2',
     );
+    // On Windows a system service can hold 8080; then run the emulator on
+    // another port and pass it as EMULATOR_FIRESTORE_PORT.
+    const firestorePort = int.fromEnvironment(
+      'EMULATOR_FIRESTORE_PORT',
+      defaultValue: 8080,
+    );
     await FirebaseAuth.instance.useAuthEmulator(host, 9099);
-    FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);
+    FirebaseFirestore.instance.useFirestoreEmulator(host, firestorePort);
   }
 }
