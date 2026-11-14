@@ -1,6 +1,7 @@
 # 0050: Group chats: profile, delivery and limits
 
-Date: 2026-11-14, amended the same day (*Round 2*, below). Status: **decisions
+Date: 2026-11-14, amended the same day (*Changes after the first emulator test*,
+below). Status: **decisions
 accepted by the owner; implementation gated** (see the end). Develops [0036](0036-groups-use-mls.md). The full proposal, written
 with GPT, is [protocol/group-chat-design.md](../protocol/group-chat-design.md); this
 note records the owner's choices and **amends the proposal's delivery path**. Where
@@ -24,7 +25,7 @@ The interfaces, Firestore schema, rules, function and screens are specified in
 |---|---|
 | Create a group | anyone (5 a day; at most 32 groups per account) |
 | Invite someone | **any member**, but only a person they already have an accepted 1:1 chat with; the backend function checks this. The invitee must accept. |
-| Add the invited person to MLS | the inviter's device, **when it sends the invitation** (round 2). Joining then needs no other phone. |
+| Add the invited person to MLS | the inviter's device, **when it sends the invitation** (amended; see below). Joining then needs no other phone. |
 | Remove someone, change roles | administrators |
 | Rename | administrators; other members' phones refuse anyone else's rename |
 | Leave | anyone, at any time |
@@ -94,7 +95,7 @@ document. So:
 
 Membership changes cost more under either plan and are rare.
 
-## Round 2 (owner's test, 2026-11-14)
+## Changes after the first emulator test (2026-11-14)
 
 The owner tried groups on the Android emulator and asked for six changes. Backend
 decision 0023 has the server side.

@@ -30,7 +30,7 @@ import 'package:flutter/foundation.dart';
 /// administrator; a self-update adds and removes nobody; members are removed
 /// only by administrators or once the server has fenced them.
 ///
-/// An invitation does the MLS Add (round 2): the inviter's device sends the
+/// An invitation does the MLS Add: the inviter's device sends the
 /// Commit and the Welcome with the request, so the invited person joins from
 /// the Welcome they already have, with no other phone involved.
 class GroupService {
@@ -1108,7 +1108,7 @@ class GroupService {
   }
 
   /// Invites [memberUid] and adds their devices to the MLS group in the same
-  /// request (round 2). This phone is online now, so it does the work now: the
+  /// request. This phone is online now, so it does the work now: the
   /// invited person later joins from the Welcome without any other phone.
   Future<void> invite(String gid, String memberUid) => _serial(() async {
     final info = _groups[gid];

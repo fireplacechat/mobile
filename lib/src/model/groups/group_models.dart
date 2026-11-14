@@ -78,7 +78,7 @@ class GroupInfo {
   }
 }
 
-/// A line in a group's history about a change to the group (0050, round 2).
+/// A line in a group's history about a change to the group (decision 0050).
 /// Built on this device from the MLS state before and after an authenticated
 /// Commit, never from the server's roster. Stored as a history message whose
 /// status is `notice`; the screens put names in when they show it.

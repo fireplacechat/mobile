@@ -321,7 +321,7 @@ void main() {
     ); // for tearDown
   });
 
-  // ---------------------------------------------------------------- round 2
+  // ------------------------------------------- invitations, colours, lines, roles
 
   /// The lines in a phone's history about changes to the group.
   Future<List<GroupNotice>> notices(Phone p, String gid) async => [

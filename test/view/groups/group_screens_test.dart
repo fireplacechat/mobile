@@ -286,7 +286,7 @@ void main() {
     await tearDownPhones(t);
   });
 
-  // ---------------------------------------------------------------- round 2
+  // ------------------------------------------- colours, lines, unread, mute, roles
 
   testWidgets("others' messages use the soft tint of their own colour; "
       'names and avatars use its text shade', (t) async {
