@@ -154,7 +154,8 @@ class AppSession {
   final SafetyService safety;
   final PushNotificationService? pushNotifications;
 
-  /// Group chats (decision 0050); null unless built with FIREPLACE_GROUPS.
+  /// Group chats (decision 0050); null when the build leaves them out or
+  /// they could not start.
   final GroupService? groups;
   final StreamSubscription<void> _chatsSub;
   final Future<void> Function() dispose;
@@ -342,7 +343,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       );
       scope.add(onMessage.cancel);
     }
-    // 9b. Group chats (decision 0050), only in builds with FIREPLACE_GROUPS.
+    // 9b. Group chats (decision 0050), unless the build leaves them out.
     // A failure here leaves groups unavailable and 1:1 chats untouched.
     GroupService? groups;
     if (groupsEnabled) {
