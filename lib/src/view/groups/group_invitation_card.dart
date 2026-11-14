@@ -88,6 +88,11 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
               children: [
                 TextButton(
                   key: const Key('declineGroup'),
+                  style: TextButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
                   onPressed: _busy || service == null
                       ? null
                       : () => _run(service.decline),
@@ -96,6 +101,13 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
                 const SizedBox(width: 8),
                 FilledButton(
                   key: const Key('joinGroup'),
+                  // Slightly rounded, as the invite tickets and theme
+                  // previews are.
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
                   onPressed: _busy || service == null
                       ? null
                       : () async {
