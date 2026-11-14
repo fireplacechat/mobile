@@ -19,7 +19,7 @@ import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:flutter/foundation.dart';
 
 /// Group chats for one account on this device (mobile decision 0050,
-/// `docs/protocol/group-chats-v1.md`, backend decision 0023).
+/// `docs/protocol/group-chats-v1.md`).
 ///
 /// All MLS work runs one call at a time. Each change from the core is checked,
 /// saved (MLS records and this service's cursors together, atomically) and

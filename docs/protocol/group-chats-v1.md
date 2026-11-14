@@ -2,7 +2,7 @@
 
 Date: 2026-11-14. Status: **design for review**; sections 2 to 4 were amended by
 *Changes after the first emulator test* in decision 0050 (the invitation carries the Add; `hello` profiles;
-lines; roles), and where they differ that note and backend 0023 win. Implements
+lines; roles), and where they differ that note wins. Implements
 [decision 0050](../decisions/0050-group-chats.md) and the
 [proposal](group-chat-design.md) it amends. Fixes the interfaces three pieces of
 work will build against at the same time: the Rust core, the backend, and the app.

@@ -5,7 +5,7 @@ import 'package:fireplace/src/crypto/codec.dart';
 import 'package:fireplace/src/model/common/daily_counter.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 
-/// Membership requests (backend decision 0023): a document the server's
+/// Membership requests (decision 0050): a document the server's
 /// function completes with `status: done | refused`. Each is counted in
 /// `limits/groupOps` in the same batch, as the rules require.
 class GroupRequests {

@@ -1,7 +1,7 @@
-// Stands in for the backend's group function (backend decision 0023) over a
-// FakeFirebaseFirestore: it completes membership requests the way
-// functions/lib/groups.js does, without the checks the tests do not exercise.
-// The rules are tested in the backend repository.
+// Stands in for the server's group membership function over a
+// FakeFirebaseFirestore: it completes membership requests the way the server
+// does, without the checks the tests do not exercise. The security rules are
+// tested with the server code.
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';

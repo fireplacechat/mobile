@@ -97,8 +97,8 @@ Membership changes cost more under either plan and are rare.
 
 ## Changes after the first emulator test (2026-11-14)
 
-The owner tried groups on the Android emulator and asked for six changes. Backend
-decision 0023 has the server side.
+The owner tried groups on the Android emulator and asked for six changes. The
+server's rules and membership function changed with them.
 
 ### Joining must not wait for the inviter's phone
 
@@ -197,8 +197,7 @@ the first bubble of a run, their avatar beside the last, and the colours.
   choice), following their existing notification settings: *Fireplace / You were
   invited by alice.* when the sender's name is shown, *Fireplace / New Invitation*
   when it is hidden. The owner asked for the group's name as the title; the server
-  never has it, so that waits for the phone to read the Welcome in the background
-  (backend 0023).
+  never has it, so that waits for the phone to read the Welcome in the background.
 
 ### Administrators
 
