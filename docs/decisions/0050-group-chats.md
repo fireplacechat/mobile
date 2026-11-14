@@ -6,6 +6,9 @@ with GPT, is [protocol/group-chat-design.md](../protocol/group-chat-design.md); 
 note records the owner's choices and **amends the proposal's delivery path**. Where
 they differ, this note wins.
 
+The interfaces, Firestore schema, rules, function and screens are specified in
+[protocol/group-chats-v1.md](../protocol/group-chats-v1.md).
+
 ## Owner decisions (2026-11-14)
 
 | Question | Decision |

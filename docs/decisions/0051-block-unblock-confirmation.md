@@ -1,4 +1,4 @@
-# 0050: Wait for confirmation when unblocking and receiving our own sends
+# 0051: Wait for confirmation when unblocking and receiving our own sends
 
 Date: 2026-11-14. Status: implemented locally; phone verification pending.
 
