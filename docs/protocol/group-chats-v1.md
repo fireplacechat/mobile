@@ -1,6 +1,8 @@
 # Group chats, version 1: specification
 
-Date: 2026-11-14. Status: **design for review**. Implements
+Date: 2026-11-14. Status: **design for review**; sections 2 to 4 were amended by
+*Round 2* of decision 0050 (the invitation carries the Add; `hello` profiles;
+lines; roles), and where they differ that note and backend 0023 win. Implements
 [decision 0050](../decisions/0050-group-chats.md) and the
 [proposal](group-chat-design.md) it amends. Fixes the interfaces three pieces of
 work will build against at the same time: the Rust core, the backend, and the app.
@@ -127,9 +129,10 @@ challenge, roles and limits.
 | Operation | Who | What the transaction does |
 |---|---|---|
 | `create` | any account (5 a day) | `groups/{gid}`, creator as administrator, `groupRefs` |
-| `invite(uid)` | any member | `groups/{gid}/invites/{uid}`; needs an accepted 1:1 chat between the two; refused if either has blocked the other; at most 20 pending per recipient |
-| `accept` / `decline` | the invitee | marks the invite |
-| `add(uid, epoch, commit, welcomes, packages)` | any member's device (the inviter's, or an administrator's if the inviter left), after `accept` | checks `epoch`, consumes the packages, writes the Commit, the Welcomes, `members` and `groupRefs`, and raises `epoch`, all at once |
+| `invite(uid, devices, epoch, commit, welcome, packages)` | any member's device | needs an accepted 1:1 chat between the two; refused if either has blocked the other; at most 20 pending per recipient. Checks `epoch`, consumes the packages, writes the Commit and the Welcome, records the account in `invited`, and raises `epoch`, all at once (round 2) |
+| `accept` | the invitee | moves the account from `invited` to `members`, writes `groupRefs` with `joinedAt`. No Commit |
+| `decline`, `expire(uid)` | the invitee; any member after 7 days | removes the account from `invited` and fences its devices |
+| `roles(admins, epoch, commit)` | administrator | the Commit carrying the new list; sets each member's `role` |
 | `addDevice(device, …)` | the same account's other device | the same, for a newly linked device |
 | `remove(uid, epoch, commit)` | administrator | removes every leaf of that account |
 | `leave` | a member | removes it from `members` and `groupRefs` at once (it can no longer read) and adds its leaves to `fence` |
@@ -199,7 +202,10 @@ devices, rechecking fences, as `pushOnMessage` does.
     chose Plum, everyone sees her bubbles in the plum tint.
   - A member's colour is shared only inside the group, as an encrypted `profile`
     message (`type: profile, color`) sent on joining and whenever they change it. The
-    server never stores it, and 1:1 chats are unchanged.
+    server never stores it, and 1:1 chats are unchanged. A newcomer's is marked
+    `hello: true`, and each member answers it with their own (round 2).
+  - `type: notice` messages (`kind: left`, or `kind: removing, uid` from an
+    administrator) say why a removal is about to happen, for the line it shows.
   - A member whose colour hasn't arrived yet shows in Stone.
 - **System lines**, small and centred: *Rowan added Mira*, *Elliot left*, *Rowan
   renamed the group*. They come from the authenticated Commits, never from the
