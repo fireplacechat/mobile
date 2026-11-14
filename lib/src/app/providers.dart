@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/model/groups/group_models.dart'
     show groupsEnabled;
@@ -345,7 +346,12 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
         await service.start();
         scope.add(service.close);
         groups = service;
-      } catch (_) {
+      } catch (e, st) {
+        // Debug builds only: release builds log nothing about the account.
+        if (kDebugMode) {
+          debugPrint('Groups unavailable: $e');
+          debugPrintStack(stackTrace: st);
+        }
         groups = null;
       }
       scope.checkActive();

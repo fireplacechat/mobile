@@ -56,10 +56,11 @@ void main() {
           await t.tap(button);
           await t.pumpAndSettle();
           expect(find.byKey(const Key('peerUsername')), findsOneWidget);
-          await t.enterText(find.byKey(const Key('peerUsername')), 'fred');
+          await t.enterText(find.byKey(const Key('peerUsername')), 'mira_k');
+          await t.pump();
           await t.tap(find.byKey(const Key('startChat')));
           await t.pumpAndSettle();
-          expect(f.chat.starts, ['fred']);
+          expect(f.chat.starts, ['mira_k']);
         } finally {
           semantics.dispose();
         }

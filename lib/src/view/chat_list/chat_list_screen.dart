@@ -18,7 +18,7 @@ import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';
-import 'package:fireplace/src/view/chat_list/start_chat_dialog.dart';
+import 'package:fireplace/src/view/chat_list/new_chat_sheet.dart';
 import 'package:fireplace/src/view/chat_list/widgets/chat_search_field.dart';
 import 'package:fireplace/src/view/chat_list/widgets/chat_tile.dart';
 import 'package:fireplace/src/view/chat_list/widgets/new_chat_icon.dart';
@@ -384,56 +384,22 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     );
   }
 
+  /// New chat: a panel to pick someone you chat with, type a username, or
+  /// create a group.
   Future<void> _newChat(BuildContext context, WidgetRef ref) async {
     if (_opening) return;
-    // The session has a group service only in builds with FIREPLACE_GROUPS.
-    if (ref.read(groupServiceProvider) != null) {
-      final choice = await showModalBottomSheet<String>(
-        context: context,
-        builder: (ctx) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                key: const Key('messageSomeone'),
-                leading: const Icon(Icons.person_outline),
-                title: const Text('Message someone'),
-                onTap: () => Navigator.pop(ctx, 'chat'),
-              ),
-              ListTile(
-                key: const Key('newGroup'),
-                leading: const Icon(Icons.group_outlined),
-                title: const Text('New group'),
-                onTap: () => Navigator.pop(ctx, 'group'),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (choice == null || !context.mounted) return;
-      if (choice == 'group') {
+    final choice = await NewChatSheet.show(context);
+    if (choice == null || !context.mounted) return;
+    switch (choice) {
+      case OpenChat(:final chatId):
+        await _open(ChatScreen(chatId: chatId));
+      case CreateGroup():
         final gid = await Navigator.of(context).push<String>(
           MaterialPageRoute(builder: (_) => const NewGroupScreen()),
         );
         if (gid != null && context.mounted) {
           await _open(GroupChatScreen(gid: gid));
         }
-        return;
-      }
-    }
-    if (!context.mounted) return;
-    _opening = true;
-    try {
-      final chatId = await showDialog<String>(
-        context: context,
-        builder: (_) => const StartChatDialog(),
-      );
-      if (chatId == null || !context.mounted) return;
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => ChatScreen(chatId: chatId)),
-      );
-    } finally {
-      _opening = false;
     }
   }
 }

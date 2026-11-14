@@ -12,6 +12,12 @@ final groupServiceProvider = Provider<GroupService?>(
   (ref) => ref.watch(appSessionProvider).value?.groups,
 );
 
+/// Whether this session offers groups (a build with FIREPLACE_GROUPS whose
+/// group service started).
+final groupsOnProvider = Provider<bool>(
+  (ref) => ref.watch(groupServiceProvider) != null,
+);
+
 final groupsProvider = StreamProvider.autoDispose<Map<String, GroupInfo>>((
   ref,
 ) {

@@ -128,7 +128,7 @@ void main() {
     await pump(t, const ChatListScreen());
     await t.tap(find.byKey(const Key('newChat')));
     await t.pumpAndSettle();
-    expect(find.byKey(const Key('messageSomeone')), findsOneWidget);
+    expect(find.byKey(const Key('peerUsername')), findsOneWidget);
     await t.tap(find.byKey(const Key('newGroup')));
     await t.pumpAndSettle();
     expect(find.byType(NewGroupScreen), findsOneWidget);
