@@ -495,6 +495,17 @@ final hasBackupProvider = FutureProvider.autoDispose<bool>((ref) async {
 });
 
 /// The chat summary (with request state) for one chat.
+/// The conversations deleted on this phone (issue 123).
+final clearedChatsProvider = FutureProvider.autoDispose<Set<String>>((
+  ref,
+) async {
+  final chat = ref.watch(appSessionProvider).value?.chat;
+  if (chat == null) return const {};
+  final changes = chat.clearedChatsChanges.listen((_) => ref.invalidateSelf());
+  ref.onDispose(changes.cancel);
+  return chat.clearedChats();
+});
+
 final chatSummaryProvider = Provider.autoDispose.family<ChatSummary?, String>((
   ref,
   chatId,

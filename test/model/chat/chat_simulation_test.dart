@@ -145,6 +145,12 @@ class GuardedMessages implements LocalMessageStore {
   }
 
   @override
+  Future<void> clearChat(String chatId) async {
+    _check();
+    await inner.clearChat(chatId);
+  }
+
+  @override
   Stream<List<LocalMessage>> watch(String chatId) => inner.watch(chatId);
 }
 

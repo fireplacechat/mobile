@@ -11,6 +11,8 @@ import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_stamp.dart';
+import 'package:fireplace/src/view/chat/chat_safety_actions.dart';
+import 'package:fireplace/src/view/safety/safety_action_sheet.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 
 /// One conversation row: avatar, name and date on the first line, then a
@@ -43,12 +45,80 @@ class ChatTile extends ConsumerWidget {
     }
   }
 
+  /// Clears the unread count on this phone. Nothing is sent: there are no
+  /// read receipts.
+  Future<void> _markRead(WidgetRef ref) async {
+    final activity = ref.read(chatActivityProvider);
+    try {
+      await ref
+          .read(chatActivityProvider.notifier)
+          .seen(chat.chatId, activity.history[chat.chatId] ?? const []);
+    } catch (_) {
+      // The count stays; the person can open the chat instead.
+    }
+  }
+
+  Future<void> _block(BuildContext context, WidgetRef ref) async {
+    final session = ref.read(appSessionProvider).value;
+    if (session == null) return;
+    final name = ref.read(peerUsernameProvider(chat.peerUid)).value ?? '';
+    try {
+      await blockAfterConfirming(context, session, chat.peerUid, name);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not block. Try again.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteHere(BuildContext context, WidgetRef ref) async {
+    final session = ref.read(appSessionProvider).value;
+    if (session == null) return;
+    final ok = await showSafetyActionSheet<bool>(
+      context: context,
+      title: 'Delete this chat on this phone?',
+      message:
+          'The messages are removed from this phone only. The other person '
+          'keeps their copy, and the chat comes back if either of you '
+          'writes again.',
+      actions: const [
+        SafetySheetAction(
+          label: 'Delete on this phone',
+          value: true,
+          style: SafetyActionStyle.destructive,
+          buttonKey: Key('confirmDeleteChat'),
+        ),
+        SafetySheetAction(
+          label: 'Cancel',
+          value: false,
+          buttonKey: Key('cancelDeleteChat'),
+        ),
+      ],
+    );
+    if (ok != true) return;
+    try {
+      await session.chat.deleteChatHere(chat.chatId);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not delete this chat. Try again.'),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _showActions(
     BuildContext context,
     WidgetRef ref,
     bool muted, [
     Offset? at,
   ]) async {
+    final unread =
+        (ref.read(chatActivityProvider).unread[chat.chatId] ?? 0) > 0;
     final box = context.findRenderObject()! as RenderBox;
     final overlay =
         Overlay.of(context).context.findRenderObject()! as RenderBox;
@@ -64,10 +134,25 @@ class ChatTile extends ConsumerWidget {
           value: 'mute',
           child: Text(muted ? 'Unmute chat' : 'Mute chat'),
         ),
+        if (unread)
+          const PopupMenuItem(value: 'read', child: Text('Mark read')),
+        const PopupMenuItem(value: 'block', child: Text('Block')),
+        const PopupMenuItem(
+          value: 'delete',
+          child: Text('Delete on this phone'),
+        ),
       ],
     );
-    if (chosen == 'mute' && context.mounted) {
-      await _toggleMute(context, ref, muted);
+    if (!context.mounted) return;
+    switch (chosen) {
+      case 'mute':
+        await _toggleMute(context, ref, muted);
+      case 'read':
+        await _markRead(ref);
+      case 'block':
+        await _block(context, ref);
+      case 'delete':
+        await _deleteHere(context, ref);
     }
   }
 
@@ -126,6 +211,13 @@ class ChatTile extends ConsumerWidget {
             label: muted ? 'Unmute chat' : 'Mute chat',
           ): () =>
               _toggleMute(context, ref, muted),
+          if (unread > 0)
+            const CustomSemanticsAction(label: 'Mark read'): () =>
+                _markRead(ref),
+          const CustomSemanticsAction(label: 'Block'): () =>
+              _block(context, ref),
+          const CustomSemanticsAction(label: 'Delete on this phone'): () =>
+              _deleteHere(context, ref),
         },
         child: InkWell(
           key: ValueKey('conversation-${chat.chatId}'),

@@ -165,10 +165,17 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       ref.watch(blockedUidsProvider).value ?? const <String>{};
                   final hidden =
                       ref.watch(hiddenChatsProvider).value ?? const <String>{};
+                  // A conversation deleted on this phone stays off the list
+                  // while it has nothing to show.
+                  final cleared =
+                      ref.watch(clearedChatsProvider).value ?? const <String>{};
                   final live = [
                     for (final c in list)
                       if (!blocked.contains(c.peerUid) &&
-                          !hidden.contains(c.chatId))
+                          !hidden.contains(c.chatId) &&
+                          !(cleared.contains(c.chatId) &&
+                              !c.isIncomingRequest(me) &&
+                              ref.watch(chatPreviewProvider(c.chatId)) == null))
                         c,
                   ];
                   final requests = [
