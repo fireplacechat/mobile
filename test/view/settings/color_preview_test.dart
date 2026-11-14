@@ -46,8 +46,8 @@ void main() {
       );
       expect(
         find.text(
-          'Applies to all chats. Your choice is kept on this device. It is '
-          'also encrypted in your messages, the server never sees it.',
+          'Applies to all chats. Your color is part of your profile, so the '
+          'people you chat with see it.',
         ),
         findsOneWidget,
       );

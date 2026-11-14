@@ -12,6 +12,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:fireplace/src/model/chat/peer_colors.dart';
+import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -262,8 +263,8 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     scope.add(safety.dispose);
     await safety.start();
     scope.checkActive();
-    // One colour per person (decision 0052): this account's goes out inside
-    // its messages, and other people's are remembered as theirs arrive.
+    // One colour per person (decisions 0052 and 0053): this account's is on
+    // its profile, and other people's are remembered as theirs are read.
     final peerColors = PeerColors(secrets, user.uid);
     await peerColors.load();
     scope.add(peerColors.close);
@@ -277,10 +278,30 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       messages: store,
       safety: safety,
       lock: lock,
-      ownColor: () => ref.read(chatBubbleColorsProvider).outgoing.name,
-      onPeerColor: peerColors.note,
+      onPeerColor: (peer, color) => unawaited(peerColors.note(peer, color)),
     );
     scope.add(chat.close);
+    // This account's colour: a phone that has not chosen one takes the
+    // profile's. A profile that has none, or not the one chosen here (the
+    // app closed before it was published), gets this phone's: one write.
+    unawaited(() async {
+      try {
+        final appearance = ref.read(chatBubbleColorsProvider.notifier);
+        await appearance.loaded;
+        if (scope.stopped) return;
+        final published = ChatBubbleColor.values.asNameMap()[profile['color']];
+        final own = ref.read(chatBubbleColorsProvider).outgoing;
+        if (published != null && !appearance.hasOwnChoice) {
+          appearance.adopt(published);
+        } else if (published != own) {
+          await chat.publishColor(
+            ref.read(chatBubbleColorsProvider).outgoing.name,
+          );
+        }
+      } catch (_) {
+        // Tried again the next time the app opens.
+      }
+    }());
     // 8. Resolve the display username from the profile read in step 2.
     final username =
         profile['username'] as String? ?? user.email?.split('@').first ?? '';
