@@ -2,7 +2,7 @@
 
 Date: 2026-11-14, amended the same day (*Changes after the first emulator test*,
 below). Status: **decisions
-accepted by the owner; implementation gated** (see the end). Develops [0036](0036-groups-use-mls.md). The full proposal, written
+accepted by the owner; released in 0.4.0** (see *Release in 0.4.0* at the end). Develops [0036](0036-groups-use-mls.md). The full proposal, written
 with GPT, is [protocol/group-chat-design.md](../protocol/group-chat-design.md); this
 note records the owner's choices and **amends the proposal's delivery path**. Where
 they differ, this note wins.
@@ -248,16 +248,32 @@ and `rand_core` than the core pins.
 The app and backend can be built against a fake of the core API, agreed first, while
 the core work proceeds.
 
-## Before release
+## Release in 0.4.0
 
-1. An OpenMLS release using draft-07's final identifiers (0.9.2 still uses the
-   provisional `0x004e` and the draft-06 X-Wing KEM). Groups created with provisional
-   ids would all need reinitialising.
-2. The owner's production approval of the dependency, after iOS arm64 size and
-   memory measurements (especially for the notification extension, which keeps
-   showing a generic alert for groups at first).
-3. The storage-provider crash tests and fence proofs listed in the proposal.
-4. A design review of the rules and the function, with emulator tests and measured
-   costs, and an independent review of the integration.
+Group chats are switched on in version 0.4.0 (2026-11-14). This note first listed four
+conditions for release. The owner decided each one as follows.
+
+1. **Final cipher-suite identifiers: not waited for.** No OpenMLS release has
+   draft-07's final identifiers; 0.9.2 uses the provisional `0x004e` and the
+   draft-06 X-Wing KEM. The owner chose to ship on 0.9.2. **Consequence:** when a
+   release with the final identifiers is adopted, groups made before it may need to
+   be made again. Each group records its suite, so that change will be a visible
+   step with a notice, never a silent one.
+2. **The dependency: approved by the owner**, including the MPL-2.0 licence of
+   `hpke-rs`. The core is `fireplace-crypto` 0.2.0 from crates.io, pinned exactly.
+   Five advisories against crates in its dependency tree do not apply and are
+   recorded with reasons in that repository (`docs/dependencies.md`): four are for
+   crates that are never compiled, one for code that is linked and never run. Its CI
+   fails if any of the four enters the build. **Not done:** iOS arm64 size and
+   memory measurements. The notification extension still shows a generic alert for
+   groups.
+3. **Storage tests: partly done.** The core tests rollback, reloading a store from
+   saved records, replaying changes, and that one commit wins an epoch. The fuller
+   crash-injection list in the proposal has not been written.
+4. **Review:** the rules and functions have emulator tests. The owner decided not to
+   wait for an independent review at the present number of users.
+
+The build switch remains: `--dart-define=FIREPLACE_GROUPS=false` builds the app
+without group chats.
 
 AI assistance: Claude Code, building on the proposal written with GPT (OpenAI Codex).

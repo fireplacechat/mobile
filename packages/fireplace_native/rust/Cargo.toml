@@ -12,9 +12,8 @@ crate-type = ["cdylib"]
 # Select this dependency directly with `cargo build --package fireplace-crypto`
 # so the host library exports the core's C ABI without another Rust wrapper.
 [dependencies]
-# Group chats (decision 0050): the groups branch of fireplace-crypto until it is
-# released; then back to an exact crates.io version.
-fireplace-crypto = { git = "https://github.com/fireplacechat/fireplace-crypto", rev = "276eaacce7764f2c4914eb975040d9347db18079", features = ["groups"] }
+# An exact crates.io version. The groups feature (decision 0050) adds OpenMLS.
+fireplace-crypto = { version = "=0.2.0", features = ["groups"] }
 
 [features]
 # Only the separate host comparison build enables this; no app build does.
