@@ -2,9 +2,12 @@ import 'dart:convert';
 
 /// Group chats (mobile decision 0050, `docs/protocol/group-chats-v1.md`).
 ///
-/// Off unless the app is built with `--dart-define=FIREPLACE_GROUPS=true`, so
-/// release builds have no groups until the release gates in 0050 are met.
-const groupsEnabled = bool.fromEnvironment('FIREPLACE_GROUPS');
+/// On from v0.4.0 (owner's decision, 2026-11-14). A build can still leave
+/// groups out with `--dart-define=FIREPLACE_GROUPS=false`.
+const groupsEnabled = bool.fromEnvironment(
+  'FIREPLACE_GROUPS',
+  defaultValue: true,
+);
 
 abstract final class GroupLimits {
   static const maxMembers = 16;

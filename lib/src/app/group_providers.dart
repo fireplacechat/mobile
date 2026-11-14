@@ -13,7 +13,7 @@ final groupServiceProvider = Provider<GroupService?>(
   (ref) => ref.watch(appSessionProvider).value?.groups,
 );
 
-/// Whether this session offers groups (a build with FIREPLACE_GROUPS whose
+/// Whether this session offers groups (a build that includes them, whose
 /// group service started).
 final groupsOnProvider = Provider<bool>(
   (ref) => ref.watch(groupServiceProvider) != null,
