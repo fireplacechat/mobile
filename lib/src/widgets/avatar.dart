@@ -17,9 +17,17 @@ String avatarInitials(String name) {
 
 /// Initials on the chosen accent colour. There are no profile photos.
 class PersonAvatar extends StatelessWidget {
-  const PersonAvatar({super.key, required this.name, this.size = 44});
+  const PersonAvatar({
+    super.key,
+    required this.name,
+    this.size = 44,
+    this.color,
+  });
   final String name;
   final double size;
+
+  /// The fill, when it is not the app's accent: a group member's own colour.
+  final Color? color;
   @override
   Widget build(BuildContext context) {
     final t = FireplaceUiTokens.of(context);
@@ -35,7 +43,10 @@ class PersonAvatar extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color.lerp(t.accent, Colors.white, .18)!, t.accent],
+            colors: [
+              Color.lerp(color ?? t.accent, Colors.white, .18)!,
+              color ?? t.accent,
+            ],
           ),
         ),
         child: Text(

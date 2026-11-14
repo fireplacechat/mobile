@@ -4,13 +4,16 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/group_providers.dart';
+import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/groups/group_chat_screen.dart';
 import 'package:fireplace/src/view/groups/group_info_screen.dart';
 import 'package:fireplace/src/view/groups/new_group_screen.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
+import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -82,6 +85,9 @@ void main() {
     }
     expect(done(), isTrue);
   }
+
+  /// A control in the held-message menu, the same one 1:1 chats use.
+  Finder action(String id) => find.byKey(ValueKey('messageAction-$id'));
 
   Future<UiFixture> pump(WidgetTester t, Widget home) async {
     final f = UiFixture();
@@ -165,18 +171,22 @@ void main() {
     expect(find.text('bob'), findsOneWidget); // the name above Bob's run
     expect(find.text('2 people'), findsOneWidget);
 
+    // The same held-message menu as a 1:1 chat.
     await t.longPress(find.text('from Bob'));
     await t.pumpAndSettle();
-    expect(find.byKey(const Key('deleteForEveryone')), findsNothing);
-    expect(find.byKey(const Key('editGroupMessage')), findsNothing);
-    expect(find.byKey(const Key('deleteForMe')), findsOneWidget);
+    expect(action('deleteForEveryone'), findsNothing);
+    expect(action('edit'), findsNothing);
+    expect(action('deleteForMe'), findsOneWidget);
+    expect(action('react-👍'), findsOneWidget);
     await t.tapAt(const Offset(10, 10));
     await t.pumpAndSettle();
 
     await t.longPress(find.text('from Alice'));
     await t.pumpAndSettle();
-    expect(find.byKey(const Key('deleteForEveryone')), findsOneWidget);
-    await t.tap(find.byKey(const Key('deleteForEveryone')));
+    expect(action('edit'), findsOneWidget);
+    await t.tap(action('deleteForEveryone'));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('confirmRemoteDelete')));
     await settle(t, () => find.text('from Alice').evaluate().isEmpty);
     await t.runAsync(
       () => until(
@@ -191,7 +201,8 @@ void main() {
     await tearDownPhones(t);
   });
 
-  testWidgets('editing your message through the dialog saves it', (t) async {
+  testWidgets('editing your message happens in the composer, as in a 1:1 '
+      'chat', (t) async {
     await setUpPhones(t);
     final gid = await bookClub(t, alice, bob);
     await t.runAsync(() => alice.service.send(gid, 'See you at 7'));
@@ -199,13 +210,35 @@ void main() {
     await settle(t, () => find.text('See you at 7').evaluate().isNotEmpty);
     await t.longPress(find.text('See you at 7'));
     await t.pumpAndSettle();
-    await t.tap(find.byKey(const Key('editGroupMessage')));
+    await t.tap(action('edit'));
     await t.pumpAndSettle();
-    await t.enterText(find.byType(TextField).last, 'See you at 8');
-    await t.tap(find.byKey(const Key('saveEdit')));
-    // The dialog closes while its field animates out; nothing may throw.
-    await settle(t, () => find.text('See you at 8').evaluate().isNotEmpty);
+    // No dialog: the composer holds the text, under an "Edit message" bar.
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.byKey(const Key('editComposerPreview')), findsOneWidget);
+    final composer = find.byKey(const Key('composer'));
+    expect(t.widget<TextField>(composer).controller!.text, 'See you at 7');
+    // Nothing to save until the text changes.
+    expect(
+      t.widget<IconButton>(find.byKey(const Key('send'))).onPressed,
+      isNull,
+    );
+    await t.enterText(composer, 'See you at 8');
+    await t.pump();
+    await t.tap(find.byKey(const Key('send')));
+    await settle(
+      t,
+      () =>
+          find.byKey(const Key('editComposerPreview')).evaluate().isEmpty &&
+          find.text('See you at 8').evaluate().isNotEmpty,
+    );
+    expect(t.widget<TextField>(composer).controller!.text, isEmpty);
     expect(t.takeException(), isNull);
+    await t.runAsync(
+      () => until(
+        () async => (await texts(bob, gid)).contains('See you at 8'),
+        what: 'the edit reaches Bob',
+      ),
+    );
     await tearDownPhones(t);
   });
 
@@ -247,6 +280,171 @@ void main() {
       () => find.byKey(Key('groupInvite_$gid')).evaluate().isEmpty,
     );
     expect(alice.service.groups[gid]!.name, 'Tea club');
+    await tearDownPhones(t);
+  });
+
+  // ---------------------------------------------------------------- round 2
+
+  testWidgets("others' messages use the soft tint of their own colour; "
+      'names and avatars use its text shade', (t) async {
+    await setUpPhones(t);
+    bob.service.ownColor = 'plum';
+    final gid = await bookClub(t, alice, bob);
+    await t.runAsync(() async {
+      await bob.service.send(gid, 'from Bob');
+      await until(
+        () async =>
+            (await texts(alice, gid)).contains('from Bob') &&
+            alice.service.colorsOf(gid)['bob'] == 'plum',
+        what: 'the message and the colour',
+      );
+      await alice.service.send(gid, 'from Alice');
+    });
+    await pump(t, GroupChatScreen(gid: gid));
+    await settle(t, () => find.text('from Alice').evaluate().isNotEmpty);
+    final history = (await t.runAsync(
+      () => alice.messages.watch('group-$gid').first,
+    ))!;
+    String idOf(String body) => history.firstWhere((m) => m.body == body).id;
+    Color fill(String body) =>
+        (t
+                    .widget<Container>(
+                      find.byKey(ValueKey('messageBubble-${idOf(body)}')),
+                    )
+                    .decoration!
+                as BoxDecoration)
+            .color!;
+    expect(fill('from Bob'), ChatBubbleColor.plum.incoming(Brightness.light));
+    final own = ProviderScope.containerOf(
+      t.element(find.byType(GroupChatScreen)),
+    ).read(chatBubbleColorsProvider).outgoing;
+    expect(fill('from Alice'), own.outgoing);
+    final shade = ChatBubbleColor.plum.accentText(Brightness.light);
+    expect(
+      t
+          .widget<Text>(find.byKey(Key('groupSender_${idOf('from Bob')}')))
+          .style!
+          .color,
+      shade,
+    );
+    expect(
+      t
+          .widget<PersonAvatar>(
+            find.byKey(Key('groupAvatar_${idOf('from Bob')}')),
+          )
+          .color,
+      shade,
+    );
+    await tearDownPhones(t);
+  });
+
+  testWidgets('the history shows who was added, and where it starts for '
+      'someone who joined later', (t) async {
+    await setUpPhones(t);
+    final mine = await bookClub(t, alice, bob);
+    final theirs = await bookClub(t, bob, alice);
+    await pump(t, GroupChatScreen(gid: mine));
+    await settle(t, () => find.text('You added bob').evaluate().isNotEmpty);
+    // Alice made this group: its history on her phone is complete.
+    expect(find.byKey(const Key('historyStart')), findsNothing);
+
+    await pump(t, GroupChatScreen(gid: theirs));
+    await settle(
+      t,
+      () => find.byKey(const Key('historyStart')).evaluate().isNotEmpty,
+    );
+    expect(
+      find.text('Messages sent before you joined aren’t shown.'),
+      findsOneWidget,
+    );
+    await tearDownPhones(t);
+  });
+
+  testWidgets('a group row counts unread messages until the group is opened', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await pump(t, const ChatListScreen());
+    final badge = find.byKey(ValueKey('unread-group-$gid'));
+    await settle(t, () => find.text('Book club').evaluate().isNotEmpty);
+    expect(badge, findsNothing);
+    await t.runAsync(() async {
+      await bob.service.send(gid, 'one');
+      await bob.service.send(gid, 'two');
+    });
+    await settle(t, () => badge.evaluate().isNotEmpty);
+    await settle(
+      t,
+      () => find
+          .descendant(of: badge, matching: find.text('2'))
+          .evaluate()
+          .isNotEmpty,
+    );
+    // Lines about the group are not messages and are never counted.
+    await t.tap(find.byKey(Key('group_$gid')));
+    await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
+    await settle(t, () => find.text('two').evaluate().isNotEmpty);
+    await t.pageBack();
+    await settle(t, () => badge.evaluate().isEmpty);
+    await tearDownPhones(t);
+  });
+
+  testWidgets('an administrator makes a member an administrator', (t) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await pump(t, GroupInfoScreen(gid: gid));
+    expect(find.text('Administrator'), findsOneWidget);
+    await t.tap(find.byKey(const Key('member_bob')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('removeAdmin')), findsNothing);
+    await t.tap(find.byKey(const Key('makeAdmin')));
+    await settle(t, () => alice.service.groups[gid]!.isAdmin('bob'));
+    await settle(t, () => find.text('Administrator').evaluate().length == 2);
+    // Now the choice is to take it away again.
+    await t.tap(find.byKey(const Key('member_bob')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('removeAdmin')), findsOneWidget);
+    await t.tapAt(const Offset(10, 10));
+    await t.pumpAndSettle();
+    await tearDownPhones(t);
+  });
+
+  testWidgets('someone invited is listed as invited until they join', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    final gid = (await t.runAsync(() async {
+      final gid = await alice.service.create('Book club', ['bob']);
+      await until(
+        () async => alice.service.invitedTo(gid).containsKey('bob'),
+        what: 'invited',
+      );
+      return gid;
+    }))!;
+    await pump(t, GroupInfoScreen(gid: gid));
+    await settle(
+      t,
+      () => find.byKey(const Key('invitedHeader')).evaluate().isNotEmpty,
+    );
+    expect(find.textContaining('1 person, 1 invited'), findsOneWidget);
+    final row = find.byKey(const Key('member_bob'));
+    await t.scrollUntilVisible(row, 200);
+    expect(
+      find.descendant(of: row, matching: find.text('Invited')),
+      findsOneWidget,
+    );
+    // Not a member yet, so not offered as an administrator.
+    await t.tap(row);
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('makeAdmin')), findsNothing);
+
+    await t.runAsync(() => bob.service.accept(gid));
+    await settle(
+      t,
+      () => find.byKey(const Key('invitedHeader')).evaluate().isEmpty,
+    );
+    expect(find.textContaining('2 people'), findsOneWidget);
     await tearDownPhones(t);
   });
 }

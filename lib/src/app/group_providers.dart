@@ -6,6 +6,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/model/groups/group_service.dart';
+import 'package:fireplace/src/styles/chat_colors.dart';
 
 /// The signed-in account's group service, or null (groups off or not ready).
 final groupServiceProvider = Provider<GroupService?>(
@@ -54,6 +55,56 @@ final groupColorsProvider = StreamProvider.autoDispose
         if (changed == gid) yield service.colorsOf(gid);
       }
     });
+
+/// People invited to a group who have not answered, with who invited each.
+/// From the server's roster: MLS already counts them as members.
+final groupInvitedProvider = StreamProvider.autoDispose
+    .family<Map<String, String>, String>((ref, gid) async* {
+      final service = ref.watch(groupServiceProvider);
+      if (service == null) {
+        yield const {};
+        return;
+      }
+      yield service.invitedTo(gid);
+      await for (final changed in service.rosterChanges) {
+        if (changed == gid) yield service.invitedTo(gid);
+      }
+    });
+
+/// The colour to show for a member: theirs once it has arrived, Stone before.
+ChatBubbleColor memberColor(MemberColors colors, String uid) =>
+    ChatBubbleColor.values.asNameMap()[colors[uid]] ?? ChatBubbleColor.stone;
+
+/// Messages from other people in a group that this phone has not shown yet.
+/// Counted here from the local history, like 1:1 chats: the server holds no
+/// read state and nobody is told what was read.
+final groupUnreadProvider = Provider.autoDispose.family<int, String>((
+  ref,
+  gid,
+) {
+  final prefs = ref.watch(appSessionProvider).value?.chatPreferences;
+  if (prefs == null || !prefs.available) return 0;
+  final changes = prefs.changes.listen((_) => ref.invalidateSelf());
+  ref.onDispose(changes.cancel);
+  final id = groupChatId(gid);
+  final incoming = [
+    for (final m
+        in ref.watch(groupMessagesProvider(gid)).value ??
+            const <LocalMessage>[])
+      if (!m.outgoing &&
+          m.visible &&
+          !m.remotelyDeleted &&
+          m.status == MessageStatus.ok)
+        m.id,
+  ];
+  if (prefs.needsBaseline(id)) {
+    // What is already here when the group first appears is not "new".
+    unawaited(prefs.seedExisting(id, incoming).catchError((Object _) {}));
+    return 0;
+  }
+  final seen = prefs.seen[id] ?? const <String>{};
+  return incoming.where((m) => !seen.contains(m)).length;
+});
 
 /// Shares a new primary colour with every group when it changes in Settings.
 final groupColorSyncProvider = Provider<void>((ref) {

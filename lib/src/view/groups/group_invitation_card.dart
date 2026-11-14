@@ -31,6 +31,8 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
       await action(widget.invitation.gid);
     } on GroupRefused catch (e) {
       if (mounted) setState(() => _error = e.message);
+    } on GroupActionError catch (e) {
+      if (mounted) setState(() => _error = e.message);
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Could not answer this invitation. Try again.');

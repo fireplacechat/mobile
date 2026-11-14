@@ -16,6 +16,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/outgoing_sends.dart';
+import 'package:fireplace/src/styles/chat_colors.dart';
 
 class MessageBubble extends ConsumerStatefulWidget {
   const MessageBubble({
@@ -30,8 +31,19 @@ class MessageBubble extends ConsumerStatefulWidget {
     this.onQuote,
     this.outgoingSend,
     this.onFailedTap,
+    this.incomingColor,
+    this.liveOf,
   });
   final LocalMessage message;
+
+  /// The colour of a message from someone else, when it is not this account's
+  /// own choice: in a group each member's messages use that member's colour.
+  final ChatBubbleColor? incomingColor;
+
+  /// The stored message as it is now, for the copy shown while its menu is
+  /// open. Set where the conversation is not a 1:1 chat (a group); null means
+  /// the 1:1 history and its checks.
+  final LocalMessage? Function(WidgetRef ref)? liveOf;
 
   /// Set for a message that is on its way or was not sent. On the way it
   /// shows its time, like a message that has been sent. A failed one says so
@@ -100,6 +112,18 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
             : null,
         preview: Consumer(
           builder: (context, previewRef, _) {
+            if (widget.liveOf case final liveOf?) {
+              final live = liveOf(previewRef);
+              if (!mounted || live == null || live.remotelyDeleted) {
+                return const SizedBox.shrink();
+              }
+              return MessageBubble(
+                message: live,
+                senderName: widget.senderName,
+                preview: true,
+                incomingColor: widget.incomingColor,
+              );
+            }
             final session = previewRef.watch(appSessionProvider).value;
             final summary = previewRef.watch(
               chatSummaryProvider(widget.message.chatId),
@@ -175,7 +199,9 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
               : widget.senderName!);
     final base = mine
         ? colors.outgoing.outgoing
-        : colors.incoming.incoming(Theme.of(context).brightness);
+        : (widget.incomingColor ?? colors.incoming).incoming(
+            Theme.of(context).brightness,
+          );
     final quoted = message.quote != null && !message.remotelyDeleted;
     // With a quote the bubble's own padding shrinks to frame the panel, so
     // the text keeps its usual distance from the edge with this.
