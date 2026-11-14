@@ -1,6 +1,6 @@
 # Fireplace threat model
 
-**Status:** implementation-based, for the current one-to-one app on `main` (2026-10-03). Early software; not a certification or independent audit. Recheck whenever code, SDKs, Firebase configuration or behavior change. Design details: `docs/decisions/0001`-`0004`, `docs/protocol/account-deletion.md`, `tools/operator/README.md`.
+**Scope:** the one-to-one mobile client, checked against source on 2026-11-14. This is not an independent audit or a check of production configuration. Backend rules and operator tooling live in the private backend repository. See [architecture](../architecture.md), [decisions](../decisions/) and [account deletion](account-deletion.md).
 
 ## Assets and goals
 - Message content and the keys that protect it; account identity keys; device keys; recovery material; session state; pinned contact identities.
@@ -13,17 +13,17 @@ Goals: Firebase and network observers cannot read message bodies; a participant 
 ## What is implemented
 - **Accounts:** username + password on Firebase Auth via a synthetic address `<username>@users.fireplace.invalid`. No email/phone. Optional recovery key; device linking by QR + 6-digit code.
 - **Identity:** each account has a hybrid Ed25519 + ML-DSA-65 identity. Each device has X25519 + ML-KEM-768 keys certified by that identity. A contact's identity is pinned on first use (TOFU); a change blocks sending until the user accepts it. Safety number / QR verification binds the pin.
-- **Handshake (protocol v3):** PQXDH-style with signed and one-time prekeys; transcript commits to both identities and all public keys involved.
+- **Handshake (protocol v4):** PQXDH-style with signed and one-time prekeys; transcript commits to both identities and all public keys involved.
 - **Ratchet:** hybrid double ratchet (X25519 + ML-KEM-768 on every direction change), per-message AES-256-GCM keys that are deleted after use. Forward secrecy for processed messages; post-compromise security after the compromised side answers with fresh keys.
 - **Wire and state validation:** versions, lengths and types of messages and of stored session state are checked before use; failed decrypts never change state; repeated invalid new-chain messages are rate-limited per session. Session ids commit to the full handshake transcript (protocol v4).
 - **Local storage:** history in an AES-256-GCM file with the key in Keychain/Keystore; keys/sessions in the platform secure store.
-- **Server rules (Firestore):** participants only; message and device checks; message requests (3-message cap before acceptance); blocking; banned tokens refused; sender can delete own messages; account data deletable by its owner. Reports are not stored. Tested against the emulator (see `firebase/tests/`).
-- **Abuse handling:** block, ignore requests, and an operator CLI (`tools/operator`) that can suspend accounts. Message text is not stored for review.
+- **Server authorization:** the client relies on participant checks, message/device validation, request limits, blocking and suspension enforced by the backend. Rules and their emulator tests live in `fireplacechat/backend`, not this checkout.
+- **Abuse handling:** block, ignore requests and report spam. Reports name the reporter and reported account, with no message text; private operator tools handle moderation. Local unblock waits for server acknowledgement ([0051](../decisions/0051-block-unblock-confirmation.md)).
 
 ## What leaks (metadata)
 Firebase and anyone with database access see: account ids and usernames, display names, device ids and public keys, which accounts chat, who started a chat, who sent each message and when, approximate message length and the number of recipient devices (envelope sizes), request/accept state, and moderation records. They do not see message text. Direct username lookup is possible for any signed-in user (listing is denied). The block list is private but the rules consult it, so a blocked person's failed send is observable to them as an error. Network providers see IP addresses, times and traffic sizes.
 
-With notifications on, Apple (APNs) and Google (FCM) also see, for each alert: that the device received one, when, and the sender's username as the title (unless "Show sender's name" is off on that device). They never see message text; the server does not have it. Alerts show on the lock screen according to the phone's own notification-preview setting.
+With notifications on, APNs/FCM see push routing, timing and the payload metadata, including the sender's username when enabled. Message text is fetched as ciphertext and decrypted on the phone for previews; it is not sent as push plaintext. Local alerts and lock-screen previews can expose that decrypted text according to Fireplace and OS settings. See [notification previews](../decisions/0030-notification-previews.md).
 
 The device holds decrypted history. Someone with an unlocked phone, screen capture or accessibility access, malware, a compromised OS, device backups exposing keys, or a memory dump can read content. Deleting data is logical, not secure erasure from flash, backups, screenshots or recipients' phones.
 
@@ -32,30 +32,29 @@ The device holds decrypted history. Someone with an unlocked phone, screen captu
 
 **Mitigations and their limits:**
 - *Key substitution by the server:* prekeys and device certificates are signed by the account identity; pinning + safety numbers expose swapped identities. A first-contact substitution is only caught if users compare safety numbers.
-- *Spam / unsolicited contact / cost abuse:* invite-only sign-up (accounts without an invite are inert), message requests, blocking, suspension, and enforced limits of 20 messages per 10-second window and 2,000 a day per account (decision 0028). An invitee can still send 2,000 messages a day until banned (an app still on the older send-clock form has no daily cap until that form is removed), reads are not rate limited, and there is no App Check or device attestation yet, so a determined invitee can still drive up usage. On the Blaze plan that is a bill rather than an outage; budget alerts give warning and the push function's instance cap bounds its own cost, but nothing caps Firestore spending (see `docs/push/COSTS.md` in the backend repository).
+- *Spam / unsolicited contact / cost abuse:* invite-only sign-up, message requests, blocking, suspension and the send limits in [0028](../decisions/0028-send-window.md) reduce abuse. Read traffic can still drive costs; Firestore has no hard spending cap on Blaze. [App Check activation](../development/app-check.md) alone does not enforce attestation; enforcement is a server setting. Verify deployed rules, limits and console settings in the backend's release process.
 - *A contact who sends invalid messages:* after 8 invalid new-chain messages (tampered headers or ciphertexts; replays and reflections are refused cheaply and do not count) in a minute the session ignores further new-chain messages from that contact for up to a minute (they are retried afterwards); this only affects the conversation with that contact. Draining someone's one-time prekeys (anyone with an account can claim them) downgrades new sessions to the signed prekey alone, a 7-day forward-secrecy window; a server substituting a one-time prekey can only make that handshake fail.
 - *Compromised device:* not protected. After a one-time copy of session state, messages protected by the copied keys stay readable until the heal point.
 - *Metadata:* not hidden.
 - *Account takeover:* anyone with the password can sign in; they also need the local keys or the recovery key/linked device to read chats, but can create a new identity and get contacts' warnings. Weak or reused passwords are a risk. Authentication proves an account, not a real-world person.
 - *Operator/Admin compromise:* Firebase Admin credentials (and the operator CLI key) can read all metadata, edit rules and public key records, and ban accounts. Keep them out of the repository and the client.
-- *Dependencies:* ML-KEM/ML-DSA come from the pure-Dart `pqcrypto` package (not FIPS-validated; not hardened against side channels). The classical AES-GCM, X25519, Ed25519 and HKDF primitives from `cryptography` also use Dart implementations on Android/iOS with the current provider configuration; browser builds can use Web Crypto with Dart fallbacks. No constant-time or side-channel-hardening guarantee is claimed for these implementations. The protocol glue is project code that has had review by tools and tests but **no external cryptographic audit**.
+- *Dependencies:* app message crypto defaults to the pinned Rust core through `lib/fireplace_crypto.dart`; its dependency graph is in `packages/fireplace_native/rust/Cargo.lock`. The Dart `pqcrypto`/`cryptography` implementation remains for comparison, and local history encryption uses `cryptography`. Neither implementation is FIPS-validated, and no constant-time or side-channel guarantee is claimed. The protocol has had review by tools and tests but **no external cryptographic audit**.
 
 ## Not supported
-Group chats, calls, attachments, real-email recovery, multi-device history sync (a new device starts with an empty history), message deletion for everyone, disappearing messages.
+Calls, attachments, real-email recovery, old-history transfer to a new device, and disappearing-message timers. [Groups are specified](group-chats-v1.md) but not implemented. Delete-for-everyone controls exist; they cannot erase a recipient's screenshots, exports or other copies.
 
 ## Operational assumptions
-Production TLS endpoints and the deployed rules from this repository; Firebase admin credentials kept out of the client and repo; Firebase client configuration treated as public identifiers; rule and dependency changes reviewed and tested before release; a published security contact ([`SECURITY.md`](../../.github/SECURITY.md)) and operator process for reports; store privacy disclosures that include Firebase/SDK practices.
+Production TLS endpoints and backend authorization rules must match the intended policy. Keep Firebase admin credentials out of the client and repository; client configuration is public identification. Review rules and dependencies before release, maintain the [private reporting contact](../../.github/SECURITY.md) and moderation process, and keep store disclosures aligned with Firebase/SDK behavior.
 
-Historical internal review reports are maintained privately; this document does not claim an external audit.
+## Verification
 
+The suites cover distinct boundaries:
 
-## Evidence for the primitives (no external audit)
-No completed independent cryptographic audit is claimed. Included test evidence:
-- **Standards conformance.** `test/crypto/nist_vectors_test.dart` runs the pure-Dart ML-KEM-768 and ML-DSA-65 against NIST's official ACVP vectors (key generation, encapsulation, decapsulation including implicit rejection, key validity checks, signing, and verification of valid and invalid signatures). `test/crypto/wycheproof_test.dart` runs X25519, Ed25519, AES-256-GCM and HKDF-SHA256 against Google's Wycheproof vectors, which include malformed and tampered inputs. All pass.
-- **What this does and does not show.** It shows the *building blocks* compute what the standards specify and reject known-bad inputs. It does **not** show that the handshake, ratchet or key-management design is secure, that secrets are erased from memory, or that the pure-Dart code is constant-time. Those rest on design review by ChatGPT/Claude, fault-injection and property tests, and public scrutiny of the open-source code.
-- **Honest wording for users:** not independently audited; not intended for life-or-death secrets.
+- `test/crypto/nist_vectors_test.dart` and `wycheproof_test.dart` check the Dart reference against standard and adversarial vectors.
+- `native_vectors_test.dart`, `native_cross_keys_test.dart` and `native_cross_session_test.dart` check native output, interoperability and transferred session state.
+- Protocol property tests and chat simulations exercise invalid inputs, restart and persistence/publish failures. See [setup](../development/setup.md) to run them.
 
-### Failure behaviour
-Seeded simulations exercise crashes, restart, offline delivery and persistence/publish failures.
-They are regression evidence, not a universal delivery guarantee. A send with an uncertain outcome
-is not automatically resent; the user can inspect history and choose what to do next.
+These are regression and interoperability checks, not proof of complete protocol security, constant-time execution or secure memory erasure. Honest wording for users: not independently audited; not intended for life-or-death secrets.
+
+A send with an uncertain outcome is not automatically resent; the user can check
+server confirmation and explicitly decide whether to send another copy.

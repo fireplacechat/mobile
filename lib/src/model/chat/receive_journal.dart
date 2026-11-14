@@ -9,6 +9,8 @@ import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/keys/prekey_service.dart';
 import 'package:fireplace/src/model/chat/session_store.dart';
 
+/// Applies a received message's effects (history, session, spent prekey) so a
+/// crash cannot leave them half done. Callers hold the account lock.
 class ReceiveJournal {
   ReceiveJournal(
     this._secrets,

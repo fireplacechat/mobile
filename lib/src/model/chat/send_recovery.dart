@@ -4,6 +4,8 @@ import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 
+/// Resolves sends with an unknown outcome: asks the server, repairs local
+/// history, and resends only when the user chooses to.
 class SendRecovery {
   SendRecovery(
     this._db,

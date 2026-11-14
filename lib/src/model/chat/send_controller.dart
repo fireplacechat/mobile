@@ -7,6 +7,8 @@ import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
 import 'package:fireplace/src/model/chat/message_recovery_action.dart';
 
+/// Chat-screen state for sending and for resolving unconfirmed sends. Warnings
+/// that could not be saved to history stay in memory until resolved.
 class SendController extends ChangeNotifier {
   SendController({
     required this.chatId,

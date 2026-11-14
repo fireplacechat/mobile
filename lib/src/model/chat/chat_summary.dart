@@ -1,3 +1,5 @@
+/// A chat as the chat list sees it: Firestore metadata only, never message
+/// text (previews come from local history).
 class ChatSummary {
   ChatSummary(
     this.chatId,

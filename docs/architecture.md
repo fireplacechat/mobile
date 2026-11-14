@@ -1,143 +1,103 @@
 # Architecture
 
-Fireplace is a Flutter app for iOS and Android using Firebase. Code is organized by feature and layer. Providers assemble session resources, models own logic and data access, and views own screens and interaction.
+Fireplace is a Flutter client for iOS and Android. Firebase holds account data,
+public keys and message ciphertext. The phone encrypts messages and keeps local
+history; the backend rules and operator tools live in a separate private repository.
 
-## Start here
+## Find the code
 
-1. `lib/main.dart` starts Firebase and runs the app.
-2. `lib/src/app.dart` selects the first screen.
-3. `lib/src/view/chat_list/chat_list_screen.dart` lists conversations; `lib/src/view/chat/chat_screen.dart` contains the chat screen, with sending and contact state machines in `lib/src/model/chat/send_controller.dart` and `contact_controller.dart`.
-4. `lib/src/model/chat/chat_service.dart` is the public facade; it wires the sender, receiver and shared state holders in `lib/src/model/chat/`.
-5. `lib/src/crypto/session.dart` implements the cryptographic session and stays whole.
+| Start with | Responsibility |
+|---|---|
+| [main.dart](../lib/main.dart), [Firebase setup](../lib/src/app/firebase_setup.dart) | Initialize Firebase, emulator connections and background push entry points |
+| [Routing](../lib/src/app.dart), [providers](../lib/src/app/providers.dart) | Route the app and assemble resources for the signed-in account |
+| [Chat list](../lib/src/view/chat_list/), [chat screen](../lib/src/view/chat/chat_screen.dart) | Conversation list, timeline, composer and message actions |
+| [ChatService](../lib/src/model/chat/chat_service.dart) | Account/device chat facade; wires sending, receiving and recovery |
+| [SendController](../lib/src/model/chat/send_controller.dart), [ContactController](../lib/src/model/chat/contact_controller.dart) | Send/recovery and contact-action state for the chat screen |
+| [Notifications](../lib/src/model/notifications/), [push](../lib/src/model/push/) | Local unread/arrival state, notification preferences and push handling |
+| [Database](../lib/src/db/) | Encrypted history, secret storage and the account lock |
+| [Crypto API](../lib/src/crypto/backend.dart) | Rust by default, with the Dart reference retained for comparison |
+| [Styles](../lib/src/styles/), [widgets](../lib/src/widgets/) | Design tokens and shared presentation widgets |
 
-## Folders
+The app imports crypto through `package:fireplace/fireplace_crypto.dart`.
+`lib/src/crypto/session.dart` is the Dart reference ratchet; the default implementation
+comes from the [pinned Rust core](../packages/fireplace_native/rust/Cargo.toml).
+See [setup](development/setup.md) for the native build requirements.
 
-```text
-lib/src/
-├── app/                provider wiring and session composition
-├── app.dart            first-screen routing
-├── crypto/             protocol primitives and cryptographic sessions
-├── db/                 local encrypted history and secret storage
-├── model/              feature logic, state and Firebase access
-├── styles/             colours, spacing, typography and brand drawing
-├── view/               screens and feature widgets
-└── widgets/            shared widgets
-```
+## Layers
 
-Model features: `account`, `chat`, `common`, `keys`, `notifications`, `push`, `safety`, `search`, `settings`. View features: `account`, `auth`, `chat`, `chat_list`, `devices`, `notifications`, `recovery`, `safety`, `search`, `settings`. `chat_list` is separate from `chat`.
+- `view/<feature>` owns screens and interaction; Firebase access belongs in `model/<feature>`.
+- `model` owns feature logic and may use `db` and `crypto`, without importing UI widgets or styles.
+- Shared `widgets` may use styles and helpers, without importing feature models or storage.
+- `styles`, `utils`, `db` and `crypto` must not import higher layers. `utils/` is reserved for pure helpers and is currently unused.
+- Views may use another feature's public file, but not its nested implementation files. Top-level app wiring assembles the layers.
 
-`utils/` is reserved for small pure helpers; no such source directory is currently needed.
-
-## Dependencies
-
-`scripts/check_layout.py` enforces the layer boundaries and rejects the two retired top-level source directories:
-
-- `view` can use model, database, crypto, styles, widgets and helpers; Firebase access belongs in the model.
-- `model` can use database, crypto and helpers, without importing UI widgets or styles.
-- Shared `widgets` use styles and helpers, without importing feature models or database code.
-- `styles`, `utils`, `db` and `crypto` must not import higher layers.
-- A view feature may import another feature's public file, but not its nested implementation files.
-
-All app imports use `package:fireplace/...`. Top-level startup wiring can assemble the layers. The checker warns about files over 500 lines. Top-level app wiring remains outside the feature-layer rules.
+Use `package:fireplace/...` imports. `scripts/check_layout.py` enforces these
+boundaries, rejects retired source directories and warns about files over 500 lines.
+`test/` mirrors the source layers; fixtures live in `test/support/`.
 
 ## The path of one message
 
-1. `view/chat/chat_screen.dart` delegates sending to `model/chat/send_controller.dart`, which checks message length using `model/chat/message_limits.dart` and calls the chat service. Reactions show at once through `model/chat/pending_reactions.dart`.
-2. `model/chat/chat_service.dart` forwards to `model/chat/message_sender.dart`, which runs the send in order:
-   - `send_mode.dart` checks what the chat allows (normal, request, accepting);
-   - `device_cache.dart` supplies the devices to encrypt for, from a live listener;
-   - `message_payload.dart` writes the plaintext, and `envelope_encryption.dart` encrypts it per device with `crypto/session.dart`;
-   - `session_store.dart` saves the advanced ratchets ahead of publishing;
-   - the batch is published, and `publish_errors.dart` tells a definite refusal from an ambiguous failure.
-3. An uncertain send is kept for the user's explicit confirmation or retry; it never silently resends.
-4. `model/chat/message_receiver.dart` decrypts, reads the plaintext with `message_payload.dart`, journals through `model/chat/receive_journal.dart`, and saves the message in `db/encrypted_message_store.dart` (a snapshot per chat plus, for long chats, `db/history_log.dart`).
-5. Screens read local history. The server receives ciphertext for messaging. Message text is not copied into a report.
+1. `SendController` checks input and calls `ChatService`. `MessageSender` holds
+   the account lock and finishes any interrupted receive journal first.
+2. `SendMode` checks request/acceptance rules. `DeviceCache` supplies recipient
+   devices; `message_payload.dart` encodes the content, and
+   `envelope_encryption.dart` encrypts separately for each device.
+3. `SessionStore.saveAhead` persists advanced ratchets **before** publication.
+   A definite refusal restores prior state. An ambiguous outcome keeps the
+   advanced state and an unconfirmed message; it never automatically resends.
+4. `MessageReceiver` processes ciphertext under the same lock. After authentication,
+   `ReceiveJournal` records the history, session and spent-prekey effects before
+   applying them. An interrupted journal is replayed before further send/receive work.
+5. Screens, search and previews read local history. Receive cursors do not advance
+   past unfinished messages. Pending local Firestore writes cannot confirm a send;
+   committed additions and modifications can resolve an unconfirmed entry.
 
-```mermaid
-flowchart TD
-  screen["view/chat/chat_screen.dart"]
-  send["model/chat/send_controller.dart"]
-  limits["model/chat/message_limits.dart"]
-  reactions["model/chat/pending_reactions.dart"]
-  service["model/chat/chat_service.dart"]
-  sender["model/chat/message_sender.dart"]
-  mode["send_mode.dart"]
-  devices["device_cache.dart"]
-  payload["message_payload.dart"]
-  envelope["envelope_encryption.dart"]
-  session["crypto/session.dart"]
-  store["session_store.dart"]
-  errors["publish_errors.dart"]
-  uncertain["uncertain send, kept for confirmation or retry"]
-  server["server receives ciphertext"]
-  receiver["model/chat/message_receiver.dart"]
-  journal["model/chat/receive_journal.dart"]
-  saved["db/encrypted_message_store.dart"]
-  history["db/history_log.dart"]
-  screens["screens read local history"]
+| Helper in `model/chat/` | Owns |
+|---|---|
+| [ChatDirectory](../lib/src/model/chat/chat_directory.dart) | Firestore chat metadata, requests and username lookup |
+| [ChatSummary](../lib/src/model/chat/chat_summary.dart) | Chat metadata for the list and request eligibility; no message text |
+| [SessionStore](../lib/src/model/chat/session_store.dart) | Ratchet snapshots in `SecretStore`, scoped to this device and each peer device |
+| [SendRecovery](../lib/src/model/chat/send_recovery.dart) | Server confirmation checks, local-history repair and explicit resend callbacks |
+| [ReceiveJournal](../lib/src/model/chat/receive_journal.dart) | Replay of partly applied authenticated receives |
+| [ChatPreview](../lib/src/model/chat/chat_preview.dart) | Latest local message or pending send shown in the conversation list |
 
-  screen --> send
-  screen --> reactions
-  send --> limits
-  send --> service
-  service --> sender
-  sender --> mode
-  sender --> devices
-  sender --> payload
-  payload --> envelope
-  envelope --> session
-  sender --> store
-  sender --> errors
-  errors --> uncertain
-  errors --> server
-  server --> receiver
-  receiver --> payload
-  receiver --> journal
-  receiver --> saved
-  saved --> history
-  saved --> screens
-```
+`EncryptedFileMessageStore` stores AES-256-GCM snapshots and, for longer chats,
+an encrypted `HistoryLog`. Keys and ratchet state use `SecretStore`. The account
+`SharedLock` serializes app/background access and invalidates stale caches.
+`AsyncMutex` in `lib/src/model/common/async_mutex.dart` queues work within one isolate;
+the prekey service uses it. `SharedLock` owns account-wide coordination.
 
-Firestore stores public keys, ciphertext and account/chat metadata. Secure storage holds device keys and ratchet state. Encrypted local files hold history and preferences. Providers assemble these resources and manage their lifecycle.
+## Account lifecycle
 
-## Session lifecycle
+`appSessionProvider` creates account resources in order. `SessionScope` handles
+cancellation and closes resources in reverse order, including when sign-out
+interrupts startup.
 
-`app/providers.dart` keeps the ordered startup sequence and Riverpod dependencies. It delegates cancellation and reverse-order cleanup to `model/common/session_scope.dart`. `SessionScope` owns the cleanup future and reads mounted state at call time; disposal during initialization leaves cleanup to the startup sequence's `finally` block.
+`ChatSyncCoordinator` reconciles receive subscriptions when chats or blocks
+change. It excludes incoming requests, blocked peers and hidden chats, and seeds
+the local unread baseline before starting sync. Eligibility is checked again
+after that I/O. An unblock takes effect locally after server acknowledgement
+([0051](decisions/0051-block-unblock-confirmation.md)).
 
-`model/chat/chat_sync_coordinator.dart` owns active background-sync subscriptions and the latest chat list. Chat-list and blocked-set events trigger reconciliation. It writes the local unread baseline before starting sync and re-checks eligibility after that I/O. The provider registers its cleanup in the original order, before registering the two event subscriptions. `AppSession` and the other providers retain their public interfaces.
+`ChatService.close()` stops scheduling receives and retries, cancels subscriptions,
+drains work, waits for the account lock, and closes caches and event streams
+before the session's stores close.
 
-## Feature responsibilities
+## Planned groups
 
-Group chats are designed, not built: [MLS in the shared Rust core](decisions/0036-groups-use-mls.md),
-with the owner's choices in [0050](decisions/0050-group-chats.md) and the
-[full proposal](protocol/group-chat-design.md). The current 1:1 implementation is unchanged.
+The app currently implements 1:1 chats. MLS groups are specified but not built:
+[owner decisions](decisions/0050-group-chats.md),
+[implementation specification](protocol/group-chats-v1.md), and
+[design rationale](protocol/group-chat-design.md).
 
-Shared presentation widgets live in `widgets/`; the message bubble and day separator live in `view/chat/widgets/`. `message_bubble_body.dart` draws the quote, text and time inside the bubble. `message_actions_controls.dart` draws the reaction bar and the action list in the hold menu.
+## Verification and changes
 
-Recovery-key, device-linking and password-change flows live in `view/recovery/`, `view/devices/` and `view/account/`.
+Run `scripts/check.sh` before a pull request. For UI changes, use the
+[render catalog](../scripts/render/README.md); a move or extraction should produce
+identical preview PNGs. See [setup](development/setup.md) for targeted commands.
 
-Account, device, safety, settings and chat-list screens live in their feature folders. Chat visibility and message formatting live in `model/chat/`; unread and arrival bookkeeping lives in `model/notifications/`. Chat directory, session storage, send recovery, receive journaling, sender and receiver are behind the existing chat-service facade.
-
-`ChatService` creates one mutex (`model/common/async_mutex.dart`) and passes the same instance to the sender and receiver. It also owns the shared `IdentityAlerts`, `WorkTracker` and `DeferredQueue` holders. Its `close()` marks work closed, stops the retry timer, cancels syncs and drains receive work, waits for the mutex, clears deferred and unfinished entries, then closes alerts. The public constructor, methods and test hooks remain compatible. `ChatTuning` holds the tuning values; the facade forwards the existing static API.
-
-The chat screen delegates send/recovery state to `SendController` and contact-action/security-review state to `ContactController`. Controllers receive getters and callbacks from the screen; dialogs and snack bars remain in the view layer, and draft editing stays in the screen. Controller notifications replace the original `setState` wrappers; pending-memory mutations during `build()` stay silent.
-
-`TimelineScroll` owns scrolling and the silent anchor cache, including following a new last message or keeping the reader's place (`historyChanged`). `timeline_messages.dart` works out which rows the timeline shows (saved history merged with sends not saved yet, and the window after a jump); `chat_safety_actions.dart` blocks and reports from the chat. `RouteVisibility` owns route and lifecycle registration. `messageMenuActions` builds the existing message actions through view-layer callbacks. The screen keeps its draft, reveal-all state, message-provider listener and build-time frame callbacks. The screen composes `ChatComposer`, `ChatSafetyNotices`, `SearchLocationNotice`, the app-bar parts, `ChatTimeline` and the unavailable/privacy guard screens in `view/chat/`. `UiAppBar` construction stays in the State so its height uses the original context. The State also reads the keyboard inset above `Scaffold` and passes it into composer and notice layout. Crypto session code stays whole. `forward_recipients.dart` lists who can receive a forwarded message.
-
-`test/` mirrors the source layers. Fixture helpers stay in `test/support/`; protocol vectors in `test/vectors/` stay unchanged. Earlier decision records retain paths from when they were written.
-
-## Verification
-
-```sh
-python3 scripts/check_layout.py .
-flutter analyze
-dart format --output=none --set-exit-if-changed lib test scripts
-TZ=UTC flutter test --concurrency=1
-TZ=UTC flutter test scripts/render/render_screens_test.dart
-```
-
-For a move or extraction, preview PNG hashes must match the parent revision. Existing test bodies stay unchanged; imports and locations may follow the moved code.
-
-For new work, put screens in `view/<feature>/`, logic in `model/<feature>/`, and local storage in `db/`. Reuse shared widgets. Cryptographic, wire-format or authentication changes require a decision record and tests.
-
-See [CONTRIBUTING.md](../.github/CONTRIBUTING.md) and the [coding style](development/coding-style.md).
+Put screens in `view/<feature>`, logic in `model/<feature>`, and local storage in
+`db/`. Protocol, key-handling, authentication and rules changes need a decision
+record and tests. Earlier decision records may retain paths from when they were
+written. Contribution rules: [AGENTS.md](../AGENTS.md) and
+[coding style](development/coding-style.md).

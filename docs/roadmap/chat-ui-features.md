@@ -1,6 +1,6 @@
-# Chat UI features: status and priorities
+# Chat UI features: original review
 
-Written 2026-10-05 from a read of the code on the UI follow-up branch (`feature/ui-review-followup`, `c73361b`) and the owner's decisions. "Today" describes what the code does now; nothing here has been tested on a phone.
+Historical request from 2026-10-05, based on `feature/ui-review-followup` (`c73361b`). "Today" below means that reviewed branch, not current `main`. For current behavior, use [feature status](feature-matrix.md); for work to pick up, use [open issues](https://github.com/fireplacechat/mobile/issues).
 
 ## Decisions already made
 
