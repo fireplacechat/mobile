@@ -280,6 +280,9 @@ void main() {
       () => find.byKey(Key('groupInvite_$gid')).evaluate().isEmpty,
     );
     expect(alice.service.groups[gid]!.name, 'Tea club');
+    // Join goes straight into the conversation.
+    await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
+    expect(find.text('Tea club'), findsOneWidget);
     await tearDownPhones(t);
   });
 

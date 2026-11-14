@@ -454,6 +454,36 @@ void main() {
     await carol.service.close();
   });
 
+  test("a phone that lacks a member's colour asks for it once", () async {
+    alice.service.ownColor = 'plum';
+    final gid = await bookClub();
+    await until(
+      () async => bob.service.colorsOf(gid)['alice'] == 'plum',
+      what: 'the colour',
+    );
+    // Bob's phone as it was before members answered a newcomer: it joined, and
+    // nobody's colour ever arrived.
+    await bob.service.close();
+    await bob.secrets.delete('groupcolors:bob');
+    final again = GroupService(
+      db: db,
+      uid: 'bob',
+      device: await KeyService(db, bob.secrets).ensureDevice('bob'),
+      secrets: bob.secrets,
+      historyDir: Directory('${root.path}/bob'),
+      messages: bob.messages,
+      colourCatchUp: const Duration(milliseconds: 100),
+    );
+    await again.start();
+    expect(again.colorsOf(gid), isEmpty);
+    await until(
+      () async => again.colorsOf(gid)['alice'] == 'plum',
+      what: 'the colour, asked for',
+    );
+    await again.close();
+    bob = await Phone.create(FakeFirebaseFirestore(), 'bob2', root);
+  });
+
   test('changes to the group are written into the history as lines', () async {
     final gid = await bookClub();
     for (final p in [alice, bob]) {

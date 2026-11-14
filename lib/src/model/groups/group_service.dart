@@ -44,7 +44,9 @@ class GroupService {
     SendAllowance? allowance,
     Duration? requestTimeout,
     DateTime Function()? clock,
+    Duration colourCatchUp = const Duration(seconds: 5),
   }) : _db = db,
+       _colourCatchUp = colourCatchUp,
        _allowance = allowance ?? SendAllowance(),
        _now = clock ?? DateTime.now,
        _requests = GroupRequests(db, uid, timeout: requestTimeout);
@@ -58,6 +60,7 @@ class GroupService {
   final SendAllowance _allowance;
   final DateTime Function() _now;
   final GroupRequests _requests;
+  final Duration _colourCatchUp;
 
   late GroupRecordFile _file;
   late GroupCrypto _crypto;
@@ -84,6 +87,8 @@ class GroupService {
   // removing them: tells a removal's line which words to use.
   final _departures = <String, Map<String, GroupNotice>>{};
   final _removalLines = <String, Map<String, LocalMessage>>{};
+  // Groups whose members have been asked for their colours since the app started.
+  final _askedColours = <String>{};
 
   String get deviceId => _device.keys.deviceId;
 
@@ -281,6 +286,7 @@ class GroupService {
       _joining.remove(gid);
       // Joined on another of this account's devices, or before a reinstall.
       if (!_groups.containsKey(gid) && await _joinFromWelcome(gid)) {
+        _askedColours.add(gid);
         unawaited(_sendProfile(gid, hello: true));
       }
       if (_groups.containsKey(gid)) {
@@ -634,6 +640,7 @@ class GroupService {
   Future<void> _maintain(String gid, Map<String, dynamic> roster) async {
     final info = _groups[gid];
     if (info == null || _pending.contains(gid)) return;
+    _catchUpColours(gid);
     final fence = (roster['fence'] as List?)?.cast<Map>() ?? const [];
     if (fence.isNotEmpty) {
       final members =
@@ -922,6 +929,30 @@ class GroupService {
     }
   }
 
+  /// Asks a group's members for their colours when this phone lacks one: a
+  /// group from before colours were answered, or a colour sent while this
+  /// phone could not read it. Once per group each time the app starts, and
+  /// only after a pause, so a newcomer's own `hello` usually settles it first.
+  /// It costs one message here and one from each member (at most 16).
+  void _catchUpColours(String gid) {
+    if (_askedColours.contains(gid)) return;
+    bool missing() {
+      final members = _rosters[gid]?['members'];
+      final have = _colors[gid] ?? const {};
+      return members is Map &&
+          members.keys.any((u) => u != uid && !have.containsKey(u));
+    }
+
+    if (!missing()) return;
+    _askedColours.add(gid);
+    unawaited(
+      Future<void>.delayed(_colourCatchUp, () async {
+        if (_closed || !_groups.containsKey(gid) || !missing()) return;
+        await _sendProfile(gid, hello: true);
+      }),
+    );
+  }
+
   /// Says, inside the group, why someone is about to go. Best effort: without
   /// it the line reads "is no longer in the group".
   Future<void> _sendNotice(String gid, Map<String, Object> notice) async {
@@ -1138,6 +1169,7 @@ class GroupService {
       rethrow;
     }
     // The group stays exempt from the server's list until it appears there.
+    _askedColours.add(gid);
     unawaited(_sendProfile(gid, hello: true));
   }
 

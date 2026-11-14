@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/view/groups/group_avatar.dart';
+import 'package:fireplace/src/view/groups/group_chat_screen.dart';
 import 'package:fireplace/src/widgets/status.dart';
 
 /// An invitation to a group, with Join and Decline. The group's name is
@@ -88,7 +91,26 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
                   key: const Key('joinGroup'),
                   onPressed: _busy || service == null
                       ? null
-                      : () => _run(service.accept),
+                      : () async {
+                          // Joining takes the card away, so keep what opening
+                          // the group needs.
+                          final navigator = Navigator.of(context);
+                          final gid = widget.invitation.gid;
+                          var joined = false;
+                          await _run((g) async {
+                            await service.accept(g);
+                            joined = true;
+                          });
+                          if (!joined) return;
+                          // Straight into the conversation, as the owner asked.
+                          unawaited(
+                            navigator.push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => GroupChatScreen(gid: gid),
+                              ),
+                            ),
+                          );
+                        },
                   child: const Text('Join'),
                 ),
               ],
