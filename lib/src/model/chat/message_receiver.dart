@@ -162,12 +162,18 @@ class MessageReceiver {
         q = q.limit(ChatTuning.pageCap);
       }
       syncPagesOpened[chatId] = (syncPagesOpened[chatId] ?? 0) + 1;
-      inner = q.snapshots().listen((snap) {
+      // Local write echoes cannot confirm publication. The acknowledgement
+      // may only change metadata, so process committed modifications too.
+      inner = q.snapshots(includeMetadataChanges: true).listen((snap) {
         _work.track(() async {
           if (cancelled || _work.closed || mine != generation) return;
           final added =
               snap.docChanges
-                  .where((c) => c.type == DocumentChangeType.added)
+                  .where(
+                    (c) =>
+                        c.type != DocumentChangeType.removed &&
+                        !c.doc.metadata.hasPendingWrites,
+                  )
                   .map((c) => c.doc)
                   .toList()
                 ..sort((a, b) => _ts(a).compareTo(_ts(b)));
@@ -249,6 +255,7 @@ class MessageReceiver {
     final snap = await q.get(options);
     final docs = snap.docs.toList()..sort((a, b) => _ts(a).compareTo(_ts(b)));
     for (final d in docs) {
+      if (d.metadata.hasPendingWrites) continue;
       final t = d.data()['ts'];
       _queue.registerUnfinished(chatId, d.id, t is Timestamp ? t : null);
     }
@@ -256,6 +263,12 @@ class MessageReceiver {
     Timestamp? advanceTo;
     for (final d in docs) {
       if (_work.closed) return false;
+      // A local write echo is not evidence of publication. In particular it
+      // must not confirm an ambiguous send or move the recovery watermark.
+      if (d.metadata.hasPendingWrites) {
+        finished = false;
+        continue;
+      }
       if (!await _handle(chatId, d.id, d.data())) finished = false;
       final ts = d.data()['ts'];
       if (finished && ts is Timestamp) advanceTo = ts;

@@ -21,6 +21,8 @@ class SafetyService {
   final String uid;
 
   Set<String> _blocked = {};
+  final _pendingUnblocks = <String>{};
+  final _changes = <String, Future<void>>{};
   Set<String>? _hidden;
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
   final _blockedCtrl = StreamController<Set<String>>.broadcast();
@@ -32,8 +34,14 @@ class SafetyService {
   Future<void> start() async {
     _blocked = (await _blocks.get()).docs.map((d) => d.id).toSet();
     _blockedCtrl.add(_blocked);
-    _sub = _blocks.snapshots().listen((s) {
-      _blocked = s.docs.map((d) => d.id).toSet();
+    _sub = _blocks.snapshots(includeMetadataChanges: true).listen((s) {
+      // A delete is visible in the SDK cache before the server accepts it.
+      // Keep receiving/sending disabled until our unblock is acknowledged.
+      _blocked = {
+        if (s.metadata.hasPendingWrites) ..._blocked,
+        for (final d in s.docs) d.id,
+        ..._pendingUnblocks,
+      };
       _blockedCtrl.add(_blocked);
     }, onError: (_) {});
   }
@@ -56,17 +64,40 @@ class SafetyService {
     sink.add(blocked);
   });
 
-  Future<void> block(String peerUid) async {
+  // Order changes for one person without a slow/offline unblock delaying a
+  // safety action for somebody else. Remove completed queues from memory.
+  Future<void> _change(String peerUid, Future<void> Function() action) {
+    final previous = _changes[peerUid];
+    final next = () async {
+      try {
+        await previous;
+      } catch (_) {
+        // A refused action must not prevent the next explicit choice.
+      }
+      await action();
+    }();
+    _changes[peerUid] = next;
+    return next.whenComplete(() {
+      if (identical(_changes[peerUid], next)) _changes.remove(peerUid);
+    });
+  }
+
+  Future<void> block(String peerUid) => _change(peerUid, () async {
     await _blocks.doc(peerUid).set({'createdAt': FieldValue.serverTimestamp()});
     _blocked = {..._blocked, peerUid};
     _blockedCtrl.add(_blocked);
-  }
+  });
 
-  Future<void> unblock(String peerUid) async {
-    await _blocks.doc(peerUid).delete();
-    _blocked = {..._blocked}..remove(peerUid);
-    _blockedCtrl.add(_blocked);
-  }
+  Future<void> unblock(String peerUid) => _change(peerUid, () async {
+    _pendingUnblocks.add(peerUid);
+    try {
+      await _blocks.doc(peerUid).delete();
+      _blocked = {..._blocked}..remove(peerUid);
+      _blockedCtrl.add(_blocked);
+    } finally {
+      _pendingUnblocks.remove(peerUid);
+    }
+  });
 
   /// Tells the operator that [peerUid] may be sending spam.
   ///
