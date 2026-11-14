@@ -20,10 +20,8 @@ class Dev {
   late ChatService chat;
   final subs = <StreamSubscription<void>>[];
 
-  /// This account's own colour, sent inside its messages when set, and the
-  /// colours other people's messages carried (decision 0052).
-  String? color;
-  final peerColors = <String, String>{};
+  /// The colours read from other people's profiles (decision 0053).
+  final peerColors = <String, String?>{};
 
   static Future<Dev> create(FakeFirebaseFirestore db, String uid) async {
     final secrets = MemorySecretStore();
@@ -73,7 +71,6 @@ class Dev {
       prekeys: PreKeyService(db, secrets),
       secrets: secrets,
       messages: messages,
-      ownColor: () => color,
       onPeerColor: (peer, c) => peerColors[peer] = c,
     );
     await PreKeyService(db, secrets).maintain(uid, ld);

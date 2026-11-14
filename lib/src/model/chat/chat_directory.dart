@@ -140,7 +140,40 @@ class ChatDirectory {
     return true;
   }
 
+  /// Called with the colour a person's profile shows (null when it shows
+  /// none) each time that profile is read (decision 0053).
+  void Function(String peerUid, String? color)? onPeerColor;
+
+  /// When each person's profile was last read, to bound [refreshPeerColor].
+  final _profileReadAt = <String, DateTime>{};
+  static const _colorMaxAge = Duration(minutes: 15);
+
+  Future<Map<String, dynamic>?> _profile(String peerUid) async {
+    final data = (await _db.collection('users').doc(peerUid).get()).data();
+    _profileReadAt[peerUid] = DateTime.now();
+    if (data != null && peerUid != uid) {
+      final color = data['color'];
+      onPeerColor?.call(peerUid, color is String ? color : null);
+    }
+    return data;
+  }
+
+  /// The profile read for the name also brings the person's colour, so
+  /// showing it costs no read of its own.
   Future<String?> usernameOf(String peerUid) async =>
-      (await _db.collection('users').doc(peerUid).get()).data()?['username']
-          as String?;
+      (await _profile(peerUid))?['username'] as String?;
+
+  /// Reads a person's colour again when their chat is opened: one read, and
+  /// none if their profile was read in the last quarter of an hour.
+  Future<void> refreshPeerColor(String peerUid) async {
+    final last = _profileReadAt[peerUid];
+    if (last != null && DateTime.now().difference(last) < _colorMaxAge) return;
+    // Claimed first, so two openings at once read once.
+    _profileReadAt[peerUid] = DateTime.now();
+    await _profile(peerUid);
+  }
+
+  /// Puts this account's colour on its profile.
+  Future<void> publishColor(String color) =>
+      _db.collection('users').doc(uid).update({'color': color});
 }

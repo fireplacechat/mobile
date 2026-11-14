@@ -3,12 +3,11 @@ import 'dart:convert';
 
 import 'package:fireplace/src/db/secret_store.dart';
 
-/// The colour each person this account chats with has chosen for themselves
-/// (decision 0052). It arrives inside their 1:1 messages, encrypted like the
-/// text, and is kept on this device only.
+/// The colour each person this account chats with has chosen for themselves.
+/// It is read from their profile (decision 0053) and remembered here, on this
+/// device, so it shows at once the next time the app opens.
 ///
-/// A person who has not sent a message since choosing shows in the default
-/// colour until they do.
+/// A person whose profile names no colour shows in the default colour.
 class PeerColors {
   PeerColors(this._secrets, this.uid);
   final SecretStore _secrets;
@@ -44,16 +43,17 @@ class PeerColors {
   /// Fires with a person's id when their colour changes.
   Stream<String> get changes => _changes.stream;
 
-  /// Records the colour a message from [peerUid] carried.
-  Future<void> note(String peerUid, String color) async {
-    if (peerUid == uid || !valid(color) || _colors[peerUid] == color) return;
-    _colors[peerUid] = color;
+  /// Records the colour [peerUid]'s profile shows; none, or one that is not
+  /// a plain name, forgets what was remembered.
+  Future<void> note(String peerUid, String? color) async {
+    final next = valid(color) ? color : null;
+    if (peerUid == uid || _colors[peerUid] == next) return;
+    next == null ? _colors.remove(peerUid) : _colors[peerUid] = next;
     if (!_changes.isClosed) _changes.add(peerUid);
     try {
       await _secrets.write(keyName(uid), jsonEncode(_colors));
     } catch (_) {
-      // It still shows until the app closes, and arrives again with the next
-      // message.
+      // It still shows until the app closes, and is read again next time.
     }
   }
 

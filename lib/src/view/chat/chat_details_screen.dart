@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
@@ -84,7 +85,13 @@ class _ChatDetailsScreenState extends ConsumerState<ChatDetailsScreen> {
       appBar: UiAppBar(context: context, title: const Text('Chat details')),
       body: UiPageScroll(
         children: [
-          Center(child: PersonAvatar(name: w.name, size: 72)),
+          Center(
+            child: PersonAvatar(
+              name: w.name,
+              size: 72,
+              color: ref.watch(acceptedPeerColorProvider(w.peerUid))?.outgoing,
+            ),
+          ),
           const SizedBox(height: 12),
           Text(
             '@${w.name}',

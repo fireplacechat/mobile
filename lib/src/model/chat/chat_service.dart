@@ -50,8 +50,7 @@ class ChatService {
     required LocalMessageStore messages,
     SafetyService? safety,
     SharedLock? lock,
-    this.ownColor,
-    this.onPeerColor,
+    void Function(String peerUid, String? color)? onPeerColor,
     @visibleForTesting Future<void> Function(WriteBatch batch)? commitBatch,
     @visibleForTesting Future<void> Function()? beforeChatListBump,
   }) : _db = db,
@@ -63,18 +62,14 @@ class ChatService {
        _lock = lock ?? SharedLock(),
        _messages = messages,
        _safety = safety,
-       _directory = ChatDirectory(db, messages, uid, safety),
+       _directory = ChatDirectory(db, messages, uid, safety)
+         ..onPeerColor = onPeerColor,
        _commitBatch = commitBatch,
        _beforeChatListBump = beforeChatListBump {
     keys.bindLocalDevice(uid, device);
     // Another isolate (the push handler) may have received meanwhile.
     _lock.onInvalidate(_secrets.forget);
   }
-
-  /// This account's own colour name, sent inside its text messages, and what
-  /// to do with the colour another person's message carries (decision 0052).
-  final String? Function()? ownColor;
-  final void Function(String peerUid, String color)? onPeerColor;
 
   final FirebaseFirestore _db;
   final String uid;
@@ -123,7 +118,7 @@ class ChatService {
     alerts: _alerts,
     peerOf: peerOf,
     messageRetention: messageRetention,
-  )..ownColor = ownColor;
+  );
 
   late final _receiver = MessageReceiver(
     db: _db,
@@ -142,7 +137,7 @@ class ChatService {
     journal: _journal,
     recovery: _recovery,
     peerOf: peerOf,
-  )..onPeerColor = onPeerColor;
+  );
 
   /// Serializes all session-state changes, also with a background isolate
   /// that shares this account's stores (decision 0030).
@@ -198,6 +193,14 @@ class ChatService {
       _directory.removeChatIfPeerDeleted(chatId);
 
   Future<String?> usernameOf(String peerUid) => _directory.usernameOf(peerUid);
+
+  /// Puts this account's colour on its profile, where the people it chats
+  /// with read it (decision 0053).
+  Future<void> publishColor(String color) => _directory.publishColor(color);
+
+  /// Reads a person's colour again, unless it was read a short while ago.
+  Future<void> refreshPeerColor(String peerUid) =>
+      _directory.refreshPeerColor(peerUid);
 
   Stream<List<LocalMessage>> watchMessages(String chatId) => _messages
       .watch(chatId)
