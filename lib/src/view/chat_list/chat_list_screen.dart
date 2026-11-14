@@ -15,6 +15,7 @@ import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/chat_list/start_chat_dialog.dart';
 import 'package:fireplace/src/view/chat_list/widgets/chat_search_field.dart';
 import 'package:fireplace/src/view/chat_list/widgets/chat_tile.dart';
+import 'package:fireplace/src/view/chat_list/widgets/new_chat_icon.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
   const ChatListScreen({super.key});
@@ -96,11 +97,15 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        key: Key('newChat'),
-        onPressed: () => _newChat(context, ref),
-        icon: Icon(Icons.edit_outlined),
-        label: Text('New chat'),
+      floatingActionButton: SizedBox.square(
+        dimension: 50,
+        child: FloatingActionButton(
+          key: const Key('newChat'),
+          tooltip: 'New chat',
+          shape: const CircleBorder(),
+          onPressed: () => _newChat(context, ref),
+          child: Semantics(label: 'New chat', child: const NewChatIcon()),
+        ),
       ),
       body: UiBodyViewport(
         child: Column(
