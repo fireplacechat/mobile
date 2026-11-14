@@ -60,6 +60,20 @@ Short version; the details and reasons are in [docs/development/coding-style.md]
   automatically; the user decides.
 - **Comments** explain why, not what; wrap them at the same width as code.
 
+## Screens and wording
+The app should look like one careful hand made it. Before building a screen, card, menu or sheet:
+- **Few words.** A title, and at most one short sentence under it. No paragraph on a card, sheet, menu or dialog. If a consequence needs
+  saying, say the one thing the person would not guess ("The other person keeps their copy."), not how it works.
+- **Use the patterns the app already has**, and look for one before writing a new one. A held row or message opens the blurred overlay
+  with a preview and a list of actions (`showChatRowMenu`, the message menu, `MessageMenuRow`). A question before a destructive action
+  is `showSafetyActionSheet`. Do not use stock Material pop-ups (`showMenu`, `PopupMenuButton`, `AlertDialog`) for these.
+- **Every menu action has an icon**, the one already used for that action elsewhere in the app. A destructive action is last and in the
+  danger colour.
+- **People are named as people.** In a sentence, the name alone ("dana invited you"), without "@". Where a person is meant, the avatar is
+  their initial in their colour, never a placeholder symbol.
+- **Compare with the messengers people know** (Signal, WhatsApp, Telegram) for the same action, and look at your own render next to
+  them before opening the pull request. If it looks plainer or wordier than theirs, it is not finished.
+
 ## Tests
 - A test that asserts on elapsed time (a stopwatch, a delay, a speed threshold) must be tagged `timing` (`tags: 'timing'` on the test, or `@Tags(['timing'])` on the file). Tagged tests run alone and one at a time; an untagged timing test will flake in the parallel run.
 - CI runs `static`, three `unit` shards and `timing` side by side, and a final job named `test` that branch protection requires. Do not rename or remove that job.

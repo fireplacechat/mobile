@@ -11,6 +11,7 @@ import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_stamp.dart';
+import 'package:fireplace/src/view/chat_list/chat_row_menu.dart';
 import 'package:fireplace/src/view/chat/chat_safety_actions.dart';
 import 'package:fireplace/src/view/safety/safety_action_sheet.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
@@ -78,14 +79,11 @@ class ChatTile extends ConsumerWidget {
     if (session == null) return;
     final ok = await showSafetyActionSheet<bool>(
       context: context,
-      title: 'Delete this chat on this phone?',
-      message:
-          'The messages are removed from this phone only. The other person '
-          'keeps their copy, and the chat comes back if either of you '
-          'writes again.',
+      title: 'Delete chat on this phone?',
+      message: 'The other person keeps their copy.',
       actions: const [
         SafetySheetAction(
-          label: 'Delete on this phone',
+          label: 'Delete',
           value: true,
           style: SafetyActionStyle.destructive,
           buttonKey: Key('confirmDeleteChat'),
@@ -114,32 +112,34 @@ class ChatTile extends ConsumerWidget {
   Future<void> _showActions(
     BuildContext context,
     WidgetRef ref,
-    bool muted, [
-    Offset? at,
-  ]) async {
-    final unread =
-        (ref.read(chatActivityProvider).unread[chat.chatId] ?? 0) > 0;
-    final box = context.findRenderObject()! as RenderBox;
-    final overlay =
-        Overlay.of(context).context.findRenderObject()! as RenderBox;
-    final point = at ?? box.localToGlobal(box.size.center(Offset.zero));
-    final chosen = await showMenu<String>(
-      context: context,
-      position: RelativeRect.fromRect(
-        point & Size.zero,
-        Offset.zero & overlay.size,
-      ),
-      items: [
-        PopupMenuItem(
-          value: 'mute',
-          child: Text(muted ? 'Unmute chat' : 'Mute chat'),
+    bool muted,
+  ) async {
+    final activity = ref.read(chatActivityProvider);
+    final unread = (activity.unread[chat.chatId] ?? 0) > 0;
+    final chosen = await showChatRowMenu(
+      context,
+      title: ref.read(peerUsernameProvider(chat.peerUid)).value ?? '',
+      messages: activity.history[chat.chatId] ?? const [],
+      actions: [
+        ChatRowAction(
+          id: 'mute',
+          label: muted ? 'Unmute chat' : 'Mute chat',
+          icon: muted
+              ? Icons.notifications_outlined
+              : Icons.notifications_off_outlined,
         ),
         if (unread)
-          const PopupMenuItem(value: 'read', child: Text('Mark read')),
-        const PopupMenuItem(value: 'block', child: Text('Block')),
-        const PopupMenuItem(
-          value: 'delete',
-          child: Text('Delete on this phone'),
+          const ChatRowAction(
+            id: 'read',
+            label: 'Mark read',
+            icon: Icons.mark_chat_read_outlined,
+          ),
+        const ChatRowAction(id: 'block', label: 'Block', icon: Icons.block),
+        const ChatRowAction(
+          id: 'delete',
+          label: 'Delete',
+          icon: Icons.delete_outline,
+          destructive: true,
         ),
       ],
     );
@@ -197,7 +197,6 @@ class ChatTile extends ConsumerWidget {
     final scaler = MediaQuery.textScalerOf(context);
     final nameLine = scaler.scale(16) * 1.2;
     final line = scaler.scale(15) * 1.33;
-    var pressedAt = Offset.zero;
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.contextMenu): () =>
@@ -216,16 +215,14 @@ class ChatTile extends ConsumerWidget {
                 _markRead(ref),
           const CustomSemanticsAction(label: 'Block'): () =>
               _block(context, ref),
-          const CustomSemanticsAction(label: 'Delete on this phone'): () =>
+          const CustomSemanticsAction(label: 'Delete'): () =>
               _deleteHere(context, ref),
         },
         child: InkWell(
           key: ValueKey('conversation-${chat.chatId}'),
           onTap: onOpen,
-          onTapDown: (details) => pressedAt = details.globalPosition,
-          onLongPress: () => _showActions(context, ref, muted, pressedAt),
-          onSecondaryTapUp: (details) =>
-              _showActions(context, ref, muted, details.globalPosition),
+          onLongPress: () => _showActions(context, ref, muted),
+          onSecondaryTapUp: (_) => _showActions(context, ref, muted),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: edge),
             child: Row(

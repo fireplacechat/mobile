@@ -52,7 +52,7 @@ void main() {
         );
         await t.pumpAndSettle();
         if (state == 'delete-question') {
-          await t.tap(find.text('Delete on this phone'));
+          await t.tap(find.text('Delete'));
           await t.pumpAndSettle();
         }
         final renderer =

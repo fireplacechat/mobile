@@ -28,14 +28,25 @@ void main() {
   ) async {
     await open(t);
     await hold(t, 'alice_fred');
-    for (final label in [
-      'Mute chat',
-      'Mark read',
-      'Block',
-      'Delete on this phone',
-    ]) {
+    for (final label in ['Mute chat', 'Mark read', 'Block', 'Delete']) {
       expect(find.text(label), findsOneWidget);
     }
+    // Above the list, the end of the conversation as a preview.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('chatRowPreview')),
+        matching: find.text('Around two? There is no rush.'),
+      ),
+      findsOneWidget,
+    );
+    // Each action has its icon.
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('chatRowMenu')),
+        matching: find.byType(Icon),
+      ),
+      findsNWidgets(4),
+    );
     // Nothing that tells the other person anything.
     expect(find.textContaining('receipt'), findsNothing);
   });
@@ -54,7 +65,7 @@ void main() {
     await t.sendKeyEvent(LogicalKeyboardKey.f10);
     await t.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
     await t.pumpAndSettle();
-    expect(find.text('Delete on this phone'), findsOneWidget);
+    expect(find.text('Delete'), findsOneWidget);
     expect(find.text('Block'), findsOneWidget);
   });
 
@@ -93,9 +104,9 @@ void main() {
   ) async {
     final f = await open(t);
     await hold(t, 'alice_fred');
-    await t.tap(find.text('Delete on this phone'));
+    await t.tap(find.text('Delete'));
     await t.pumpAndSettle();
-    expect(find.text('Delete this chat on this phone?'), findsOneWidget);
+    expect(find.text('Delete chat on this phone?'), findsOneWidget);
     await t.tap(find.byKey(const Key('cancelDeleteChat')));
     await t.pumpAndSettle();
     expect(row('alice_fred'), findsOneWidget);
@@ -107,7 +118,7 @@ void main() {
       'phone, and a new message brings it back', (t) async {
     final f = await open(t);
     await hold(t, 'alice_fred');
-    await t.tap(find.text('Delete on this phone'));
+    await t.tap(find.text('Delete'));
     await t.pumpAndSettle();
     await t.tap(find.byKey(const Key('confirmDeleteChat')));
     await t.pumpAndSettle();
@@ -139,10 +150,7 @@ void main() {
         .customSemanticsActionIds!
         .map((id) => CustomSemanticsAction.getAction(id)!.label)
         .toSet();
-    expect(
-      labels,
-      containsAll(['Mute chat', 'Mark read', 'Block', 'Delete on this phone']),
-    );
+    expect(labels, containsAll(['Mute chat', 'Mark read', 'Block', 'Delete']));
     semantics.dispose();
   });
 }
