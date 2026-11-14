@@ -49,6 +49,10 @@ class ChatComposer extends StatelessWidget {
   final SendController? send;
   final Future<void> Function() onUnblock;
   final VoidCallback? onInteraction;
+
+  /// The message box is a pill: its ends are half-circles while it holds one
+  /// line, and stay this round as it grows.
+  static const double pill = 24;
   @override
   Widget build(BuildContext context) {
     if (blocked) {
@@ -86,121 +90,127 @@ class ChatComposer extends StatelessWidget {
                 submit ?? send!.send,
           },
           child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
             decoration: BoxDecoration(
               color: FireplaceUiTokens.of(context).panel,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Edge to edge: a reply's coloured tab starts at the screen's
+                // edge.
                 ?contextBar,
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight:
-                              ((MediaQuery.sizeOf(context).height -
-                                          keyboardInset) *
-                                      .35)
-                                  .clamp(120, 280),
-                        ),
-                        child: TextField(
-                          key: Key('composer'),
-                          controller: text,
-                          enabled: !editingBusy,
-                          focusNode: focusNode,
-                          onTap: onInteraction,
-                          inputFormatters: [MessageInputFormatter()],
-                          minLines: 1,
-                          maxLines:
-                              MediaQuery.sizeOf(context).height -
-                                      keyboardInset <
-                                  500
-                              ? 3
-                              : 6,
-                          textCapitalization: TextCapitalization.sentences,
-                          style: const TextStyle(fontSize: 17, height: 1.3),
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: FireplaceUiTokens.of(context)
-                                .incomingBubble,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
-                              borderSide: BorderSide.none,
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
-                              borderSide: BorderSide.none,
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(22),
-                              borderSide: BorderSide(
-                                color: FireplaceUiTokens.of(context).accent,
-                              ),
-                            ),
-                            counter:
-                                messageCharacters(text.text) >=
-                                    (maxMessageCharacters * .9).floor()
-                                ? Text(
-                                    '${messageCharacters(text.text)} / 16,384',
-                                    key: const Key('messageCounter'),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall,
-                                  )
-                                : null,
-                            hintText: 'Message',
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 11,
-                            ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 8, 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight:
+                                ((MediaQuery.sizeOf(context).height -
+                                            keyboardInset) *
+                                        .35)
+                                    .clamp(120, 280),
                           ),
-                          textInputAction: TextInputAction.newline,
-                        ),
-                      ),
-                    ),
-                    SizedBox(width: 4),
-                    // Sending is part of editing; keep the keyboard ready to reply.
-                    TextFieldTapRegion(
-                      child: IconButton.filled(
-                        key: Key('send'),
-                        style: IconButton.styleFrom(
-                          minimumSize: const Size(40, 40),
-                          fixedSize: const Size(40, 40),
-                          shape: const CircleBorder(),
-                          backgroundColor: FireplaceUiTokens.of(context).accent,
-                          foregroundColor: Theme.of(context)
-                              .colorScheme
-                              .onPrimary,
-                        ),
-                        onPressed:
-                            !canSubmit ||
-                                (editing && editingBusy) ||
-                                text.text.trim().isEmpty ||
-                                !hasSession
-                            ? null
-                            : submit ?? send!.send,
-                        tooltip: editing ? 'Save edit' : 'Send message',
-                        icon: editing && editingBusy
-                            ? SizedBox.square(
-                                dimension: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onPrimary,
-                                ),
-                              )
-                            : Icon(
-                                editing
-                                    ? Icons.check_rounded
-                                    : Icons.arrow_upward_rounded,
+                          child: TextField(
+                            key: Key('composer'),
+                            controller: text,
+                            enabled: !editingBusy,
+                            focusNode: focusNode,
+                            onTap: onInteraction,
+                            inputFormatters: [MessageInputFormatter()],
+                            minLines: 1,
+                            maxLines:
+                                MediaQuery.sizeOf(context).height -
+                                        keyboardInset <
+                                    500
+                                ? 3
+                                : 6,
+                            textCapitalization: TextCapitalization.sentences,
+                            style: const TextStyle(fontSize: 17, height: 1.3),
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: FireplaceUiTokens.of(context)
+                                  .incomingBubble,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(pill),
+                                borderSide: BorderSide.none,
                               ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(pill),
+                                borderSide: BorderSide.none,
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(pill),
+                                borderSide: BorderSide(
+                                  color: FireplaceUiTokens.of(context).accent,
+                                ),
+                              ),
+                              counter:
+                                  messageCharacters(text.text) >=
+                                      (maxMessageCharacters * .9).floor()
+                                  ? Text(
+                                      '${messageCharacters(text.text)} / 16,384',
+                                      key: const Key('messageCounter'),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall,
+                                    )
+                                  : null,
+                              hintText: 'Message',
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 9,
+                              ),
+                            ),
+                            textInputAction: TextInputAction.newline,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      SizedBox(width: 4),
+                      // Sending is part of editing; keep the keyboard ready to reply.
+                      TextFieldTapRegion(
+                        child: IconButton.filled(
+                          key: Key('send'),
+                          style: IconButton.styleFrom(
+                            minimumSize: const Size(40, 40),
+                            fixedSize: const Size(40, 40),
+                            shape: const CircleBorder(),
+                            backgroundColor: FireplaceUiTokens.of(context)
+                                .accent,
+                            foregroundColor: Theme.of(context)
+                                .colorScheme
+                                .onPrimary,
+                          ),
+                          onPressed:
+                              !canSubmit ||
+                                  (editing && editingBusy) ||
+                                  text.text.trim().isEmpty ||
+                                  !hasSession
+                              ? null
+                              : submit ?? send!.send,
+                          tooltip: editing ? 'Save edit' : 'Send message',
+                          icon: editing && editingBusy
+                              ? SizedBox.square(
+                                  dimension: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary,
+                                  ),
+                                )
+                              : Icon(
+                                  editing
+                                      ? Icons.check_rounded
+                                      : Icons.arrow_upward_rounded,
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),

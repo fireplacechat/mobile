@@ -75,6 +75,20 @@ final groupInvitedProvider = StreamProvider.autoDispose
 ChatBubbleColor memberColor(MemberColors colors, String uid) =>
     ChatBubbleColor.values.asNameMap()[colors[uid]] ?? ChatBubbleColor.stone;
 
+/// Someone's own primary colour, when this phone knows it: colours travel only
+/// inside groups, so it is known for people this account shares a group with.
+/// Null for everyone else.
+final peerColorProvider = Provider.autoDispose.family<ChatBubbleColor?, String>(
+  (ref, uid) {
+    for (final gid in (ref.watch(groupsProvider).value ?? const {}).keys) {
+      final name = ref.watch(groupColorsProvider(gid)).value?[uid];
+      final color = ChatBubbleColor.values.asNameMap()[name];
+      if (color != null) return color;
+    }
+    return null;
+  },
+);
+
 /// Messages from other people in a group that this phone has not shown yet.
 /// Counted here from the local history, like 1:1 chats: the server holds no
 /// read state and nobody is told what was read.

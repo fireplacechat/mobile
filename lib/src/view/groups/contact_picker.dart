@@ -31,6 +31,7 @@ class ContactPicker extends ConsumerWidget {
               return CheckboxListTile(
                 key: Key('pick_$uid'),
                 value: ticked,
+                checkboxShape: const CircleBorder(),
                 secondary: PersonAvatar(name: name, size: 36),
                 title: Text('@$name'),
                 onChanged: !ticked && selected.length >= limit

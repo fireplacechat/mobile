@@ -33,7 +33,12 @@ class MessageBubble extends ConsumerStatefulWidget {
     this.onFailedTap,
     this.incomingColor,
     this.liveOf,
+    this.quoteAuthor,
   });
+
+  /// The name of whoever wrote the message this one quotes, in a group. Null
+  /// in a 1:1 chat, where it is the other person.
+  final String? quoteAuthor;
   final LocalMessage message;
 
   /// The colour of a message from someone else, when it is not this account's
@@ -122,6 +127,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                 senderName: widget.senderName,
                 preview: true,
                 incomingColor: widget.incomingColor,
+                quoteAuthor: widget.quoteAuthor,
               );
             }
             final session = previewRef.watch(appSessionProvider).value;
@@ -356,6 +362,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                             setState(() => _showAll = !_showAll),
                         onToggleSelection: widget.onToggleSelection,
                         onQuote: widget.onQuote,
+                        quoteAuthor: widget.quoteAuthor,
                       ),
                     ),
                   ),

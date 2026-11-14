@@ -1,11 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
+import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/chat_composer.dart';
@@ -37,6 +40,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   final _edit = TextEditingController();
   final _focus = FocusNode();
   LocalMessage? _editing;
+  LocalMessage? _replyTo;
   bool _busy = false;
   String? _error;
 
@@ -96,13 +100,25 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     final service = ref.read(groupServiceProvider);
     final text = _text.text.trim();
     if (service == null || text.isEmpty) return;
+    final replyTo = _replyTo;
     _text.clear();
-    await _run(() => service.send(widget.gid, text));
+    setState(() => _replyTo = null);
+    await _run(() => service.send(widget.gid, text, replyTo: replyTo));
+  }
+
+  void _startReply(LocalMessage message) {
+    setState(() {
+      _replyTo = message;
+      _editing = null;
+      _error = null;
+    });
+    _focus.requestFocus();
   }
 
   void _startEdit(LocalMessage message) {
     setState(() {
       _editing = message;
+      _replyTo = null;
       _error = null;
     });
     _edit.value = TextEditingValue(
@@ -189,6 +205,13 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         onEmoji: react,
         onSelected: () {},
       ),
+      if (sent)
+        MessageAction(
+          id: 'reply',
+          label: 'Reply',
+          icon: CupertinoIcons.arrowshape_turn_up_left,
+          onSelected: () => _startReply(message),
+        ),
       if (message.outgoing && sent)
         MessageAction(
           id: 'edit',
@@ -303,6 +326,12 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         .length;
     final joinedLater = service.joinedLater(widget.gid);
     final editing = _editing != null;
+    // The message being replied to, as it is now: it may have been edited or
+    // deleted since.
+    final replyTo = _replyTo == null
+        ? null
+        : rows.where((m) => m.id == _replyTo!.id).firstOrNull;
+    final brightness = Theme.of(context).brightness;
     bool sameRun(LocalMessage a, LocalMessage? b) =>
         b != null &&
         b.status != MessageStatus.notice &&
@@ -452,6 +481,32 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                         icon: const Icon(Icons.close),
                       ),
                     ],
+                  )
+                : _replyTo != null
+                ? Consumer(
+                    builder: (context, barRef, _) => ReplyPanel(
+                      key: const Key('replyComposerPreview'),
+                      author: _replyTo!.outgoing
+                          ? 'You'
+                          : barRef
+                                    .watch(
+                                      peerUsernameProvider(_replyTo!.senderUid),
+                                    )
+                                    .value ??
+                                '…',
+                      body: clipMessage(replyTo?.body ?? '', 1024),
+                      unavailable: replyTo == null,
+                      // The colour of the person replied to: their own in
+                      // this group, or this account's primary colour.
+                      color:
+                          (_replyTo!.outgoing
+                                  ? barRef
+                                        .watch(chatBubbleColorsProvider)
+                                        .outgoing
+                                  : memberColor(colors, _replyTo!.senderUid))
+                              .accentText(brightness),
+                      onCancel: () => setState(() => _replyTo = null),
+                    ),
                   )
                 : null,
           ),

@@ -31,7 +31,12 @@ class MessageBubbleBody extends ConsumerWidget {
     required this.onToggleShowAll,
     this.onToggleSelection,
     this.onQuote,
+    this.quoteAuthor,
   });
+
+  /// Who wrote the quoted message, where that is not simply the other person
+  /// in a 1:1 chat: in a group it can be any member.
+  final String? quoteAuthor;
 
   final LocalMessage message;
   final String? senderName;
@@ -73,7 +78,7 @@ class MessageBubbleBody extends ConsumerWidget {
                 message.quote!.senderUid ==
                     ref.watch(appSessionProvider.select((s) => s.value?.uid))
                 ? 'You'
-                : senderName ?? 'Them',
+                : quoteAuthor ?? senderName ?? 'Them',
             onTap: preview
                 ? null
                 : selecting

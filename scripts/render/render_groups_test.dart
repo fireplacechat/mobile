@@ -199,6 +199,18 @@ void main() {
           }
         },
       );
+      await render(
+        'conversation-replying',
+        GroupChatScreen(gid: mine),
+        act: () async {
+          await t.longPress(find.text('Thursday works for me'));
+          await t.pump(const Duration(milliseconds: 600));
+          await t.tap(find.byKey(const ValueKey('messageAction-reply')));
+          for (var i = 0; i < 10; i++) {
+            await t.pump(const Duration(milliseconds: 100));
+          }
+        },
+      );
       await render('joined-later', GroupChatScreen(gid: theirs));
       await render('info', GroupInfoScreen(gid: mine));
 

@@ -10,6 +10,7 @@ import 'package:fireplace/src/db/group_record_file.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
+import 'package:fireplace/src/db/message_quote.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_payload.dart';
 import 'package:fireplace/src/model/chat/send_allowance.dart';
@@ -896,12 +897,23 @@ class GroupService {
   /// Encrypts and publishes one text message. The message is saved first
   /// (unconfirmed); a definite refusal removes it, an unknown outcome keeps
   /// it unconfirmed, and it is never resent automatically.
-  Future<void> send(String gid, String text) {
+  ///
+  /// With [replyTo], the message quotes that one (up to 1,024 characters of
+  /// it), as a reply does in a 1:1 chat.
+  Future<void> send(String gid, String text, {LocalMessage? replyTo}) {
     if (messageTooLong(text)) throw GroupActionError(messageLimitError);
+    final quote = replyTo == null
+        ? null
+        : MessageQuote(
+            targetId: replyTo.id,
+            senderUid: replyTo.senderUid,
+            body: clipMessage(replyTo.body, 1024),
+          );
     return _publish(
       gid,
-      encodeMessagePayload(text: text, now: _now()),
+      encodeMessagePayload(text: text, now: _now(), quote: quote),
       text: text,
+      quote: quote,
     );
   }
 
@@ -977,6 +989,7 @@ class GroupService {
     List<int> payload, {
     String? text,
     MessageMutation? mutation,
+    MessageQuote? quote,
   }) async {
     final n = _now().microsecondsSinceEpoch;
     final id = '$deviceId-$n';
@@ -1000,6 +1013,7 @@ class GroupService {
       sentAt: sentAt,
       body: text ?? '',
       status: status,
+      quote: quote,
     );
     if (text != null) await _messages.add(local(MessageStatus.unconfirmed));
     final ref = _db.doc('groups/$gid/events/$id');

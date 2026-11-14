@@ -50,6 +50,11 @@ class GroupMessageRow extends ConsumerWidget {
     final name = mine
         ? 'You'
         : ref.watch(peerUsernameProvider(message.senderUid)).value ?? '…';
+    // A quoted message can be anyone's in the group, not just the sender's.
+    final quoted = message.quote?.senderUid;
+    final quoteAuthor = quoted == null
+        ? null
+        : ref.watch(peerUsernameProvider(quoted)).value ?? '…';
     final reserve =
         message.reactions.values.any((reaction) => reaction.emoji != null)
         ? ReactionChipLayout.reserve * MediaQuery.textScalerOf(context).scale(1)
@@ -63,6 +68,7 @@ class GroupMessageRow extends ConsumerWidget {
             senderName: name,
             actions: actions,
             incomingColor: mine ? null : color,
+            quoteAuthor: quoteAuthor,
             liveOf: (previewRef) => previewRef
                 .watch(groupMessagesProvider(gid))
                 .value
