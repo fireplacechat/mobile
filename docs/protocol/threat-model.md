@@ -38,7 +38,7 @@ The device holds decrypted history. Someone with an unlocked phone, screen captu
 - *Metadata:* not hidden.
 - *Account takeover:* anyone with the password can sign in; they also need the local keys or the recovery key/linked device to read chats, but can create a new identity and get contacts' warnings. Weak or reused passwords are a risk. Authentication proves an account, not a real-world person.
 - *Operator/Admin compromise:* Firebase Admin credentials (and the operator CLI key) can read all metadata, edit rules and public key records, and ban accounts. Keep them out of the repository and the client.
-- *Dependencies:* app message crypto defaults to the pinned Rust core through `lib/fireplace_crypto.dart`; its dependency graph is in `packages/fireplace_native/rust/Cargo.lock`. The Dart `pqcrypto`/`cryptography` implementation remains for comparison, and local history encryption uses `cryptography`.
+- *Dependencies:* app message crypto defaults to the pinned Rust core through `lib/fireplace_crypto.dart`; its dependency graph is in `packages/fireplace_native/rust/Cargo.lock`. The Dart `pqcrypto`/`cryptography` implementation remains for comparison, and local history encryption uses `cryptography`. Neither implementation is FIPS-validated, and no constant-time or side-channel guarantee is claimed. The protocol has had review by tools and tests but **no external cryptographic audit**.
 
 ## Not supported
 Calls, attachments, real-email recovery, old-history transfer to a new device, and disappearing-message timers. [Groups are specified](group-chats-v1.md) but not implemented. Delete-for-everyone controls exist; they cannot erase a recipient's screenshots, exports or other copies.
@@ -54,7 +54,7 @@ The suites cover distinct boundaries:
 - `native_vectors_test.dart`, `native_cross_keys_test.dart` and `native_cross_session_test.dart` check native output, interoperability and transferred session state.
 - Protocol property tests and chat simulations exercise invalid inputs, restart and persistence/publish failures. See [setup](../development/setup.md) to run them.
 
-These are regression and interoperability checks, not proof of complete protocol security, constant-time execution or secure memory erasure.
+These are regression and interoperability checks, not proof of complete protocol security, constant-time execution or secure memory erasure. Honest wording for users: not independently audited; not intended for life-or-death secrets.
 
 A send with an uncertain outcome is not automatically resent; the user can check
 server confirmation and explicitly decide whether to send another copy.

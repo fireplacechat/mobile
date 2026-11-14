@@ -1,8 +1,7 @@
 import 'dart:async';
 
-/// Tracks session startup cancellation and closes resources in reverse order.
-/// The provider supplies mounted state. Disposal during startup leaves cleanup
-/// to the startup sequence's [finish] step.
+/// Cancellation and cleanup for one signed-in session's startup. Closes added
+/// resources in reverse order; if disposed mid-startup, [finish] does it.
 class SessionScope {
   SessionScope({required this.isMounted});
 
