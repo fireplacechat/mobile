@@ -39,6 +39,10 @@ import 'package:fireplace/src/model/safety/safety_service.dart';
 /// ambiguous failure keeps them and records the message as unconfirmed; it is
 /// never resent automatically.
 class MessageSender {
+  /// This account's own colour name, read when a message is sent, so the
+  /// other person's phone can show these messages in it (decision 0052).
+  String? Function()? ownColor;
+
   MessageSender({
     required this._db,
     required KeyService keys,
@@ -164,6 +168,7 @@ class MessageSender {
         now: DateTime.now(),
         quote: quote,
         mutation: mutation,
+        color: mutation == null ? ownColor?.call() : null,
       ),
       chatId: chatId,
     );

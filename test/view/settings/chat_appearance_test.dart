@@ -107,23 +107,19 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('outgoing-ocean')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('outgoing-ocean')));
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('incoming-forest')),
-        120,
-      );
-      await tester.ensureVisible(find.byKey(const Key('incoming-forest')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('incoming-forest')));
+      // There is one colour to choose: nothing sets other people's.
+      expect(find.byKey(const Key('incoming-forest')), findsNothing);
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(bubble('out'), ChatBubbleColor.ocean.outgoing);
-      expect(bubble('in'), ChatBubbleColor.forest.lightIncoming);
+      // Their messages keep their own colour (the default until it arrives).
+      expect(bubble('in'), ChatBubbleColor.stone.lightIncoming);
       await tester.tap(find.text('Choose colors'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Reset colors'), 120);
-      await tester.ensureVisible(find.text('Reset colors'));
+      await tester.scrollUntilVisible(find.text('Reset color'), 120);
+      await tester.ensureVisible(find.text('Reset color'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Reset colors'));
+      await tester.tap(find.text('Reset color'));
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(bubble('out'), ChatBubbleColor.ember.outgoing);
@@ -158,15 +154,15 @@ void main() {
         );
         await tester.pump();
         await tester.scrollUntilVisible(
-          find.byKey(const Key('incoming-plum')),
+          find.byKey(const Key('outgoing-plum')),
           160,
         );
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const Key('incoming-plum')));
+        await tester.tap(find.byKey(const Key('outgoing-plum')));
         await tester.pump();
         expect(
           tester
-              .widget<ColorBlock>(find.byKey(const Key('incoming-plum')))
+              .widget<ColorBlock>(find.byKey(const Key('outgoing-plum')))
               .selected,
           isTrue,
         );

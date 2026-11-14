@@ -1,4 +1,5 @@
 import 'package:fireplace/src/app/chat_color_preference.dart';
+import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -67,7 +68,15 @@ class ChatTimeline extends ConsumerWidget {
     final theme = Theme.of(context);
     final highlight = ref
         .watch(chatBubbleColorsProvider)
-        .jumpHighlight(theme.brightness, theme.scaffoldBackgroundColor);
+        .jumpHighlight(
+          theme.brightness,
+          theme.scaffoldBackgroundColor,
+          // Apart from the other person's bubbles, whatever colour they chose.
+          other: switch (msgs.where((m) => !m.outgoing).firstOrNull) {
+            final theirs? => ref.watch(peerColorProvider(theirs.senderUid)),
+            null => ChatBubbleColors.unknown,
+          },
+        );
     final controller = ref.read(messageSelectionProvider(chatId).notifier);
     return Stack(
       key: viewportKey,

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/db/message_quote.dart';
 import 'package:fireplace/src/model/chat/message_compose_target.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_controls.dart';
-import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
+import 'package:fireplace/src/view/chat/widgets/reply_panel.dart';
 
 class ComposerContextView {
   const ComposerContextView({
@@ -91,6 +91,7 @@ class _MessageComposerContextState
       if (next != null) _focus.requestFocus();
     });
     final target = ref.watch(provider);
+    final colors = ref.watch(chatBubbleColorsProvider);
     final uid = ref.watch(appSessionProvider.select((s) => s.value?.uid));
     final messages = ref.watch(messagesProvider(widget.chatId)).value;
     final live = messages?.where((m) => m.id == target?.message.id).firstOrNull;
@@ -119,45 +120,48 @@ class _MessageComposerContextState
                 !live.remotelyDeleted),
         bar: target == null
             ? null
-            : Row(
-                key: Key(
-                  editing ? 'editComposerPreview' : 'replyComposerPreview',
-                ),
+            : editing
+            ? Row(
+                key: const Key('editComposerPreview'),
                 children: [
-                  Expanded(
-                    child: editing
-                        ? const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.edit_outlined, size: 18),
-                                SizedBox(width: 8),
-                                Flexible(child: Text('Edit message')),
-                              ],
-                            ),
-                          )
-                        : MessageQuotePreview(
-                            quote: MessageQuote(
-                              targetId: target.message.id,
-                              senderUid: target.message.senderUid,
-                              body: clipMessage(live?.body ?? '', 1024),
-                              unavailable: live == null || live.remotelyDeleted,
-                            ),
-                            author: target.message.senderUid == uid
-                                ? 'You'
-                                : widget.name,
-                          ),
+                  const Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit_outlined, size: 18),
+                          SizedBox(width: 8),
+                          Flexible(child: Text('Edit message')),
+                        ],
+                      ),
+                    ),
                   ),
                   IconButton(
-                    key: Key(editing ? 'cancelEdit' : 'cancelReply'),
-                    tooltip: editing ? 'Cancel edit' : 'Cancel reply',
+                    key: const Key('cancelEdit'),
+                    tooltip: 'Cancel edit',
                     onPressed: () => ref.read(provider.notifier).clear(),
                     icon: const Icon(Icons.close),
                   ),
                 ],
+              )
+            : ReplyPanel(
+                key: const Key('replyComposerPreview'),
+                author: target.message.senderUid == uid ? 'You' : widget.name,
+                body: clipMessage(live?.body ?? '', 1024),
+                unavailable: live == null || live.remotelyDeleted,
+                // The colour of the person replied to: theirs, or this
+                // account's own when replying to oneself.
+                color:
+                    (target.message.senderUid == uid
+                            ? colors.outgoing
+                            : ref.watch(
+                                peerColorProvider(target.message.senderUid),
+                              ))
+                        .accentText(Theme.of(context).brightness),
+                onCancel: () => ref.read(provider.notifier).clear(),
               ),
       ),
     );

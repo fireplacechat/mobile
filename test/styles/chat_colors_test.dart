@@ -39,11 +39,12 @@ void main() {
       for (final outgoing in ChatBubbleColor.values) {
         for (final incoming in ChatBubbleColor.values) {
           final pair = '${outgoing.label} & ${incoming.label}';
-          final colors = ChatBubbleColors(
-            outgoing: outgoing,
-            incoming: incoming,
+          final colors = ChatBubbleColors(outgoing: outgoing);
+          final highlight = colors.jumpHighlight(
+            brightness,
+            page,
+            other: incoming,
           );
-          final highlight = colors.jumpHighlight(brightness, page);
           expect(highlight.a, 1, reason: pair);
           expect(
             _difference(highlight, outgoing.outgoing),
@@ -67,18 +68,20 @@ void main() {
 
   test('the highlight follows the chosen colours', () {
     final page = fireplaceTheme(Brightness.light).scaffoldBackgroundColor;
-    const ember = ChatBubbleColors(
-      outgoing: ChatBubbleColor.ember,
-      incoming: ChatBubbleColor.ember,
-    );
-    const forest = ChatBubbleColors(
-      outgoing: ChatBubbleColor.forest,
-      incoming: ChatBubbleColor.forest,
-    );
+    const ember = ChatBubbleColors(outgoing: ChatBubbleColor.ember);
+    const forest = ChatBubbleColors(outgoing: ChatBubbleColor.forest);
     expect(
       _difference(
-        ember.jumpHighlight(Brightness.light, page),
-        forest.jumpHighlight(Brightness.light, page),
+        ember.jumpHighlight(
+          Brightness.light,
+          page,
+          other: ChatBubbleColor.ember,
+        ),
+        forest.jumpHighlight(
+          Brightness.light,
+          page,
+          other: ChatBubbleColor.forest,
+        ),
       ),
       greaterThan(10),
     );

@@ -8,6 +8,7 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/styles/theme.dart';
+import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/groups/group_chat_screen.dart';
 import 'package:fireplace/src/view/groups/group_info_screen.dart';
@@ -390,6 +391,78 @@ void main() {
     await settle(t, () => find.text('two').evaluate().isNotEmpty);
     await t.pageBack();
     await settle(t, () => badge.evaluate().isEmpty);
+    await tearDownPhones(t);
+  });
+
+  testWidgets("replying in a group shows the panel in that member's colour "
+      'and sends a quote', (t) async {
+    await setUpPhones(t);
+    bob.service.ownColor = 'plum';
+    final gid = await bookClub(t, alice, bob);
+    await t.runAsync(() async {
+      await bob.service.send(gid, 'from Bob');
+      await until(
+        () async =>
+            (await texts(alice, gid)).contains('from Bob') &&
+            alice.service.colorsOf(gid)['bob'] == 'plum',
+        what: 'the message and the colour',
+      );
+    });
+    await pump(t, GroupChatScreen(gid: gid));
+    await settle(t, () => find.text('from Bob').evaluate().isNotEmpty);
+    await t.longPress(find.text('from Bob'));
+    await t.pumpAndSettle();
+    await t.tap(action('reply'));
+    await t.pumpAndSettle();
+
+    final panel = find.byKey(const Key('replyComposerPreview'));
+    expect(panel, findsOneWidget);
+    final plum = ChatBubbleColor.plum.accentText(Brightness.light);
+    expect(
+      t.widget<ColoredBox>(find.byKey(const Key('replyPanelTab'))).color,
+      plum,
+    );
+    expect(
+      t.widget<Text>(find.byKey(const Key('replyPanelAuthor'))).style!.color,
+      plum,
+    );
+    expect(find.descendant(of: panel, matching: find.text('bob')), findsOne);
+
+    await t.enterText(find.byKey(const Key('composer')), 'to Bob');
+    await t.pump();
+    await t.tap(find.byKey(const Key('send')));
+    await settle(t, () => panel.evaluate().isEmpty);
+    // The send runs under the test's clock, so keep both clocks moving.
+    var reached = false;
+    for (var i = 0; i < 200 && !reached; i++) {
+      await t.runAsync(() async {
+        final got = (await bob.messages.watch('group-$gid').first)
+            .where((m) => m.body == 'to Bob')
+            .firstOrNull;
+        reached =
+            got?.quote?.body == 'from Bob' && got?.quote?.senderUid == 'bob';
+        await Future<void>.delayed(const Duration(milliseconds: 25));
+      });
+      await t.pump(const Duration(milliseconds: 25));
+    }
+    expect(reached, isTrue, reason: 'the quote reaches Bob');
+    // The bubble names the person quoted.
+    await settle(t, () => find.text('to Bob').evaluate().isNotEmpty);
+    expect(find.byType(MessageQuotePreview), findsOneWidget);
+    expect(
+      t.widget<MessageQuotePreview>(find.byType(MessageQuotePreview)).author,
+      'bob',
+    );
+    await tearDownPhones(t);
+  });
+
+  testWidgets('people are ticked with round boxes when making a group', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    await pump(t, const NewGroupScreen());
+    final box = t.widget<CheckboxListTile>(find.byKey(const Key('pick_bob')));
+    expect(box.checkboxShape, isA<CircleBorder>());
     await tearDownPhones(t);
   });
 

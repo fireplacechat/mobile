@@ -63,25 +63,29 @@ enum ChatBubbleColor {
       brightness == Brightness.dark ? darkIncoming : lightIncoming;
 }
 
+/// This account's one chat colour (decision 0052). Its own messages use it,
+/// and so do other people's phones for this account's messages. Each other
+/// person's messages use the soft tint of *their* colour.
 @immutable
 class ChatBubbleColors {
-  const ChatBubbleColors({
-    this.outgoing = ChatBubbleColor.ember,
-    this.incoming = ChatBubbleColor.stone,
-  });
-  final ChatBubbleColor outgoing, incoming;
+  const ChatBubbleColors({this.outgoing = ChatBubbleColor.ember});
+  final ChatBubbleColor outgoing;
 
-  /// The saved form: the two names. Anything unknown reads as its default.
-  String get stored => '${outgoing.name},${incoming.name}';
-  factory ChatBubbleColors.parse(String stored) {
-    final names = stored.split(',');
-    ChatBubbleColor? named(int i) =>
-        i < names.length ? ChatBubbleColor.values.asNameMap()[names[i]] : null;
-    return ChatBubbleColors(
-      outgoing: named(0) ?? ChatBubbleColor.ember,
-      incoming: named(1) ?? ChatBubbleColor.stone,
-    );
-  }
+  /// What someone else's messages use until their own colour has arrived.
+  static const ChatBubbleColor unknown = ChatBubbleColor.stone;
+
+  /// The colour of other people's messages where no one person is meant.
+  ChatBubbleColor get incoming => unknown;
+
+  /// The saved form: the colour's name. Anything unknown reads as the
+  /// default. An older save also named a second colour, for other people's
+  /// messages; it is ignored.
+  String get stored => outgoing.name;
+  factory ChatBubbleColors.parse(String stored) => ChatBubbleColors(
+    outgoing:
+        ChatBubbleColor.values.asNameMap()[stored.split(',').first] ??
+        ChatBubbleColor.ember,
+  );
 
   /// The tint behind a message after a jump to it (a search result, a quote,
   /// a pin). Between the two bubble colours and faded into [page], so it
@@ -89,8 +93,14 @@ class ChatBubbleColors {
   /// are chosen, also when both are the same (test/styles/chat_colors_test).
   /// In dark mode the outgoing colour's lighter accent stands in for its
   /// fill, which is too close to some dark incoming fills.
-  Color jumpHighlight(Brightness brightness, Color page) {
-    final theirs = incoming.incoming(brightness);
+  ///
+  /// [other] is the colour of the other person's messages in that chat.
+  Color jumpHighlight(
+    Brightness brightness,
+    Color page, {
+    ChatBubbleColor other = unknown,
+  }) {
+    final theirs = other.incoming(brightness);
     final dark = brightness == Brightness.dark;
     final between = dark
         ? Color.lerp(theirs, outgoing.accentText(brightness), .9)!
@@ -100,9 +110,7 @@ class ChatBubbleColors {
 
   @override
   bool operator ==(Object other) =>
-      other is ChatBubbleColors &&
-      other.outgoing == outgoing &&
-      other.incoming == incoming;
+      other is ChatBubbleColors && other.outgoing == outgoing;
   @override
-  int get hashCode => Object.hash(outgoing, incoming);
+  int get hashCode => outgoing.hashCode;
 }

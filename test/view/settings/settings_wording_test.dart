@@ -45,17 +45,19 @@ Finder _inTile(String key, Finder matching) =>
 void main() {
   // Real glyph widths: the test font draws every letter as a square.
   setUpAll(loadFonts);
-  testWidgets('Chat colors names your colour, then theirs', (t) async {
+  testWidgets('Your color names the one colour you chose', (t) async {
     await _openSettings(t);
-    expect(_inTile('chatColors', find.text('Ember & Stone')), findsOneWidget);
+    expect(_inTile('chatColors', find.text('Your color')), findsOneWidget);
+    expect(_inTile('chatColors', find.text('Ember')), findsOneWidget);
 
-    await _openSettings(t, savedColors: 'ember,plum');
-    expect(_inTile('chatColors', find.text('Ember & Plum')), findsOneWidget);
-    expect(find.text('Choose your bubble colors'), findsNothing);
+    // A second colour from an older save is ignored.
+    await _openSettings(t, savedColors: 'plum,forest');
+    expect(_inTile('chatColors', find.text('Plum')), findsOneWidget);
+    expect(find.textContaining('&'), findsNothing);
   });
 
   for (final scale in [1.0, 1.35]) {
-    testWidgets('the longest pair fits on one line on a narrow phone '
+    testWidgets('the longest name fits on one line on a narrow phone '
         '(text size $scale)', (t) async {
       await _openSettings(
         t,
@@ -63,7 +65,7 @@ void main() {
         textScale: scale,
         savedColors: 'forest,forest',
       );
-      final text = _inTile('chatColors', find.text('Forest & Forest'));
+      final text = _inTile('chatColors', find.text('Forest'));
       expect(text, findsOneWidget);
       final widget = t.widget<Text>(text);
       final painter = TextPainter(

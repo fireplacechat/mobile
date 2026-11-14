@@ -213,6 +213,30 @@ void main() {
     },
   );
 
+  test('a reply quotes the message it answers, whoever wrote it', () async {
+    final gid = await bookClub();
+    await alice.service.send(gid, 'Thursday at 7?');
+    await until(
+      () async => (await texts(bob, gid)).contains('Thursday at 7?'),
+      what: 'delivered',
+    );
+    final original = (await bob.messages.watch(groupChatId(gid)).first)
+        .firstWhere((m) => m.body == 'Thursday at 7?');
+    await bob.service.send(gid, 'Works for me', replyTo: original);
+    await until(
+      () async => (await texts(alice, gid)).contains('Works for me'),
+      what: 'the reply',
+    );
+    for (final p in [alice, bob]) {
+      final reply = (await p.messages.watch(groupChatId(gid)).first).firstWhere(
+        (m) => m.body == 'Works for me',
+      );
+      expect(reply.quote?.targetId, original.id);
+      expect(reply.quote?.senderUid, 'alice');
+      expect(reply.quote?.body, 'Thursday at 7?');
+    }
+  });
+
   test('a member deletes a message from their own phone only', () async {
     final gid = await bookClub();
     await alice.service.send(gid, 'only mine to hide');

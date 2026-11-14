@@ -11,6 +11,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:fireplace/src/model/chat/peer_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -133,12 +134,16 @@ class AppSession {
     required this.safety,
     this.pushNotifications,
     this.groups,
+    this.peerColors,
     LocalChatPreferences? chatPreferences,
     required StreamSubscription<void> chatsSub,
     required this.dispose,
     this.destroyLocalData,
   }) : _chatsSub = chatsSub,
        chatPreferences = chatPreferences ?? LocalChatPreferences();
+
+  /// The colours the people this account chats with chose (decision 0052).
+  final PeerColors? peerColors;
 
   final String uid;
   final LocalChatPreferences chatPreferences;
@@ -256,6 +261,11 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     scope.add(safety.dispose);
     await safety.start();
     scope.checkActive();
+    // One colour per person (decision 0052): this account's goes out inside
+    // its messages, and other people's are remembered as theirs arrive.
+    final peerColors = PeerColors(secrets, user.uid);
+    await peerColors.load();
+    scope.add(peerColors.close);
     final chat = ChatService(
       db: db,
       uid: user.uid,
@@ -266,6 +276,8 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       messages: store,
       safety: safety,
       lock: lock,
+      ownColor: () => ref.read(chatBubbleColorsProvider).outgoing.name,
+      onPeerColor: peerColors.note,
     );
     scope.add(chat.close);
     // 8. Resolve the display username from the profile read in step 2.
@@ -358,6 +370,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     }
     // 10. Return the session with cleanup and local-data removal.
     final session = AppSession(
+      peerColors: peerColors,
       uid: user.uid,
       username: username,
       device: device,

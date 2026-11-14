@@ -166,12 +166,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ListTile(
                       key: const Key('chatColors'),
                       leading: const Icon(Icons.palette_outlined),
-                      title: const Text('Chat colors'),
-                      // Your colour first, then theirs: "Ember & Stone".
-                      subtitle: Text(
-                        '${bubbleColors.outgoing.label} & '
-                        '${bubbleColors.incoming.label}',
-                      ),
+                      title: const Text('Your color'),
+                      subtitle: Text(bubbleColors.outgoing.label),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _busy
                           ? null

@@ -21,7 +21,7 @@ class ChatAppearanceScreen extends ConsumerWidget {
         ..showSnackBar(
           const SnackBar(
             content: Text(
-              'Could not save your colors. They will last until the app closes.',
+              'Could not save your color. It will last until the app closes.',
             ),
           ),
         );
@@ -34,7 +34,7 @@ class ChatAppearanceScreen extends ConsumerWidget {
     final t = FireplaceUiTokens.of(context);
     final brightness = Theme.of(context).brightness;
     return Scaffold(
-      appBar: UiAppBar(context: context, title: const Text('Chat colors')),
+      appBar: UiAppBar(context: context, title: const Text('Your color')),
       body: UiPageScroll(
         children: [
           Text(
@@ -43,7 +43,9 @@ class ChatAppearanceScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Choose colors for your messages and the ones you receive. Your color is also used for avatars, buttons and outlines.',
+            key: Key('colorExplanation'),
+            'Choose colors for your messages in all chats. Your color is also '
+            'used for avatars, buttons, and assets within the app.',
           ),
           const SizedBox(height: 24),
           Card(
@@ -51,15 +53,19 @@ class ChatAppearanceScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
+                  // What your messages look like on other people's phones:
+                  // the soft version of the colour you chose.
                   _Preview(
-                    label: 'Their messages',
-                    color: colors.incoming.incoming(brightness),
+                    key: const Key('theySeePreview'),
+                    label: 'They see',
+                    color: colors.outgoing.incoming(brightness),
                     text: t.incomingText,
                     outgoing: false,
                   ),
                   const SizedBox(height: 12),
                   _Preview(
-                    label: 'Your messages',
+                    key: const Key('youSeePreview'),
+                    label: 'You see',
                     color: colors.outgoing.outgoing,
                     text: Colors.white,
                     outgoing: true,
@@ -70,7 +76,7 @@ class ChatAppearanceScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 28),
           _ColorChoices(
-            title: 'Your messages',
+            title: 'Your color',
             selected: colors.outgoing,
             prefix: 'outgoing',
             swatch: (c) => c.outgoing,
@@ -80,21 +86,10 @@ class ChatAppearanceScreen extends ConsumerWidget {
               ref.read(chatBubbleColorsProvider.notifier).outgoing(color),
             ),
           ),
-          const SizedBox(height: 24),
-          _ColorChoices(
-            title: 'Their messages',
-            selected: colors.incoming,
-            prefix: 'incoming',
-            swatch: (c) => c.incoming(brightness),
-            text: t.incomingText,
-            onSelected: (color) => _save(
-              context,
-              ref.read(chatBubbleColorsProvider.notifier).incoming(color),
-            ),
-          ),
           const SizedBox(height: 16),
           Text(
-            'Applies to all chats. Your choice is kept on this device.',
+            'Applies to all chats. Your choice is kept on this device. It is '
+            'also encrypted in your messages, the server never sees it.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -105,7 +100,7 @@ class ChatAppearanceScreen extends ConsumerWidget {
                 context,
                 ref.read(chatBubbleColorsProvider.notifier).reset(),
               ),
-              child: const Text('Reset colors'),
+              child: const Text('Reset color'),
             ),
           ),
         ],
@@ -225,6 +220,7 @@ class ColorBlock extends StatelessWidget {
 
 class _Preview extends StatelessWidget {
   const _Preview({
+    super.key,
     required this.label,
     required this.color,
     required this.text,

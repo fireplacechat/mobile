@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/view/chat/chat_composer.dart';
 
 import '../../support/ui_fixture.dart';
 import 'long_press_menu_test.dart' show openChat;
@@ -20,7 +21,7 @@ void main() {
       expect(field.decoration!.filled, isTrue);
       expect(
         (field.decoration!.enabledBorder as OutlineInputBorder).borderRadius,
-        BorderRadius.circular(22),
+        BorderRadius.circular(ChatComposer.pill),
       );
       // Typing shows a thin outline in the accent colour; at rest there is none.
       expect(
@@ -28,7 +29,7 @@ void main() {
         BorderSide.none,
       );
       final focused = field.decoration!.focusedBorder as OutlineInputBorder;
-      expect(focused.borderRadius, BorderRadius.circular(22));
+      expect(focused.borderRadius, BorderRadius.circular(ChatComposer.pill));
       expect(
         focused.borderSide,
         BorderSide(color: FireplaceUiTokens.of(t.element(input)).accent),

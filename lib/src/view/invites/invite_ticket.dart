@@ -137,7 +137,8 @@ class InviteTicket extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: t.panel,
-          borderRadius: BorderRadius.circular(16),
+          // The same slight rounding as the theme boxes in Settings.
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(color: theme.colorScheme.outline, width: 1.25),
         ),
         child: body,
