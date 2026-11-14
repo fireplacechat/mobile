@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fireplace/src/view/chat/quote_navigation.dart';
 import 'package:fireplace/src/view/chat/search_jump.dart';
 import 'package:fireplace/src/model/chat/pending_reactions.dart';
@@ -64,7 +66,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void initState() {
     super.initState();
     // The first message then finds the devices it encrypts to ready.
-    ref.read(appSessionProvider).value?.chat.prepareToSend(widget.chatId);
+    final chat = ref.read(appSessionProvider).value?.chat;
+    chat?.prepareToSend(widget.chatId);
+    // Their colour may have changed since their profile was last read.
+    if (chat != null) {
+      unawaited(() async {
+        try {
+          await chat.refreshPeerColor(chat.peerOf(widget.chatId));
+        } catch (_) {
+          // The colour last seen stays.
+        }
+      }());
+    }
     _text = ChatDraftController(
       drafts: ref.read(chatDraftsProvider.notifier),
       chatId: widget.chatId,

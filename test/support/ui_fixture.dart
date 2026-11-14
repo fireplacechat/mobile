@@ -79,6 +79,11 @@ class FixtureChat extends Fake implements ChatService {
     _clearedChanges.add(null);
   }
 
+  final publishedColors = <String>[];
+  @override
+  Future<void> publishColor(String color) async => publishedColors.add(color);
+  @override
+  Future<void> refreshPeerColor(String peerUid) async {}
   @override
   Stream<List<ChatSummary>> watchChats() => Stream.value(summaries);
   @override

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
@@ -239,59 +240,61 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       ? 'Some usernames are still loading. Results will appear here.'
                       : 'Try another username.';
                   if (_query.isNotEmpty) {
-                    return ListView(
-                      key: const Key('globalSearchResults'),
-                      padding: const EdgeInsets.only(bottom: 96),
-                      children: [
-                        if (requestCount > 0)
-                          ListTile(
-                            key: const Key('requestsTile'),
-                            leading: const Icon(
-                              Icons.mark_email_unread_outlined,
+                    return ThinScrollbar(
+                      child: ListView(
+                        key: const Key('globalSearchResults'),
+                        padding: const EdgeInsets.only(bottom: 96),
+                        children: [
+                          if (requestCount > 0)
+                            ListTile(
+                              key: const Key('requestsTile'),
+                              leading: const Icon(
+                                Icons.mark_email_unread_outlined,
+                              ),
+                              title: Text('Message requests ($requestCount)'),
+                              subtitle: const Text(
+                                'People who want to chat with you',
+                              ),
+                              onTap: () => _open(const RequestsScreen()),
                             ),
-                            title: Text('Message requests ($requestCount)'),
-                            subtitle: const Text(
-                              'People who want to chat with you',
-                            ),
-                            onTap: () => _open(const RequestsScreen()),
-                          ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                          child: Text(
-                            'People',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        if (sorted.isEmpty)
-                          Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Text(
-                              namesPending
-                                  ? 'Looking up usernames'
-                                  : 'No conversations found',
-                            ),
-                          ),
-                        for (final chat in sorted)
-                          ChatTile(
-                            chat: chat,
-                            onOpen: () =>
-                                _open(ChatScreen(chatId: chat.chatId)),
-                          ),
-                        if (groups.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                             child: Text(
-                              'Groups',
+                              'People',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                           ),
-                        for (final g in groups)
-                          GroupTile(
-                            group: g,
-                            onOpen: () => _open(GroupChatScreen(gid: g.gid)),
-                          ),
-                        GlobalMessageResults(query: _query, onOpen: _open),
-                      ],
+                          if (sorted.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Text(
+                                namesPending
+                                    ? 'Looking up usernames'
+                                    : 'No conversations found',
+                              ),
+                            ),
+                          for (final chat in sorted)
+                            ChatTile(
+                              chat: chat,
+                              onOpen: () =>
+                                  _open(ChatScreen(chatId: chat.chatId)),
+                            ),
+                          if (groups.isNotEmpty)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                              child: Text(
+                                'Groups',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
+                            ),
+                          for (final g in groups)
+                            GroupTile(
+                              group: g,
+                              onOpen: () => _open(GroupChatScreen(gid: g.gid)),
+                            ),
+                          GlobalMessageResults(query: _query, onOpen: _open),
+                        ],
+                      ),
                     );
                   }
                   // Chats and groups together, newest activity first.
@@ -322,65 +325,68 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     return _Empty();
                   }
                   final requestOffset = requestCount == 0 ? 0 : 1;
-                  return ListView.separated(
-                    key: const Key('conversationList'),
-                    padding: const EdgeInsets.only(bottom: 96),
-                    itemCount:
-                        entries.length +
-                        requestOffset +
-                        (entries.isEmpty ? 1 : 0),
-                    // A hairline from the text edge to the row's end.
-                    separatorBuilder: (_, _) => const Divider(
-                      height: 1 / 3,
-                      thickness: 1 / 3,
-                      indent: ChatTile.textInset,
-                      endIndent: ChatTile.edge,
+                  return ThinScrollbar(
+                    child: ListView.separated(
+                      key: const Key('conversationList'),
+                      padding: const EdgeInsets.only(bottom: 96),
+                      itemCount:
+                          entries.length +
+                          requestOffset +
+                          (entries.isEmpty ? 1 : 0),
+                      // A hairline from the text edge to the row's end.
+                      separatorBuilder: (_, _) => const Divider(
+                        height: 1 / 3,
+                        thickness: 1 / 3,
+                        indent: ChatTile.textInset,
+                        endIndent: ChatTile.edge,
+                      ),
+                      itemBuilder: (_, i) {
+                        if (requestCount > 0 && i == 0) {
+                          return ListTile(
+                            key: Key('requestsTile'),
+                            leading: CircleAvatar(
+                              backgroundColor: FireplaceUiTokens.of(context)
+                                  .accent,
+                              foregroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimary,
+                              child: Icon(Icons.mark_email_unread_outlined),
+                            ),
+                            title: Text(
+                              'Message requests ($requestCount)',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            subtitle: Text('People who want to chat with you'),
+                            trailing: Icon(Icons.chevron_right),
+                            onTap: () => _open(const RequestsScreen()),
+                          );
+                        }
+                        if (entries.isEmpty) {
+                          return _query.isEmpty
+                              ? const UiEmptyState(
+                                  title: 'No conversations yet',
+                                  message: 'Accept a request above, or choose New chat to start a conversation.',
+                                )
+                              : const UiEmptyState(
+                                  title: 'No conversations found',
+                                  message: 'Try another username. Your message requests are shown above.',
+                                );
+                        }
+                        final entry = entries[i - requestOffset];
+                        if (entry is GroupInfo) {
+                          return GroupTile(
+                            group: entry,
+                            onOpen: () =>
+                                _open(GroupChatScreen(gid: entry.gid)),
+                          );
+                        }
+                        final chat = entry as ChatSummary;
+                        return ChatTile(
+                          chat: chat,
+                          onOpen: () => _open(ChatScreen(chatId: chat.chatId)),
+                        );
+                      },
                     ),
-                    itemBuilder: (_, i) {
-                      if (requestCount > 0 && i == 0) {
-                        return ListTile(
-                          key: Key('requestsTile'),
-                          leading: CircleAvatar(
-                            backgroundColor: FireplaceUiTokens.of(context)
-                                .accent,
-                            foregroundColor: Theme.of(context)
-                                .colorScheme
-                                .onPrimary,
-                            child: Icon(Icons.mark_email_unread_outlined),
-                          ),
-                          title: Text(
-                            'Message requests ($requestCount)',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: Text('People who want to chat with you'),
-                          trailing: Icon(Icons.chevron_right),
-                          onTap: () => _open(const RequestsScreen()),
-                        );
-                      }
-                      if (entries.isEmpty) {
-                        return _query.isEmpty
-                            ? const UiEmptyState(
-                                title: 'No conversations yet',
-                                message: 'Accept a request above, or choose New chat to start a conversation.',
-                              )
-                            : const UiEmptyState(
-                                title: 'No conversations found',
-                                message: 'Try another username. Your message requests are shown above.',
-                              );
-                      }
-                      final entry = entries[i - requestOffset];
-                      if (entry is GroupInfo) {
-                        return GroupTile(
-                          group: entry,
-                          onOpen: () => _open(GroupChatScreen(gid: entry.gid)),
-                        );
-                      }
-                      final chat = entry as ChatSummary;
-                      return ChatTile(
-                        chat: chat,
-                        onOpen: () => _open(ChatScreen(chatId: chat.chatId)),
-                      );
-                    },
                   );
                 },
               ),

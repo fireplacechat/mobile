@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/chat/chat_preview.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
@@ -174,6 +175,8 @@ class ChatTile extends ConsumerWidget {
     final last = latest?.message;
     final t = FireplaceUiTokens.of(context);
     final scheme = Theme.of(context).colorScheme;
+    // Their own colour, once the chat is accepted (decision 0053).
+    final theirs = ref.watch(acceptedPeerColorProvider(chat.peerUid));
     final preview = held
         ? 'Messages on hold — review security code'
         : last == null
@@ -227,7 +230,11 @@ class ChatTile extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: edge),
             child: Row(
               children: [
-                PersonAvatar(name: name, size: avatarSize),
+                PersonAvatar(
+                  name: name,
+                  size: avatarSize,
+                  color: theirs?.outgoing,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: ConstrainedBox(
@@ -261,7 +268,11 @@ class ChatTile extends ConsumerWidget {
                                             fontSize: 16,
                                             height: 1.2,
                                             fontWeight: FontWeight.w600,
-                                            color: t.text,
+                                            color:
+                                                theirs?.accentText(
+                                                  Theme.of(context).brightness,
+                                                ) ??
+                                                t.text,
                                           ),
                                         ),
                                       ),

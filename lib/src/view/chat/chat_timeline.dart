@@ -1,3 +1,4 @@
+import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
@@ -108,137 +109,145 @@ class ChatTimeline extends ConsumerWidget {
                     ? 'Messages stay hidden until you accept.'
                     : 'Messages are end-to-end encrypted. Say hello when you’re ready.',
               )
-            : ListView.builder(
-                key: const Key('messageTimeline'),
+            : ThinScrollbar(
                 controller: scrollController,
-                reverse: true,
-                // The side inset equals the held-message menu's, so a
-                // message with room for its menu is lifted without moving.
-                padding: const EdgeInsets.symmetric(
-                  horizontal: MessageMenuMetrics.edge,
-                  vertical: 12,
-                ),
-                itemCount: msgs.length,
-                itemBuilder: (_, i) {
-                  final index = msgs.length - 1 - i;
-                  final message = msgs[index];
-                  final showDate =
-                      index == 0 ||
-                      !sameLocalDay(msgs[index - 1].sentAt, message.sentAt);
-                  final outgoingSend = outgoing[message.id];
-                  if (outgoingSend != null) {
-                    // Not in the history yet: no menu, reactions or selection.
-                    final bubble = MessageBubble(
-                      key: anchorFor(message.id),
-                      message: message,
-                      senderName: name,
-                      outgoingSend: outgoingSend,
-                      onFailedTap: () => onFailedSend?.call(outgoingSend),
+                child: ListView.builder(
+                  key: const Key('messageTimeline'),
+                  controller: scrollController,
+                  reverse: true,
+                  // The side inset equals the held-message menu's, so a
+                  // message with room for its menu is lifted without moving.
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: MessageMenuMetrics.edge,
+                    vertical: 12,
+                  ),
+                  itemCount: msgs.length,
+                  itemBuilder: (_, i) {
+                    final index = msgs.length - 1 - i;
+                    final message = msgs[index];
+                    final showDate =
+                        index == 0 ||
+                        !sameLocalDay(msgs[index - 1].sentAt, message.sentAt);
+                    final outgoingSend = outgoing[message.id];
+                    if (outgoingSend != null) {
+                      // Not in the history yet: no menu, reactions or selection.
+                      final bubble = MessageBubble(
+                        key: anchorFor(message.id),
+                        message: message,
+                        senderName: name,
+                        outgoingSend: outgoingSend,
+                        onFailedTap: () => onFailedSend?.call(outgoingSend),
+                      );
+                      return Column(
+                        key: ValueKey(message.id),
+                        children: [
+                          if (showDate) DaySeparator(date: message.sentAt),
+                          if (outgoingSend.state == OutgoingState.sending)
+                            RisingSend(child: bubble)
+                          else
+                            bubble,
+                        ],
+                      );
+                    }
+                    final row = GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: selection.active
+                          ? () => controller.toggle(message.id)
+                          : null,
+                      child: Stack(
+                        children: [
+                          Padding(
+                            padding: EdgeInsets.only(
+                              bottom:
+                                  message.reactions.values.any(
+                                    (reaction) => reaction.emoji != null,
+                                  )
+                                  ? ReactionChipLayout.reserve *
+                                        MediaQuery.textScalerOf(context)
+                                            .scale(1)
+                                  : 0,
+                            ),
+                            child: Row(
+                              children: [
+                                if (selection.active)
+                                  MessageSelectionMark(
+                                    selected: selection.ids.contains(
+                                      message.id,
+                                    ),
+                                  ),
+                                Expanded(
+                                  child: MessageBubble(
+                                    key: anchorFor(message.id),
+                                    message: message,
+                                    senderName: name,
+                                    selecting: selection.active,
+                                    selected: selection.ids.contains(
+                                      message.id,
+                                    ),
+                                    onToggleSelection: () =>
+                                        controller.toggle(message.id),
+                                    actions: actionsFor(message),
+                                    onQuote: onQuote,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            left: selection.active ? 36 : 0,
+                            right: 0,
+                            child: MessageReactions(
+                              message: message,
+                              peerName: name,
+                              onSelect: selection.active
+                                  ? () => controller.toggle(message.id)
+                                  : null,
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                     return Column(
                       key: ValueKey(message.id),
                       children: [
                         if (showDate) DaySeparator(date: message.sentAt),
-                        if (outgoingSend.state == OutgoingState.sending)
-                          RisingSend(child: bubble)
+                        if (flashed == null)
+                          row
                         else
-                          bubble,
+                          MessageFlash(
+                            messageId: message.id,
+                            flashed: flashed!,
+                            color: highlight,
+                            child: row,
+                          ),
+                        if (!selection.active &&
+                            message.outgoing &&
+                            !message.remotelyDeleted &&
+                            (message.status == MessageStatus.unconfirmed ||
+                                send.memoryPending[message.id]?.outcome ==
+                                    SendOutcome.publishedLocalSaveFailed))
+                          UnconfirmedNote(
+                            messageId: message.id,
+                            savedLocallyFailed:
+                                send.memoryPending[message.id]?.outcome ==
+                                SendOutcome.publishedLocalSaveFailed,
+                            action: send.messageActions[message.id],
+                            note: send.checkNote[message.id],
+                            onCheck: () => send.checkStatus(message.id),
+                            onSendAgain: () =>
+                                send.sendAgain(message.id, message.body),
+                            onSave: () {
+                              final mem = send.memoryPending[message.id];
+                              if (mem != null) {
+                                send.saveOnDevice(mem);
+                              }
+                            },
+                          ),
                       ],
                     );
-                  }
-                  final row = GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: selection.active
-                        ? () => controller.toggle(message.id)
-                        : null,
-                    child: Stack(
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.only(
-                            bottom:
-                                message.reactions.values.any(
-                                  (reaction) => reaction.emoji != null,
-                                )
-                                ? ReactionChipLayout.reserve *
-                                      MediaQuery.textScalerOf(context).scale(1)
-                                : 0,
-                          ),
-                          child: Row(
-                            children: [
-                              if (selection.active)
-                                MessageSelectionMark(
-                                  selected: selection.ids.contains(message.id),
-                                ),
-                              Expanded(
-                                child: MessageBubble(
-                                  key: anchorFor(message.id),
-                                  message: message,
-                                  senderName: name,
-                                  selecting: selection.active,
-                                  selected: selection.ids.contains(message.id),
-                                  onToggleSelection: () =>
-                                      controller.toggle(message.id),
-                                  actions: actionsFor(message),
-                                  onQuote: onQuote,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 0,
-                          left: selection.active ? 36 : 0,
-                          right: 0,
-                          child: MessageReactions(
-                            message: message,
-                            peerName: name,
-                            onSelect: selection.active
-                                ? () => controller.toggle(message.id)
-                                : null,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                  return Column(
-                    key: ValueKey(message.id),
-                    children: [
-                      if (showDate) DaySeparator(date: message.sentAt),
-                      if (flashed == null)
-                        row
-                      else
-                        MessageFlash(
-                          messageId: message.id,
-                          flashed: flashed!,
-                          color: highlight,
-                          child: row,
-                        ),
-                      if (!selection.active &&
-                          message.outgoing &&
-                          !message.remotelyDeleted &&
-                          (message.status == MessageStatus.unconfirmed ||
-                              send.memoryPending[message.id]?.outcome ==
-                                  SendOutcome.publishedLocalSaveFailed))
-                        UnconfirmedNote(
-                          messageId: message.id,
-                          savedLocallyFailed:
-                              send.memoryPending[message.id]?.outcome ==
-                              SendOutcome.publishedLocalSaveFailed,
-                          action: send.messageActions[message.id],
-                          note: send.checkNote[message.id],
-                          onCheck: () => send.checkStatus(message.id),
-                          onSendAgain: () =>
-                              send.sendAgain(message.id, message.body),
-                          onSave: () {
-                            final mem = send.memoryPending[message.id];
-                            if (mem != null) {
-                              send.saveOnDevice(mem);
-                            }
-                          },
-                        ),
-                    ],
-                  );
-                },
+                  },
+                ),
               ),
         if (awayFromLatest && msgs.isNotEmpty)
           Positioned(
