@@ -34,7 +34,7 @@ void main() {
     await root.delete(recursive: true);
   });
 
-  /// Alice creates "Book club" and invites Bob, who accepts and is added.
+  /// Alice creates "Book club" and invites Bob, who joins.
   Future<String> bookClub() async {
     final gid = await alice.service.create('Book club', ['bob']);
     await until(
@@ -62,7 +62,7 @@ void main() {
   });
 
   test(
-    'create, invite, accept: both see the same group, name and roles',
+    'create, invite, join: both see the same group, name and roles',
     () async {
       final gid = await bookClub();
       for (final p in [alice, bob]) {
@@ -73,12 +73,11 @@ void main() {
         expect(info.isAdmin('bob'), isFalse);
       }
       expect(alice.service.groups[gid]!.epoch, bob.service.groups[gid]!.epoch);
-      expect(
-        server.processed,
-        containsAll(['create', 'invite', 'accept', 'add']),
+      expect(server.processed, containsAll(['create', 'invite', 'accept']));
+      await until(
+        () async => bob.service.invitations.isEmpty,
+        what: 'the invitation goes',
       );
-      // Bob's used key package is gone from the server.
-      expect(bob.service.invitations, isEmpty);
     },
   );
 
@@ -221,14 +220,16 @@ void main() {
       () async => (await texts(bob, gid)).contains('only mine to hide'),
       what: 'delivered',
     );
-    final id = (await bob.messages.watch(groupChatId(gid)).first).first.id;
+    final id = (await bob.messages.watch(groupChatId(gid)).first)
+        .firstWhere((m) => m.body == 'only mine to hide')
+        .id;
     await bob.service.deleteLocally(gid, id);
     expect(await texts(bob, gid), isNot(contains('only mine to hide')));
     expect(await texts(alice, gid), contains('only mine to hide'));
   });
 
   test(
-    'any member invites, and their device adds the person who accepts',
+    'any member invites, and the person joins from their invitation',
     () async {
       final gid = await bookClub();
       final carol = await Phone.create(db, 'carol', root);
@@ -273,10 +274,22 @@ void main() {
       () async => bob.service.invitations.isNotEmpty,
       what: 'invitation',
     );
+    // Invited: Bob's device is an MLS leaf, but not in the server's roster.
+    expect(alice.service.groups[gid]!.members, hasLength(2));
     await bob.service.decline(gid);
     await until(() async => bob.service.invitations.isEmpty, what: 'declined');
     expect(bob.service.groups, isEmpty);
-    expect(alice.service.groups[gid]!.members, hasLength(1));
+    // Alice's phone removes the leaf; nothing says Bob declined.
+    await until(
+      () async => alice.service.groups[gid]!.members.length == 1,
+      what: 'the leaf removed',
+    );
+    expect(alice.service.invitedTo(gid), isEmpty);
+    final lines = [
+      for (final m in await alice.messages.watch(groupChatId(gid)).first)
+        if (m.status == MessageStatus.notice) GroupNotice.decode(m.body)!.kind,
+    ];
+    expect(lines, [GroupNoticeKind.added, GroupNoticeKind.gone]);
   });
 
   test('a device restarted from its saved records carries on', () async {
@@ -306,5 +319,290 @@ void main() {
       'bob2',
       root,
     ); // for tearDown
+  });
+
+  // ---------------------------------------------------------------- round 2
+
+  /// The lines in a phone's history about changes to the group.
+  Future<List<GroupNotice>> notices(Phone p, String gid) async => [
+    for (final m in await p.messages.watch(groupChatId(gid)).first)
+      if (m.status == MessageStatus.notice) GroupNotice.decode(m.body)!,
+  ];
+  Future<bool> hasNotice(
+    Phone p,
+    String gid,
+    GroupNoticeKind kind, {
+    String? by,
+    String? who,
+  }) async => (await notices(
+    p,
+    gid,
+  )).any((n) => n.kind == kind && n.by == by && n.who == who);
+
+  test('joining needs nobody else: the inviter can be offline', () async {
+    final gid = await alice.service.create('Book club', ['bob']);
+    await until(
+      () async => bob.service.invitations.any((i) => i.gid == gid),
+      what: 'invitation',
+    );
+    // The invitation already put Bob's device in the MLS group.
+    expect(alice.service.invitedTo(gid), {'bob': 'alice'});
+    await alice.service.send(gid, 'sent before Bob joined');
+    await alice.service.close();
+
+    await bob.service.accept(gid);
+    // In the chat as soon as Join returns, with no other phone running.
+    expect(bob.service.groups[gid]?.name, 'Book club');
+    expect(server.processed, isNot(contains('add')));
+    await until(
+      () async =>
+          ((await db.doc('groups/$gid').get()).data()!['members'] as Map)
+              .containsKey('bob'),
+      what: 'the roster',
+    );
+    await bob.service.send(gid, 'I am in');
+    expect(await texts(bob, gid), contains('I am in'));
+    // Nothing from before Bob joined is shown, and the screen can say so.
+    expect(await texts(bob, gid), isNot(contains('sent before Bob joined')));
+    expect(bob.service.joinedLater(gid), isTrue);
+    alice = await Phone.create(FakeFirebaseFirestore(), 'alice2', root);
+  });
+
+  test('the person who made the group did not join later', () async {
+    final gid = await bookClub();
+    expect(alice.service.joinedLater(gid), isFalse);
+    expect(bob.service.joinedLater(gid), isTrue);
+  });
+
+  test('someone with no key package left cannot be invited yet', () async {
+    final gid = await alice.service.create('Book club', []);
+    final devices = await db.collection('users/bob/devices').get();
+    for (final p
+        in (await devices.docs.first.reference.collection('mlsPackages').get())
+            .docs) {
+      await p.reference.delete();
+    }
+    await expectLater(
+      alice.service.invite(gid, 'bob'),
+      throwsA(
+        isA<GroupRefused>().having((e) => e.reason, 'reason', 'packages'),
+      ),
+    );
+    expect(alice.service.groups[gid]!.members, hasLength(1));
+    expect(bob.service.invitations, isEmpty);
+  });
+
+  test(
+    'an invitation nobody answers in seven days is ended by a member',
+    () async {
+      var now = DateTime.now();
+      final carol = await Phone.create(db, 'carol', root, clock: () => now);
+      server
+        ..watchAccount('carol')
+        ..now = () => now;
+      final gid = await carol.service.create('Book club', ['bob']);
+      await until(
+        () async => bob.service.invitations.isNotEmpty,
+        what: 'invitation',
+      );
+      now = now.add(const Duration(days: 8));
+      // Any change to the group makes a member's phone look at it again.
+      await carol.service.rename(gid, 'Tea club');
+      await until(() async {
+        final g = (await db.doc('groups/$gid').get()).data()!;
+        return (g['invited'] as Map).isEmpty &&
+            (g['fence'] as List).isEmpty &&
+            carol.service.groups[gid]!.members.length == 1;
+      }, what: 'expired and removed');
+      await expectLater(
+        bob.service.accept(gid),
+        throwsA(anyOf(isA<GroupRefused>(), isA<GroupActionError>())),
+      );
+      expect(bob.service.groups, isEmpty);
+      await carol.service.close();
+    },
+  );
+
+  test('someone who joins later gets every member\'s colour', () async {
+    alice.service.ownColor = 'plum';
+    bob.service.ownColor = 'moss';
+    final gid = await bookClub();
+    final carol = await Phone.create(db, 'carol', root);
+    carol.service.ownColor = 'sky';
+    server.watchAccount('carol');
+    await alice.service.invite(gid, 'carol');
+    // More happens in the group before Carol answers.
+    await alice.service.rename(gid, 'Tea club');
+    await until(
+      () async => carol.service.invitations.isNotEmpty,
+      what: 'invitation',
+    );
+    await carol.service.accept(gid);
+    await until(
+      () async =>
+          carol.service.colorsOf(gid)['alice'] == 'plum' &&
+          carol.service.colorsOf(gid)['bob'] == 'moss',
+      what: "Carol has both colours",
+    );
+    for (final p in [alice, bob]) {
+      await until(
+        () async => p.service.colorsOf(gid)['carol'] == 'sky',
+        what: "Carol's colour on ${p.uid}",
+      );
+    }
+    expect(carol.service.groups[gid]!.name, 'Tea club');
+    await carol.service.close();
+  });
+
+  test('changes to the group are written into the history as lines', () async {
+    final gid = await bookClub();
+    for (final p in [alice, bob]) {
+      // Bob's own phone joined at the epoch after the Add, so only Alice's
+      // has the line for it.
+      if (p == alice) {
+        expect(
+          await hasNotice(
+            p,
+            gid,
+            GroupNoticeKind.added,
+            by: 'alice',
+            who: 'bob',
+          ),
+          isTrue,
+        );
+      }
+    }
+    await alice.service.rename(gid, 'Tea club');
+    await alice.service.setAdmin(gid, 'bob', admin: true);
+    for (final p in [alice, bob]) {
+      await until(
+        () async =>
+            await hasNotice(p, gid, GroupNoticeKind.renamed, by: 'alice') &&
+            await hasNotice(
+              p,
+              gid,
+              GroupNoticeKind.madeAdmin,
+              by: 'alice',
+              who: 'bob',
+            ),
+        what: 'rename and role lines on ${p.uid}',
+      );
+    }
+    await bob.service.setAdmin(gid, 'alice', admin: false);
+    await until(
+      () async => await hasNotice(
+        alice,
+        gid,
+        GroupNoticeKind.removedAdmin,
+        by: 'bob',
+        who: 'alice',
+      ),
+      what: 'the role line',
+    );
+    // Lines are not messages: they never count as text from a person.
+    final line = (await alice.messages.watch(groupChatId(gid)).first)
+        .firstWhere((m) => m.status == MessageStatus.notice);
+    expect(GroupNotice.decode(line.body), isNotNull);
+    expect(
+      const GroupNotice(
+        GroupNoticeKind.added,
+        by: 'alice',
+        who: 'bob',
+      ).text((uid) => uid == 'alice' ? 'You' : uid),
+      'You added bob',
+    );
+  });
+
+  test('a line says whether someone left or was removed', () async {
+    final gid = await bookClub();
+    final carol = await Phone.create(db, 'carol', root);
+    server.watchAccount('carol');
+    await alice.service.invite(gid, 'carol');
+    await until(
+      () async => carol.service.invitations.isNotEmpty,
+      what: 'invitation',
+    );
+    await carol.service.accept(gid);
+    await until(
+      () async => alice.service.groups[gid]!.members.length == 3,
+      what: 'three people',
+    );
+    await carol.service.leave(gid);
+    await until(
+      () async =>
+          await hasNotice(alice, gid, GroupNoticeKind.left, who: 'carol'),
+      what: 'Carol left',
+    );
+    await alice.service.remove(gid, 'bob');
+    await until(
+      () async => await hasNotice(
+        alice,
+        gid,
+        GroupNoticeKind.removed,
+        by: 'alice',
+        who: 'bob',
+      ),
+      what: 'Bob removed',
+    );
+    await carol.service.close();
+  });
+
+  test('an administrator makes another; a member cannot', () async {
+    final gid = await bookClub();
+    await expectLater(
+      bob.service.setAdmin(gid, 'bob', admin: true),
+      throwsA(isA<GroupActionError>()),
+    );
+    await alice.service.setAdmin(gid, 'bob', admin: true);
+    for (final p in [alice, bob]) {
+      await until(
+        () async => p.service.groups[gid]!.isAdmin('bob'),
+        what: 'Bob administers on ${p.uid}',
+      );
+    }
+    expect(
+      ((await db.doc('groups/$gid').get()).data()!['members']
+          as Map)['bob']['role'],
+      'admin',
+    );
+    // The last administrator cannot stop being one.
+    await bob.service.setAdmin(gid, 'alice', admin: false);
+    await until(
+      () async => !bob.service.groups[gid]!.isAdmin('alice'),
+      what: 'Alice no longer administers',
+    );
+    await expectLater(
+      bob.service.setAdmin(gid, 'bob', admin: false),
+      throwsA(isA<GroupActionError>()),
+    );
+  });
+
+  test("a member's role change is refused by the others", () async {
+    final gid = await bookClub();
+    final epoch = alice.service.groups[gid]!.epoch;
+    // Bob's phone is made to send what the app never would.
+    await bob.service.commitMetaUnchecked(gid, admins: ['bob']);
+    await Future<void>.delayed(const Duration(seconds: 1));
+    expect(alice.service.groups[gid]!.isAdmin('bob'), isFalse);
+    expect(alice.service.groups[gid]!.isAdmin('alice'), isTrue);
+    expect(alice.service.groups[gid]!.epoch, epoch);
+    expect(
+      await notices(alice, gid),
+      everyElement(
+        isA<GroupNotice>().having((n) => n.kind, 'kind', GroupNoticeKind.added),
+      ),
+    );
+  });
+
+  test('an invited person who is removed never joins', () async {
+    final gid = await alice.service.create('Book club', ['bob']);
+    await until(
+      () async => bob.service.invitations.isNotEmpty,
+      what: 'invitation',
+    );
+    await alice.service.remove(gid, 'bob');
+    await until(() async => bob.service.invitations.isEmpty, what: 'withdrawn');
+    expect(alice.service.groups[gid]!.members, hasLength(1));
+    expect(alice.service.invitedTo(gid), isEmpty);
   });
 }

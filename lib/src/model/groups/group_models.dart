@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Group chats (mobile decision 0050, `docs/protocol/group-chats-v1.md`).
 ///
 /// Off unless the app is built with `--dart-define=FIREPLACE_GROUPS=true`, so
@@ -76,6 +78,72 @@ class GroupInfo {
   }
 }
 
+/// A line in a group's history about a change to the group (0050, round 2).
+/// Built on this device from the MLS state before and after an authenticated
+/// Commit, never from the server's roster. Stored as a history message whose
+/// status is `notice`; the screens put names in when they show it.
+enum GroupNoticeKind {
+  added,
+  removed,
+  left,
+  gone,
+  madeAdmin,
+  removedAdmin,
+  renamed,
+}
+
+class GroupNotice {
+  const GroupNotice(this.kind, {this.by, this.who});
+  final GroupNoticeKind kind;
+
+  /// The account that made the change (the Commit's author), when it matters.
+  final String? by;
+
+  /// The account the change is about.
+  final String? who;
+
+  String encode() => jsonEncode({
+    'notice': kind.name,
+    if (by != null) 'by': by,
+    if (who != null) 'who': who,
+  });
+
+  static GroupNotice? decode(String body) {
+    try {
+      final j = jsonDecode(body);
+      if (j is! Map) return null;
+      final kind = GroupNoticeKind.values.asNameMap()[j['notice']];
+      if (kind == null) return null;
+      return GroupNotice(
+        kind,
+        by: j['by'] as String?,
+        who: j['who'] as String?,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The line in plain words. [name] turns an account id into what to show
+  /// ("You" for this account).
+  String text(String Function(String uid) name) {
+    final a = by == null ? '' : name(by!);
+    final b = who == null ? '' : name(who!);
+    return switch (kind) {
+      GroupNoticeKind.added => '$a added $b',
+      GroupNoticeKind.removed => '$a removed $b',
+      GroupNoticeKind.left => '$b left',
+      GroupNoticeKind.gone =>
+        b == 'You'
+            ? 'You are no longer in the group'
+            : '$b is no longer in the group',
+      GroupNoticeKind.madeAdmin => '$a made $b an administrator',
+      GroupNoticeKind.removedAdmin => '$a removed $b as an administrator',
+      GroupNoticeKind.renamed => '$a renamed the group',
+    };
+  }
+}
+
 /// An invitation waiting for this account to answer.
 class GroupInvitation {
   const GroupInvitation({
@@ -109,6 +177,10 @@ class GroupRefused implements Exception {
     'not a contact' => 'You can invite only people you already chat with.',
     'expired' => 'This invitation has expired.',
     'no invite' => 'This invitation is no longer open.',
+    'already invited' => 'They have already been invited.',
+    'packages' || 'devices' => 'They need to open Fireplace before they can be invited. Try again later.',
+    'epoch' => 'The group changed just then. Try again.',
+    'admins' => 'Only people who have joined can be administrators.',
     _ => 'That did not work. Try again.',
   };
 }

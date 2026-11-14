@@ -18,8 +18,9 @@ class Phone {
   static Future<Phone> create(
     FakeFirebaseFirestore db,
     String uid,
-    Directory root,
-  ) async {
+    Directory root, {
+    DateTime Function()? clock,
+  }) async {
     await db.collection('usernames').doc(uid).set({'uid': uid});
     await db.collection('users').doc(uid).set({
       'username': uid,
@@ -36,6 +37,7 @@ class Phone {
       historyDir: Directory('${root.path}/$uid')..createSync(recursive: true),
       messages: messages,
       requestTimeout: const Duration(seconds: 10),
+      clock: clock,
     );
     await service.start();
     return Phone._(uid, service, messages, secrets);

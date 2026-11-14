@@ -14,6 +14,11 @@ enum MessageStatus {
   /// server. Shown with a warning; never treated as sent, and resolved only by evidence from the
   /// server (see ChatService.checkSendStatus) or by an explicit decision to send another copy.
   unconfirmed,
+
+  /// A line this device wrote into a group's history from an authenticated
+  /// change ("alice added bob_jones"). The body is a `GroupNotice` in JSON,
+  /// never text a person typed.
+  notice,
 }
 
 class LocalMessage {

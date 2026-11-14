@@ -15,6 +15,9 @@ class FakeGroupServer {
   final _done = <String>{};
   final processed = <String>[];
 
+  /// The server's clock; a test moves it to let an invitation expire.
+  DateTime Function() now = DateTime.now;
+
   String _slot(int e) => '$e'.padLeft(12, '0');
 
   void watchAccount(String uid) {
@@ -85,19 +88,45 @@ class FakeGroupServer {
           },
           'epoch': op['epoch'],
           'fence': <Object>[],
+          'invited': <String, Object>{},
         });
         await db.doc('users/$uid/groupRefs/$gid').set({
           'role': 'admin',
           'joinedEpoch': op['epoch'],
+          'joinedAt': Timestamp.fromDate(now()),
         });
         _watchGroup(gid);
       case 'accept':
-        await db.doc('groups/$gid/invites/$uid').update({
-          'status': 'accepted',
-          'devices': op['devices'],
+        // The invitation already added the devices to MLS: joining only moves
+        // the account into the roster.
+        final group = (await db.doc('groups/$gid').get()).data();
+        final invite = (group?['invited'] as Map?)?[uid] as Map?;
+        if (group == null || invite == null) throw _Refused('no invite');
+        if ((invite['expireAt'] as Timestamp).toDate().isBefore(now())) {
+          throw _Refused('expired');
+        }
+        await db.doc('groups/$gid').update({
+          'members.$uid': {'role': 'member', 'devices': invite['devices']},
+          'invited.$uid': FieldValue.delete(),
         });
+        await db.doc('users/$uid/groupRefs/$gid').set({
+          'role': 'member',
+          'joinedEpoch': group['epoch'],
+          'joinedAt': Timestamp.fromDate(now()),
+        });
+        await db.doc('users/$uid/groupInvites/$gid').delete();
       case 'decline':
-        await db.doc('groups/$gid/invites/$uid').delete();
+        final group = (await db.doc('groups/$gid').get()).data();
+        final invite = (group?['invited'] as Map?)?[uid] as Map?;
+        if (group != null && invite != null) {
+          await db.doc('groups/$gid').update({
+            'invited.$uid': FieldValue.delete(),
+            'fence': [
+              ...(group['fence'] as List),
+              {'uid': uid, 'devices': invite['devices']},
+            ],
+          });
+        }
         await db.doc('users/$uid/groupInvites/$gid').delete();
     }
   }
@@ -107,7 +136,11 @@ class FakeGroupServer {
     final group = (await groupRef.get()).data();
     if (group == null) throw _Refused('no group');
     final members = Map<String, dynamic>.from(group['members'] as Map);
+    final invited = Map<String, dynamic>.from(
+      (group['invited'] as Map?) ?? const {},
+    );
     final by = op['by'] as String;
+    if (!members.containsKey(by)) throw _Refused('not a member');
     final epoch = group['epoch'] as int;
     Future<void> commit(String kind) async {
       if (op['epoch'] != epoch) throw _Refused('epoch');
@@ -124,21 +157,13 @@ class FakeGroupServer {
 
     switch (op['kind']) {
       case 'invite':
-        // Any member invites (the backend also requires a 1:1 contact).
+        // Any member invites (the backend also requires a 1:1 contact). The
+        // request carries the Add Commit, the Welcome and the key packages.
         final target = op['uid'] as String;
-        await db.doc('groups/$gid/invites/$target').set({
-          'by': by,
-          'status': 'pending',
-        });
-        await db.doc('users/$target/groupInvites/$gid').set({
-          'by': by,
-          'at': Timestamp.now(),
-        });
-      case 'add':
-        final target = op['uid'] as String;
-        final invite = (await db.doc('groups/$gid/invites/$target').get())
-            .data();
-        if (invite?['status'] != 'accepted') throw _Refused('not accepted');
+        if (members.containsKey(target)) throw _Refused('account');
+        if (invited.containsKey(target)) throw _Refused('already invited');
+        final devices = (op['devices'] as List?)?.cast<String>() ?? const [];
+        if (devices.isEmpty) throw _Refused('devices');
         await commit('membership');
         await db.doc('groups/$gid/welcomes/${target}_${_slot(epoch + 1)}').set({
           'uid': target,
@@ -152,14 +177,49 @@ class FakeGroupServer {
               )
               .delete();
         }
-        members[target] = {'role': 'member', 'devices': invite!['devices']};
-        await groupRef.update({'members': members, 'epoch': epoch + 1});
-        await db.doc('users/$target/groupRefs/$gid').set({
-          'role': 'member',
-          'joinedEpoch': epoch + 1,
+        final expireAt = Timestamp.fromDate(now().add(const Duration(days: 7)));
+        await groupRef.update({
+          'invited.$target': {
+            'by': by,
+            'devices': devices,
+            'expireAt': expireAt,
+          },
+          'epoch': epoch + 1,
         });
-        await db.doc('groups/$gid/invites/$target').delete();
+        await db.doc('users/$target/groupInvites/$gid').set({
+          'by': by,
+          'at': Timestamp.fromDate(now()),
+          'expireAt': expireAt,
+        });
+      case 'expire':
+        final target = op['uid'] as String;
+        final invite = invited[target] as Map?;
+        if (invite == null) throw _Refused('no invite');
+        if (!(invite['expireAt'] as Timestamp).toDate().isBefore(now())) {
+          throw _Refused('not expired');
+        }
+        await groupRef.update({
+          'invited.$target': FieldValue.delete(),
+          'fence': [
+            ...(group['fence'] as List),
+            {'uid': target, 'devices': invite['devices']},
+          ],
+        });
         await db.doc('users/$target/groupInvites/$gid').delete();
+      case 'roles':
+        if (members[by]['role'] != 'admin') {
+          throw _Refused('not an administrator');
+        }
+        final admins = (op['admins'] as List).cast<String>();
+        if (admins.isEmpty || !admins.every(members.containsKey)) {
+          throw _Refused('admins');
+        }
+        await commit('meta');
+        await groupRef.update({
+          for (final u in members.keys)
+            'members.$u.role': admins.contains(u) ? 'admin' : 'member',
+          'epoch': epoch + 1,
+        });
       case 'leave':
         final leaving = members.remove(by) as Map;
         await db.doc('users/$by/groupRefs/$gid').delete();
@@ -179,12 +239,17 @@ class FakeGroupServer {
         await commit('membership');
         await groupRef.update({'fence': <Object>[], 'epoch': epoch + 1});
       case 'remove':
+        if (members[by]['role'] != 'admin') {
+          throw _Refused('not an administrator');
+        }
         await commit('membership');
         await groupRef.update({
           'members.${op['uid']}': FieldValue.delete(),
+          'invited.${op['uid']}': FieldValue.delete(),
           'epoch': epoch + 1,
         });
         await db.doc('users/${op['uid']}/groupRefs/$gid').delete();
+        await db.doc('users/${op['uid']}/groupInvites/$gid').delete();
     }
   }
 
