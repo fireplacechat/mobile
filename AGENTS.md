@@ -76,3 +76,4 @@ Short version; the details and reasons are in [docs/development/coding-style.md]
 - Small, focused pull requests. Work in a branch or a git worktree, never directly on `main` for code. Do not merge or push `main` yourself unless asked.
 - Reviews are patches the other side can apply: tests and fixes in separate files, each verified in a fresh clone.
 - Commit messages say what and why in plain words. Add the attribution trailer your tool is configured to add.
+- Before adding a decision note, take the next free number after checking both `main` and every open pull request; several tools work in parallel, and two notes must never share a number.
