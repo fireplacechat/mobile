@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
@@ -46,6 +48,65 @@ Future<AppSession> makeSession(FakeFirebaseFirestore db, String uid) async {
 }
 
 void main() {
+  testWidgets(
+    'deletion blocks back navigation while busy and returns after signout',
+    (t) async {
+      final db = FakeFirebaseFirestore();
+      final auth = MockFirebaseAuth(
+        signedIn: true,
+        mockUser: MockUser(
+          uid: 'alice',
+          email: 'alice@users.fireplace.invalid',
+        ),
+      );
+      final release = Completer<void>();
+      final service = AccountService(
+        auth: auth,
+        db: db,
+        secrets: MemorySecretStore(),
+        reauthenticate: (_, _) => release.future,
+      );
+      final navigator = GlobalKey<NavigatorState>();
+      await t.pumpWidget(
+        ProviderScope(
+          overrides: [accountServiceProvider.overrideWithValue(service)],
+          child: MaterialApp(
+            navigatorKey: navigator,
+            home: const Scaffold(body: Text('Signed out home')),
+          ),
+        ),
+      );
+      unawaited(
+        navigator.currentState!.push(
+          MaterialPageRoute<void>(
+            builder: (_) => const DeleteAccountScreen(resume: true),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      await t.scrollUntilVisible(
+        find.byKey(const Key('confirmPassword')),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await t.enterText(find.byKey(const Key('confirmPassword')), 'password');
+      await t.pump();
+      t
+          .widget<FilledButton>(find.byKey(const Key('deleteAccount')))
+          .onPressed!();
+      await t.pump();
+      // A blocked pop is handled by PopScope, but must leave this route open.
+      await navigator.currentState!.maybePop();
+      expect(find.byType(DeleteAccountScreen), findsOneWidget);
+      release.complete();
+      await settle(t);
+      await t.pumpAndSettle();
+      expect(auth.currentUser, isNull);
+      expect(find.byType(DeleteAccountScreen), findsNothing);
+      expect(find.text('Signed out home'), findsOneWidget);
+    },
+  );
+
   testWidgets(
     'the delete button needs the right username and a password; wrong password shows an error',
     (t) async {

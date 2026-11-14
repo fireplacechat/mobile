@@ -7,16 +7,17 @@ final themeModeProvider = AsyncNotifierProvider<ThemePreference, ThemeMode>(
   ThemePreference.new,
 );
 
-/// Appearance belongs to this installation, including the signed-out screens.
+/// This account's local appearance. Signed-out screens use the defaults.
 class ThemePreference extends AsyncNotifier<ThemeMode> {
   static const storageKey = 'ui:theme-mode';
   Future<void> _writes = Future.value();
 
   @override
   Future<ThemeMode> build() async {
-    final store = ref.watch(secretStoreProvider);
+    final store = ref.watch(accountPreferencesProvider);
+    final uid = ref.watch(preferencesUidProvider);
     try {
-      final saved = await store.read(storageKey);
+      final saved = await store.read(storageKey, uid);
       return switch (saved) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,
@@ -29,13 +30,14 @@ class ThemePreference extends AsyncNotifier<ThemeMode> {
   }
 
   Future<void> setMode(ThemeMode mode) {
-    final store = ref.read(secretStoreProvider);
+    final store = ref.read(accountPreferencesProvider);
+    final uid = ref.read(preferencesUidProvider);
     final write = _writes.then((_) async {
       if (!ref.mounted) return;
       await future;
       if (!ref.mounted) return;
-      await store.write(storageKey, mode.name);
-      if (!ref.mounted) return;
+      await store.write(storageKey, uid, mode.name);
+      if (!ref.mounted || ref.read(preferencesUidProvider) != uid) return;
       state = AsyncData(mode);
     });
     // Serialize choices, and allow another choice after a failed save.

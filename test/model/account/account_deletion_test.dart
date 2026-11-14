@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -53,8 +55,12 @@ Future<int> count(FakeFirebaseFirestore db, String path) async =>
 class SpyUser extends MockUser {
   SpyUser(String uid) : super(uid: uid, email: '$uid@users.fireplace.invalid');
   bool deleted = false;
+  int deletions = 0;
   @override
-  Future<void> delete() async => deleted = true;
+  Future<void> delete() async {
+    deletions++;
+    deleted = true;
+  }
 }
 
 void main() {
@@ -228,6 +234,189 @@ void main() {
       onStep: seen.add,
     ).deleteAccount(password: 'pw');
     expect(seen, AccountService.steps);
+  });
+
+  test('successful deletion explicitly signs out immediately', () async {
+    final auth = signedInAs('alice');
+    final events = <User?>[];
+    final sub = auth.authStateChanges().listen(events.add);
+    await serviceFor(auth, alice).deleteAccount(password: 'pw');
+    expect(auth.currentUser, isNull);
+    await Future<void>.value();
+    expect(events.last, isNull);
+    await sub.cancel();
+  });
+
+  test(
+    'provider replacement and duplicate taps share the same deletion',
+    () async {
+      final auth = signedInAs('alice'),
+          entered = Completer<void>(),
+          release = Completer<void>();
+      var confirmations = 0;
+      final first = serviceFor(
+        auth,
+        alice,
+        reauth: (_, _) async {
+          confirmations++;
+          entered.complete();
+          await release.future;
+        },
+      ).deleteAccount(password: 'pw');
+      await entered.future;
+      final second = serviceFor(
+        auth,
+        alice,
+        reauth: (_, _) async {
+          confirmations++;
+        },
+      ).deleteAccount(password: 'pw');
+      release.complete();
+      await Future.wait([first, second]);
+      expect(confirmations, 1);
+      expect(spies[auth]!.deletions, 1);
+      expect(auth.currentUser, isNull);
+    },
+  );
+
+  test(
+    'deletes every sent message across several 400-document pages',
+    () async {
+      for (var start = 0; start < 1205; start += 400) {
+        final batch = db.batch();
+        for (var i = start; i < start + 400 && i < 1205; i++) {
+          batch.set(db.doc('chats/$chatId/messages/page-$i'), {
+            'senderUid': 'alice',
+          });
+        }
+        await batch.commit();
+      }
+      await serviceFor(
+        signedInAs('alice'),
+        alice,
+      ).deleteAccount(password: 'pw');
+      final remaining = await db.collection('chats/$chatId/messages').get();
+      expect(remaining.docs.map((doc) => doc.data()['senderUid']), ['bob']);
+    },
+  );
+
+  test('deletes fixed counters and proof without forbidden list queries', () async {
+    // Mirror the crucial production boundary: counter/proof listing is denied.
+    // The old implementation failed at limits.get() for every real account.
+    final guarded = FakeFirebaseFirestore(
+      securityRules: '''
+      service cloud.firestore {
+        match /databases/{database}/documents {
+          match /users/{uid} {
+            allow read, write: if true;
+            match /{sub}/{id} {
+              allow write: if true;
+              allow read: if sub != 'limits' && sub != 'challengeProof';
+              match /prekeys/{pk} { allow read, write: if true; }
+            }
+          }
+          match /usernames/{name} { allow read, write: if true; }
+          match /chats/{chat} {
+            allow read, write: if true;
+            match /messages/{message} { allow read, write: if true; }
+          }
+        }
+      }
+    ''',
+    );
+    await guarded.doc('users/alice').set({'username': 'alice'});
+    for (final name in ['send', 'chats', 'claims']) {
+      await guarded.doc('users/alice/limits/$name').set({'value': 1});
+    }
+    await guarded.doc('users/alice/challengeProof/current').set({
+      'token': 'test',
+    });
+    await expectLater(
+      guarded.collection('users/alice/limits').get(),
+      throwsException,
+    );
+    final auth = signedInAs('alice');
+    await AccountService(
+      auth: auth,
+      db: guarded,
+      secrets: MemorySecretStore(),
+      reauthenticate: (_, _) async {},
+    ).deleteAccount(password: 'pw');
+    guarded.securityRules = FakeFirebaseFirestore().securityRules;
+    for (final name in ['send', 'chats', 'claims']) {
+      expect(
+        (await guarded.doc('users/alice/limits/$name').get()).exists,
+        isFalse,
+      );
+    }
+    expect(
+      (await guarded.doc('users/alice/challengeProof/current').get()).exists,
+      isFalse,
+    );
+    expect(auth.currentUser, isNull);
+  });
+
+  test('other accounts on the same keychain survive deletion byte for byte', () async {
+    final shared = MemorySecretStore();
+    shared.data.addAll(alice.secrets.data);
+    shared.data.addAll(bob.secrets.data);
+    shared.data['identity:alice2'] = 'not alice';
+    shared.data['sess:${bob.device.keys.deviceId}:alice:${alice.device.keys.deviceId}'] =
+        'bob session';
+    final protected = Map.of(shared.data)
+      ..removeWhere((key, value) => alice.secrets.data.containsKey(key));
+    final auth = signedInAs('alice');
+    await AccountService(
+      auth: auth,
+      db: db,
+      secrets: shared,
+      reauthenticate: (_, _) async {},
+    ).deleteAccount(password: 'pw');
+    expect(shared.data, protected);
+    expect((await db.doc('users/bob').get()).exists, isTrue);
+    expect(await count(db, 'users/bob/devices'), 1);
+  });
+
+  test('failure at each cloud/local boundary can finish without recreating an identity', () async {
+    // Run one independent account through each interruption; no prior key is
+    // needed to finish a pending deletion on the next invocation.
+    for (final failAt in [
+      'messages',
+      'devices',
+      'private',
+      'local',
+      'profile',
+      'auth',
+    ]) {
+      final isolated = FakeFirebaseFirestore();
+      await isolated.doc('users/example').set({'username': 'example'});
+      await isolated.doc('usernames/example').set({'uid': 'example'});
+      final store = MemorySecretStore()
+        ..data['identity:example'] = 'old identity';
+      final auth = signedInAs('example');
+      var fail = true;
+      final service = AccountService(
+        auth: auth,
+        db: isolated,
+        secrets: store,
+        reauthenticate: (_, _) async {},
+        onStep: (step) {
+          if (step == failAt && fail) {
+            fail = false;
+            throw StateError('interrupted');
+          }
+        },
+      );
+      await expectLater(
+        service.deleteAccount(password: 'pw'),
+        throwsStateError,
+      );
+      await service.deleteAccount(password: 'pw');
+      expect(auth.currentUser, isNull);
+      expect((await isolated.doc('users/example').get()).exists, isFalse);
+      expect((await isolated.doc('usernames/example').get()).exists, isFalse);
+      expect(store.data, isEmpty);
+    }
   });
 
   group('the other person cleans up', () {

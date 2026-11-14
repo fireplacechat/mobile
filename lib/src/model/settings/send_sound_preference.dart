@@ -10,28 +10,31 @@ final sendSoundProvider = AsyncNotifierProvider<SendSoundPreference, bool>(
 );
 
 /// Whether sending a message plays the pop. On by default; belongs to this
-/// installation, like the appearance setting.
+/// account, like the appearance setting.
 class SendSoundPreference extends AsyncNotifier<bool> {
   static const storageKey = 'ui:send-sound';
   Future<void> _writes = Future.value();
 
   @override
   Future<bool> build() async {
+    final store = ref.watch(accountPreferencesProvider);
+    final uid = ref.watch(preferencesUidProvider);
     try {
-      return await ref.watch(secretStoreProvider).read(storageKey) != 'off';
+      return await store.read(storageKey, uid) != 'off';
     } catch (_) {
       return true; // an unreadable preference must not silence the default
     }
   }
 
   Future<void> setOn(bool on) {
-    final store = ref.read(secretStoreProvider);
+    final store = ref.read(accountPreferencesProvider);
+    final uid = ref.read(preferencesUidProvider);
     final write = _writes.then((_) async {
       if (!ref.mounted) return;
       await future;
       if (!ref.mounted) return;
-      await store.write(storageKey, on ? 'on' : 'off');
-      if (!ref.mounted) return;
+      await store.write(storageKey, uid, on ? 'on' : 'off');
+      if (!ref.mounted || ref.read(preferencesUidProvider) != uid) return;
       state = AsyncData(on);
     });
     // Serialize choices, and allow another choice after a failed save.
@@ -46,8 +49,11 @@ class SendSoundPreference extends AsyncNotifier<bool> {
 
   Future<void> _play() async {
     try {
+      final uid = ref.read(preferencesUidProvider);
       final on = state.hasValue ? state.value! : await future;
-      if (!on || !ref.mounted) return;
+      if (!on || !ref.mounted || ref.read(preferencesUidProvider) != uid) {
+        return;
+      }
       await ref.read(systemNotificationsProvider).playSendSound();
     } catch (_) {
       // A sound is never worth an error.

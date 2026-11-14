@@ -5,15 +5,22 @@ Apple's App Review Guideline 5.1.1(v) requires apps that let people create an ac
 ## What is deleted
 | Data | Where | How |
 |---|---|---|
-| Sign-in account (synthetic email + password hash) | Firebase Auth | `User.delete()` (last step) |
+| Sign-in account (synthetic email + password hash) | Firebase Auth | `User.delete()`, then explicit local signout |
 | Username claim, public profile | Firestore `usernames/{name}`, `users/{uid}` | deleted; the username becomes available again |
 | Devices, public keys, certificates, prekeys | `users/{uid}/devices/*` and `.../prekeys/*` | deleted |
 | Recovery-key backup, link requests, block list | `users/{uid}/private`, `linkRequests`, `blocks` | deleted |
 | Every message the user sent | `chats/*/messages` where `senderUid == uid` | deleted in batches |
-| Keys, sessions, message history, settings on the phone | Keychain / Keystore, encrypted message files | wiped (`SecretStore.clear`, message store destroyed) |
+| Keys, sessions, message history, settings on the phone | Keychain / Keystore, encrypted message files | owner-scoped erasure; other local accounts are preserved |
+
+Deletion addresses `limits/send`, `limits/chats`, `limits/claims` and
+`challengeProof/current` by name; their collections cannot be listed. Files are
+removed from both legacy and iOS shared history roots even when deletion resumes
+without a normal chat session. Theme, colours and send sound are account-scoped;
+deleting one account resets its choices without resetting another account.
+See [decision 0048](../decisions/0048-account-deletion-isolation.md).
 
 ## What remains, and why
-- **Messages other people sent to this account** stay until those people's apps tidy up. They are end-to-end encrypted to keys that no longer exist, so they cannot be read by anyone. When the other person's app sees that the profile is gone it deletes the rest of the conversation (their own messages and the chat document) and their local copy.
+- **Messages other people sent to this account** remain encrypted on the server until the sender explicitly removes the conversation or deletes their own account. Deletion removes the recipient's keys on this phone. Other people's local history is preserved when they open their chat list.
 - **Messages already delivered** to other people's devices stay on those devices; the sender cannot remove them (same as every encrypted messenger).
 - Firebase may keep routine infrastructure logs and backups for a limited time under its own policies. Message text is not stored in a report.
 

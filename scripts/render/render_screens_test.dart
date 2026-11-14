@@ -14,6 +14,7 @@ import 'icon_hold_cases.dart';
 import 'legal_cases.dart';
 import 'selection_copy_cases.dart';
 import 'startup_cases.dart';
+import 'account_deletion_cases.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -724,6 +725,7 @@ void main() {
     const CatalogCase('recovery', RecoveryKeyScreen()),
     const CatalogCase('link-device', LinkNewDeviceScreen()),
     const CatalogCase('new-device', NewDeviceScreen(uid: 'alice')),
+    ...accountDeletionCases(),
     const CatalogCase('delete-account', DeleteAccountScreen()),
     const CatalogCase('deletion-resume', DeleteAccountScreen(resume: true)),
     const CatalogCase('sign-in', AuthScreen()),

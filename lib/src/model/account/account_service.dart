@@ -4,22 +4,23 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:fireplace/src/model/account/auth_service.dart';
 import 'package:fireplace/src/db/secret_store.dart';
+import 'package:fireplace/src/db/account_erasure.dart';
+import 'package:fireplace/src/model/settings/account_preferences.dart';
 
 /// Deletes the signed-in account and the personal data stored for it.
 ///
 /// Steps (each is safe to repeat, so an interrupted deletion can be finished):
 ///  1. re-authenticate with the password,
 ///  2. flag the profile as `deleting` (so the app resumes deletion, not normal use),
-///  3. delete every message this account sent,
-///  4. delete devices (with their prekeys), the recovery backup, link requests, blocks,
-///  5. release the username and delete the profile,
-///  6. stop the running session and erase all local keys and history,
-///  7. delete the Firebase Auth user.
+///  3. stop the running session and freeze this account's preferences,
+///  4. delete sent messages, devices/prekeys, backup and named private records,
+///  5. erase only this account's local history, settings and keychain entries,
+///  6. release its username and delete its profile,
+///  7. delete the Firebase Auth user and explicitly sign out.
 ///
 /// Kept on purpose: other people's own messages to this account (they cannot be
 /// read any more: the keys are gone), and spam reports, which name accounts and
-/// do not contain messages. The other participant's app removes the emptied
-/// conversation when it notices the profile is gone.
+/// do not contain messages. Another account's local history is not erased.
 class AccountService {
   AccountService({
     required FirebaseAuth auth,
@@ -29,13 +30,17 @@ class AccountService {
     Future<void> Function()? destroyLocalData,
     Future<void> Function(User user, String password)? reauthenticate,
     void Function(String step)? onStep,
+    Future<void> Function()? onMarked,
+    AccountPreferences? preferences,
   }) : _auth = auth,
        _db = db,
        _secrets = secrets,
        _stopSession = stopSession,
        _destroyLocalData = destroyLocalData,
        _reauth = reauthenticate,
-       _onStep = onStep;
+       _onStep = onStep,
+       _onMarked = onMarked,
+       _preferences = preferences ?? AccountPreferences(secrets);
 
   final FirebaseAuth _auth;
   final FirebaseFirestore _db;
@@ -44,19 +49,46 @@ class AccountService {
   final Future<void> Function()? _destroyLocalData;
   final Future<void> Function(User user, String password)? _reauth;
   final void Function(String step)? _onStep;
+  final Future<void> Function()? _onMarked;
+  final AccountPreferences _preferences;
+  // Session invalidation may rebuild the provider while cleanup is running.
+  // Keep one operation per Auth instance/UID across those service instances.
+  static final _operations = Expando<Map<String, Future<void>>>();
 
   static const steps = [
     'reauth',
     'mark',
+    'stop',
     'messages',
     'devices',
     'private',
-    'profile',
     'local',
+    'profile',
     'auth',
+    'signout',
   ];
 
-  Future<void> deleteAccount({required String password}) async {
+  Future<void> deleteAccount({required String password}) {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return Future.error(AuthException('Not signed in.'));
+    final operations = _operations[_auth] ??= {};
+    return operations.putIfAbsent(
+      uid,
+      () => _deleteAccount(password).whenComplete(() {
+        operations.remove(uid);
+      }),
+    );
+  }
+
+  void _requireAccount(String uid) {
+    if (_auth.currentUser?.uid != uid) {
+      throw AuthException(
+        'The signed-in account changed. Sign in again to finish deleting.',
+      );
+    }
+  }
+
+  Future<void> _deleteAccount(String password) async {
     final user = _auth.currentUser;
     if (user == null) throw AuthException('Not signed in.');
     final uid = user.uid;
@@ -84,17 +116,29 @@ class AccountService {
     final profileRef = _db.collection('users').doc(uid);
 
     _onStep?.call('mark');
-    final profile = await profileRef.get();
-    final username = profile.data()?['username'] as String?;
+    _requireAccount(uid);
+    final profile = await profileRef.get(
+      const GetOptions(source: Source.server),
+    );
+    final username =
+        profile.data()?['username'] as String? ??
+        (user.email?.endsWith('@${AuthService.emailDomain}') == true
+            ? user.email!.split('@').first
+            : null);
+    _requireAccount(uid);
     if (profile.exists && profile.data()?['deleting'] != true) {
       await profileRef.update({'deleting': true});
     }
+    await _onMarked?.call();
+    _onStep?.call('stop');
+    await _stopSession?.call();
+    await _preferences.deleting(uid);
 
     _onStep?.call('messages');
     final chats = await _db
         .collection('chats')
         .where('participants', arrayContains: uid)
-        .get();
+        .get(const GetOptions(source: Source.server));
     for (final chat in chats.docs) {
       await _deleteQuery(
         chat.reference
@@ -104,7 +148,9 @@ class AccountService {
     }
 
     _onStep?.call('devices');
-    final devices = await profileRef.collection('devices').get();
+    final devices = await profileRef
+        .collection('devices')
+        .get(const GetOptions(source: Source.server));
     for (final d in devices.docs) {
       await _deleteQuery(d.reference.collection('prekeys'));
       await d.reference.delete();
@@ -115,22 +161,28 @@ class AccountService {
     await profileRef.collection('private').doc('backup').delete();
     await _deleteQuery(profileRef.collection('linkRequests'));
     await _deleteQuery(profileRef.collection('blocks'));
-    await _deleteQuery(profileRef.collection('limits'));
+    // The rules deliberately forbid listing counters. Delete their three
+    // named documents, and the challenge proof, through owner-only deletes.
+    for (final name in ['send', 'chats', 'claims']) {
+      await profileRef.collection('limits').doc(name).delete();
+    }
+    await profileRef.collection('challengeProof').doc('current').delete();
+
+    _onStep?.call('local');
+    _requireAccount(uid);
+    await _destroyLocalData?.call();
+    await eraseAccountSecrets(_secrets, uid);
 
     _onStep?.call('profile');
     if (username != null) {
       final nameRef = _db.collection('usernames').doc(username);
-      final name = await nameRef.get();
+      final name = await nameRef.get(const GetOptions(source: Source.server));
       if (name.exists && name.data()?['uid'] == uid) await nameRef.delete();
     }
     await profileRef.delete();
 
-    _onStep?.call('local');
-    await _stopSession?.call();
-    await _destroyLocalData?.call();
-    await _secrets.clear();
-
     _onStep?.call('auth');
+    _requireAccount(uid);
     try {
       await user.delete();
     } on FirebaseAuthException catch (e) {
@@ -139,11 +191,19 @@ class AccountService {
         '(${e.message ?? e.code}). Sign in again and retry.',
       );
     }
+    _onStep?.call('signout');
+    // Firebase normally clears this user on delete, but explicitly clear the
+    // local auth session too. Never sign out an account selected meanwhile.
+    if (_auth.currentUser == null || _auth.currentUser?.uid == uid) {
+      await _auth.signOut();
+    }
   }
 
   Future<void> _deleteQuery(Query<Map<String, dynamic>> q) async {
     while (true) {
-      final snap = await q.limit(400).get();
+      final snap = await q
+          .limit(400)
+          .get(const GetOptions(source: Source.server));
       if (snap.docs.isEmpty) return;
       final batch = _db.batch();
       for (final d in snap.docs) {

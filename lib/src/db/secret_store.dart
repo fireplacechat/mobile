@@ -9,7 +9,11 @@ abstract class SecretStore {
   Future<void> write(String key, String value);
   Future<void> delete(String key);
 
-  /// Removes everything (account deletion).
+  /// Snapshot used only for account-scoped erasure and legacy preferences.
+  /// Values never leave the device and must never be logged.
+  Future<Map<String, String>> readAll();
+
+  /// Explicit whole-install reset only. Account deletion must erase by owner.
   Future<void> clear();
 }
 
@@ -59,9 +63,11 @@ class SecureSecretStore implements SecretStore {
   @override
   Future<void> delete(String key) async => (await _store()).delete(key: key);
 
-  /// Intentional whole-install reset, including any old account's key remnants.
-  /// Do not replace with guessed UID prefixes: session keys also use device IDs.
-  /// Revisit deletion isolation before supporting concurrent local accounts.
+  @override
+  Future<Map<String, String>> readAll() async => (await _store()).readAll();
+
+  /// Whole-install reset. Never use for deleting a single account: session
+  /// keys also use device IDs, and another account may share this store.
   @override
   Future<void> clear() async => (await _store()).deleteAll();
 }
@@ -75,6 +81,8 @@ class MemorySecretStore implements SecretStore {
   Future<void> write(String key, String value) async => data[key] = value;
   @override
   Future<void> delete(String key) async => data.remove(key);
+  @override
+  Future<Map<String, String>> readAll() async => Map.of(data);
   @override
   Future<void> clear() async => data.clear();
 }
@@ -117,6 +125,9 @@ class CachedSecretStore implements SecretStore {
   @override
   Future<void> delete(String key) =>
       _change(key, null, () => _store.delete(key));
+
+  @override
+  Future<Map<String, String>> readAll() => _store.readAll();
 
   Future<void> _change(
     String key,
