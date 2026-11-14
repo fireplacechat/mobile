@@ -16,6 +16,7 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/styles/theme.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/groups/group_chat_screen.dart';
 import 'package:fireplace/src/view/groups/group_info_screen.dart';
@@ -228,6 +229,19 @@ void main() {
       );
       await render('joined-later', GroupChatScreen(gid: theirs));
       await render('info', GroupInfoScreen(gid: mine));
+      // Last, so the open invitation is in none of the pictures above: Dana
+      // invites Alice, and the card shows in their 1:1 chat.
+      await t.runAsync(() async {
+        final gid = await dana.service.create('Tea club', ['alice']);
+        await until(
+          () async => alice.service.invitations.any((i) => i.gid == gid),
+          what: 'invitation from Dana',
+        );
+      });
+      await render(
+        'invitation-in-chat',
+        const ChatScreen(chatId: 'alice_dana'),
+      );
 
       await t.pumpWidget(const SizedBox());
       await t.runAsync(() async {

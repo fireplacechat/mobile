@@ -7,6 +7,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
+import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
@@ -282,6 +283,48 @@ void main() {
     );
     expect(alice.service.groups[gid]!.name, 'Tea club');
     // Join goes straight into the conversation.
+    await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
+    expect(find.text('Tea club'), findsOneWidget);
+    await tearDownPhones(t);
+  });
+
+  testWidgets('an invitation also shows in the chat with the person who sent '
+      'it, and declining takes it away from both places', (t) async {
+    await setUpPhones(t);
+    final gid = (await t.runAsync(() async {
+      final gid = await bob.service.create('Tea club', ['alice']);
+      await until(() async => alice.service.invitations.isNotEmpty);
+      return gid;
+    }))!;
+    final card = find.byKey(Key('groupInvite_$gid'));
+    // Not in a chat with someone else.
+    await pump(t, const ChatScreen(chatId: 'alice_fred'));
+    expect(card, findsNothing);
+    await pump(t, const SizedBox());
+    await pump(t, const ChatScreen(chatId: 'alice_bob'));
+    expect(card, findsOneWidget);
+    expect(find.text('@bob invited you to a group'), findsOneWidget);
+    await t.tap(find.byKey(const Key('declineGroup')));
+    await settle(t, () => alice.service.invitations.isEmpty);
+    await settle(t, () => card.evaluate().isEmpty);
+    await pump(t, const SizedBox());
+    await pump(t, const RequestsScreen());
+    expect(card, findsNothing);
+    await tearDownPhones(t);
+  });
+
+  testWidgets('joining from the chat with the inviter opens the group', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    final gid = (await t.runAsync(() async {
+      final gid = await bob.service.create('Tea club', ['alice']);
+      await until(() async => alice.service.invitations.isNotEmpty);
+      return gid;
+    }))!;
+    await pump(t, const ChatScreen(chatId: 'alice_bob'));
+    await t.tap(find.byKey(const Key('joinGroup')));
+    await settle(t, () => alice.service.groups.containsKey(gid));
     await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
     expect(find.text('Tea club'), findsOneWidget);
     await tearDownPhones(t);

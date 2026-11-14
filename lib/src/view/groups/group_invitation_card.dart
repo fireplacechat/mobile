@@ -11,6 +11,9 @@ import 'package:fireplace/src/widgets/status.dart';
 
 /// An invitation to a group, with Join and Decline. The group's name is
 /// encrypted for its members, so it shows once you have joined.
+///
+/// Shown in Message requests and in the 1:1 chat with the person who sent
+/// it; answering it in one place takes it away from both.
 class GroupInvitationCard extends ConsumerStatefulWidget {
   const GroupInvitationCard({super.key, required this.invitation});
   final GroupInvitation invitation;

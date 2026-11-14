@@ -1,3 +1,6 @@
+import 'package:fireplace/src/app/group_providers.dart';
+import 'package:fireplace/src/model/groups/group_models.dart';
+import 'package:fireplace/src/view/groups/group_invitation_card.dart';
 import 'package:fireplace/src/view/chat/quote_navigation.dart';
 import 'package:fireplace/src/view/chat/search_jump.dart';
 import 'package:fireplace/src/model/chat/pending_reactions.dart';
@@ -302,6 +305,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final blocked =
         peerUid != null &&
         (ref.watch(blockedUidsProvider).value?.contains(peerUid) ?? false);
+    // Open group invitations from this person show here as well as in
+    // Message requests (group chats specification, section 4). Not from
+    // someone blocked.
+    final groupInvitations = [
+      if (!blocked)
+        for (final i
+            in ref.watch(groupInvitationsProvider).value ??
+                const <GroupInvitation>[])
+          if (i.inviter == peerUid) i,
+    ];
     final identityHeld =
         peerUid != null &&
         ref.watch(identityAlertsProvider).value?.containsKey(peerUid) == true;
@@ -395,6 +408,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 () => blockAfterConfirming(context, session!, peerUid!, name),
               ),
             ),
+            for (final invitation in groupInvitations)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                child: GroupInvitationCard(
+                  key: ValueKey('chatGroupInvite_${invitation.gid}'),
+                  invitation: invitation,
+                ),
+              ),
             if (pinned.isNotEmpty)
               PinnedBar(
                 messages: pinned,
