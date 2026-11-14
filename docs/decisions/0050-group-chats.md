@@ -222,7 +222,7 @@ the start-of-history line, the unread count, muting, Make administrator, and
 ### Not in this round
 
 - The invitation card inside the 1:1 chat with the inviter (it shows in Message
-  requests).
+  requests): [issue #164](https://github.com/fireplacechat/mobile/issues/164).
 - `addDevice` from the app.
 - The group's name in the invitation push.
 
