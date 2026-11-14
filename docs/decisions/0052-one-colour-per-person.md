@@ -3,6 +3,10 @@
 Date: 2026-11-14. Status: accepted by the owner. Changes the 1:1 message payload
 (a new optional field) and replaces the two colour choices in Settings.
 
+**Partly replaced by [0053](0053-colour-on-the-profile.md):** in a 1:1 chat the
+colour is now read from the person's profile, not carried in messages. The section
+"How the colour reaches the other person" below describes version 0.4.0 only.
+
 ## What changes
 
 Until now an account chose two colours on its own phone: one for its own messages

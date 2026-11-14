@@ -88,8 +88,8 @@ class ChatAppearanceScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           Text(
-            'Applies to all chats. Your choice is kept on this device. It is '
-            'also encrypted in your messages, the server never sees it.',
+            'Applies to all chats. Your color is part of your profile, so the '
+            'people you chat with see it.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),

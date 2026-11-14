@@ -21,6 +21,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:fireplace/src/app/chat_color_preference.dart';
+import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app.dart';
@@ -559,6 +560,22 @@ void main() {
       interaction: CatalogInteraction.sending,
     ),
     const CatalogCase('chat-list', ChatListScreen()),
+    // Each person in the colour on their profile (decision 0053).
+    CatalogCase(
+      'chat-list-peer-colors',
+      const ChatListScreen(),
+      overrides: [
+        knownPeerColorProvider('fred').overrideWithValue(ChatBubbleColor.plum),
+        knownPeerColorProvider('bob').overrideWithValue(ChatBubbleColor.forest),
+      ],
+    ),
+    CatalogCase(
+      'conversation-peer-color',
+      const ChatScreen(chatId: 'alice_fred'),
+      overrides: [
+        knownPeerColorProvider('fred').overrideWithValue(ChatBubbleColor.plum),
+      ],
+    ),
     CatalogCase(
       'chat-list-empty',
       const ChatListScreen(),
