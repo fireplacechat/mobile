@@ -44,9 +44,8 @@ class GroupService {
     SendAllowance? allowance,
     Duration? requestTimeout,
     DateTime Function()? clock,
-    Duration colourCatchUp = const Duration(seconds: 5),
+    this._colourCatchUp = const Duration(seconds: 5),
   }) : _db = db,
-       _colourCatchUp = colourCatchUp,
        _allowance = allowance ?? SendAllowance(),
        _now = clock ?? DateTime.now,
        _requests = GroupRequests(db, uid, timeout: requestTimeout);
