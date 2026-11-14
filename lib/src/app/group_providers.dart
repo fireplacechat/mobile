@@ -106,6 +106,40 @@ final groupUnreadProvider = Provider.autoDispose.family<int, String>((
   return incoming.where((m) => !seen.contains(m)).length;
 });
 
+/// Whether this phone has muted a group. Kept with the 1:1 mutes, on the
+/// phone only: the server and the other members never learn of it.
+final groupMutedProvider = Provider.autoDispose.family<bool, String>((
+  ref,
+  gid,
+) {
+  final prefs = ref.watch(appSessionProvider).value?.chatPreferences;
+  if (prefs == null) return false;
+  final changes = prefs.changes.listen((_) => ref.invalidateSelf());
+  ref.onDispose(changes.cancel);
+  return prefs.muted.contains(groupChatId(gid));
+});
+
+/// Unread group messages for the app icon's badge: muted groups excluded, as
+/// muted 1:1 chats are.
+final groupsBadgeProvider = Provider.autoDispose<int>((ref) {
+  var total = 0;
+  for (final gid in (ref.watch(groupsProvider).value ?? const {}).keys) {
+    if (!ref.watch(groupMutedProvider(gid))) {
+      total += ref.watch(groupUnreadProvider(gid));
+    }
+  }
+  return total;
+});
+
+/// Mutes or unmutes a group on this phone.
+Future<void> setGroupMuted(WidgetRef ref, String gid, bool muted) async {
+  await ref
+      .read(appSessionProvider)
+      .value
+      ?.chatPreferences
+      .mute(groupChatId(gid), muted);
+}
+
 /// Shares a new primary colour with every group when it changes in Settings.
 final groupColorSyncProvider = Provider<void>((ref) {
   ref.listen(chatBubbleColorsProvider, (before, after) {

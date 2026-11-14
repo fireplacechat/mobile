@@ -393,11 +393,63 @@ void main() {
     await tearDownPhones(t);
   });
 
+  testWidgets('a group can be muted on this phone, like a 1:1 chat', (t) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await pump(t, const ChatListScreen());
+    await settle(t, () => find.text('Book club').evaluate().isNotEmpty);
+    final container = ProviderScope.containerOf(
+      t.element(find.byType(ChatListScreen)),
+    );
+    final mark = find.byKey(ValueKey('muted-group-$gid'));
+    expect(mark, findsNothing);
+    await t.runAsync(() => bob.service.send(gid, 'one'));
+    await settle(t, () => container.read(groupsBadgeProvider) == 1);
+
+    // Holding the row offers the same choice as a 1:1 row.
+    await t.longPress(find.byKey(Key('group_$gid')));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Mute chat'));
+    await settle(t, () => mark.evaluate().isNotEmpty);
+    // Still counted on the row, but no longer on the app icon.
+    expect(find.byKey(ValueKey('unread-group-$gid')), findsOneWidget);
+    expect(container.read(groupsBadgeProvider), 0);
+    expect(container.read(groupMutedProvider(gid)), isTrue);
+
+    await t.longPress(find.byKey(Key('group_$gid')));
+    await t.pumpAndSettle();
+    await t.tap(find.text('Unmute chat'));
+    await settle(t, () => mark.evaluate().isEmpty);
+    expect(container.read(groupsBadgeProvider), 1);
+    await tearDownPhones(t);
+  });
+
+  testWidgets('Group info mutes and unmutes the group', (t) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await pump(t, GroupInfoScreen(gid: gid));
+    final container = ProviderScope.containerOf(
+      t.element(find.byType(GroupInfoScreen)),
+    );
+    expect(find.text('Mute'), findsOneWidget);
+    await t.tap(find.byKey(const Key('muteGroup')));
+    await settle(t, () => find.text('Unmute').evaluate().isNotEmpty);
+    expect(container.read(groupMutedProvider(gid)), isTrue);
+    await t.tap(find.byKey(const Key('muteGroup')));
+    await settle(t, () => find.text('Mute').evaluate().isNotEmpty);
+    expect(container.read(groupMutedProvider(gid)), isFalse);
+    await tearDownPhones(t);
+  });
+
   testWidgets('an administrator makes a member an administrator', (t) async {
     await setUpPhones(t);
     final gid = await bookClub(t, alice, bob);
     await pump(t, GroupInfoScreen(gid: gid));
     expect(find.text('Administrator'), findsOneWidget);
+    // The row is below the fold: bring all of it on screen before tapping.
+    await t.scrollUntilVisible(find.byKey(const Key('member_bob')), 200);
+    await t.ensureVisible(find.byKey(const Key('member_bob')));
+    await t.pumpAndSettle();
     await t.tap(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
     expect(find.byKey(const Key('removeAdmin')), findsNothing);
@@ -405,6 +457,8 @@ void main() {
     await settle(t, () => alice.service.groups[gid]!.isAdmin('bob'));
     await settle(t, () => find.text('Administrator').evaluate().length == 2);
     // Now the choice is to take it away again.
+    await t.ensureVisible(find.byKey(const Key('member_bob')));
+    await t.pumpAndSettle();
     await t.tap(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
     expect(find.byKey(const Key('removeAdmin')), findsOneWidget);
@@ -447,6 +501,7 @@ void main() {
       t,
       () => find.byKey(const Key('invitedHeader')).evaluate().isEmpty,
     );
+    await t.scrollUntilVisible(find.textContaining('2 people'), -200);
     expect(find.textContaining('2 people'), findsOneWidget);
     await tearDownPhones(t);
   });

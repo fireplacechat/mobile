@@ -176,7 +176,11 @@ the first bubble of a run, their avatar beside the last, and the colours.
 
 - **Unread count** on the group row, counted on the phone from the local history
   with the same per-chat record of what has been shown as 1:1 chats. No server
-  field and no read receipt.
+  field and no read receipt. Group messages count on the app icon's badge too.
+- **Muting a group** works as for a 1:1 chat: hold the row, or use *Group info*.
+  It is kept on the phone with the 1:1 mutes; the server and the other members
+  are not told. A muted group keeps its count on the row, in grey, and is left
+  out of the app icon's badge. Pushes are unchanged, as for a muted 1:1 chat.
 - **Lines in the conversation**, small and centred: *alice added bob_jones*,
   *mira left*, *alice removed mira*, *alice made bob_jones an administrator*,
   *alice renamed the group*. They are built on the phone from the MLS state before
@@ -211,7 +215,8 @@ Rust core): joining with the inviter's phone off, key packages run out, expiry,
 decline, removing someone invited, colours for a later joiner, each line, roles,
 and a refused role change. `test/view/groups/group_screens_test.dart` (11): the
 1:1 menu and composer editing, colours of bubbles, names and avatars, the lines,
-the start-of-history line, the unread count, Make administrator, and *Invited*.
+the start-of-history line, the unread count, muting, Make administrator, and
+*Invited*.
 `scripts/render/render_groups_test.dart` renders the screens for review.
 
 ### Not in this round
@@ -220,7 +225,6 @@ the start-of-history line, the unread count, Make administrator, and *Invited*.
   requests).
 - `addDevice` from the app.
 - The group's name in the invitation push.
-- Group unread counts in the app icon's badge, and muting a group.
 
 ## Spike results
 

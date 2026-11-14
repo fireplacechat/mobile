@@ -177,6 +177,7 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
       );
     }
     final admin = group.isAdmin(me);
+    final muted = ref.watch(groupMutedProvider(widget.gid));
     final invited =
         ref.watch(groupInvitedProvider(widget.gid)).value ?? const {};
     final members = [
@@ -225,6 +226,21 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
               subtitle: const Text('They choose whether to join'),
               onTap: () => _addPeople(group),
             ),
+          ListTile(
+            key: const Key('muteGroup'),
+            leading: Icon(
+              muted
+                  ? Icons.notifications_off_outlined
+                  : Icons.notifications_outlined,
+            ),
+            title: Text(muted ? 'Unmute' : 'Mute'),
+            subtitle: Text(
+              muted
+                  ? 'Its unread messages are not counted on the app icon.'
+                  : 'Only on this phone. Nobody in the group is told.',
+            ),
+            onTap: () => _run(() => setGroupMuted(ref, widget.gid, !muted)),
+          ),
           if (admin)
             ListTile(
               key: const Key('renameGroup'),

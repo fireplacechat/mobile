@@ -21,9 +21,58 @@ class GroupTile extends ConsumerWidget {
   final GroupInfo group;
   final VoidCallback onOpen;
 
+  Future<void> _toggleMute(
+    BuildContext context,
+    WidgetRef ref,
+    bool muted,
+  ) async {
+    try {
+      await setGroupMuted(ref, group.gid, !muted);
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not save the mute preference. Try again.'),
+          ),
+        );
+      }
+    }
+  }
+
+  /// The same menu a 1:1 row opens when it is held.
+  Future<void> _showActions(
+    BuildContext context,
+    WidgetRef ref,
+    bool muted,
+    Offset? at,
+  ) async {
+    final box = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final point = at ?? box.localToGlobal(box.size.center(Offset.zero));
+    final chosen = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromRect(
+        point & Size.zero,
+        Offset.zero & overlay.size,
+      ),
+      items: [
+        PopupMenuItem(
+          value: 'mute',
+          child: Text(muted ? 'Unmute chat' : 'Mute chat'),
+        ),
+      ],
+    );
+    if (chosen == 'mute' && context.mounted) {
+      await _toggleMute(context, ref, muted);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = FireplaceUiTokens.of(context);
+    final muted = ref.watch(groupMutedProvider(group.gid));
+    var pressedAt = Offset.zero;
     final messages =
         ref.watch(groupMessagesProvider(group.gid)).value ??
         const <LocalMessage>[];
@@ -61,6 +110,10 @@ class GroupTile extends ConsumerWidget {
     return InkWell(
       key: Key('group_${group.gid}'),
       onTap: onOpen,
+      onTapDown: (details) => pressedAt = details.globalPosition,
+      onLongPress: () => _showActions(context, ref, muted, pressedAt),
+      onSecondaryTapUp: (details) =>
+          _showActions(context, ref, muted, details.globalPosition),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: ChatTile.edge),
         child: Row(
@@ -88,16 +141,33 @@ class GroupTile extends ConsumerWidget {
                           textBaseline: TextBaseline.alphabetic,
                           children: [
                             Expanded(
-                              child: Text(
-                                group.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  height: 1.2,
-                                  fontWeight: FontWeight.w600,
-                                  color: t.text,
-                                ),
+                              child: Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      group.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        height: 1.2,
+                                        fontWeight: FontWeight.w600,
+                                        color: t.text,
+                                      ),
+                                    ),
+                                  ),
+                                  if (muted)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 6),
+                                      child: Icon(
+                                        Icons.notifications_off,
+                                        key: ValueKey('muted-${group.chatId}'),
+                                        size: scaler.scale(12),
+                                        color: t.secondaryText,
+                                        semanticLabel: 'Muted',
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                             if (last != null)
@@ -154,6 +224,7 @@ class GroupTile extends ConsumerWidget {
                                 child: UnreadCount(
                                   key: ValueKey('unread-${group.chatId}'),
                                   count: unread,
+                                  muted: muted,
                                 ),
                               ),
                           ],

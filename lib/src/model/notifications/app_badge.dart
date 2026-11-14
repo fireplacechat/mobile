@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/notifications/system_notifications.dart';
@@ -19,6 +20,7 @@ final appBadgeProvider = Provider<void>((ref) {
     final count = appBadgeCount(
       ref.read(appSessionProvider),
       ref.read(chatActivityProvider),
+      groups: ref.read(groupsBadgeProvider),
     );
     if (count == null || count == shown) return;
     shown = count;
@@ -27,15 +29,22 @@ final appBadgeProvider = Provider<void>((ref) {
   }
 
   ref.listen(appSessionProvider, (_, _) => update());
+  ref.listen(groupsBadgeProvider, (_, _) => update());
   ref.listen(chatActivityProvider, (_, _) => update(), fireImmediately: true);
 });
 
 /// The badge to show, or null to leave it as it is. While the session is
 /// starting (or failed) or history is still loading, the old badge stays:
 /// dropping it to zero at every launch would also clear unseen alerts.
-int? appBadgeCount(AsyncValue<Object?> session, ChatActivityState activity) {
+///
+/// [groups] is the unread total of group chats that are not muted.
+int? appBadgeCount(
+  AsyncValue<Object?> session,
+  ChatActivityState activity, {
+  int groups = 0,
+}) {
   if (session.isLoading || session.hasError) return null;
   if (session.value == null) return 0; // signed out
   if (activity.loading) return null;
-  return activity.badgeCount;
+  return activity.badgeCount + groups;
 }
