@@ -148,6 +148,66 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('signing in after the launch minimum shows the splash for three '
+      'seconds', (tester) async {
+    final fixture = UiFixture(overrideAuth: false)..hasBackup = true;
+    addTearDown(fixture.session.close);
+    final users = StreamController<User?>();
+    addTearDown(users.close);
+    await launch(tester, [
+      ...fixture.overrides,
+      authUserProvider.overrideWith((ref) => users.stream),
+      chatListWarmupProvider.overrideWith((ref) async {}),
+    ]);
+    users.add(null);
+    await settleUi(tester);
+    // Well past the launch minimum, on the sign-in screen.
+    await tester.pump(const Duration(seconds: 30));
+    expect(find.byType(AuthScreen), findsOneWidget);
+    users.add(_User());
+    await settleUi(tester);
+    await tester.pump(const Duration(milliseconds: 2900));
+    expect(find.byType(FireplaceSplash), findsOneWidget);
+    expect(find.byType(ChatListScreen), findsNothing);
+    await tester.pump(const Duration(milliseconds: 200));
+    await settleUi(tester);
+    expect(find.byType(FireplaceSplash), findsNothing);
+    expect(find.byType(ChatListScreen), findsOneWidget);
+    // Signing out still goes straight to the sign-in screen.
+    users.add(null);
+    await settleUi(tester);
+    expect(find.byType(AuthScreen), findsOneWidget);
+    expect(find.byType(FireplaceSplash), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a slow sign-in opens when ready without another three seconds', (
+    tester,
+  ) async {
+    final fixture = UiFixture(overrideAuth: false)..hasBackup = true;
+    addTearDown(fixture.session.close);
+    final users = StreamController<User?>();
+    addTearDown(users.close);
+    final session = Completer<AppSession?>();
+    await launch(tester, [
+      ...fixture.overrides.skip(1),
+      authUserProvider.overrideWith((ref) => users.stream),
+      appSessionProvider.overrideWith((ref) => session.future),
+      chatListWarmupProvider.overrideWith((ref) async {}),
+    ]);
+    users.add(null);
+    await settleUi(tester);
+    await tester.pump(const Duration(seconds: 4));
+    users.add(_User());
+    await settleUi(tester);
+    await tester.pump(const Duration(seconds: 5));
+    expect(find.byType(FireplaceSplash), findsOneWidget);
+    session.complete(fixture.session);
+    await settleUi(tester);
+    expect(find.byType(ChatListScreen), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('startup errors stay actionable before the minimum expires', (
     tester,
   ) async {

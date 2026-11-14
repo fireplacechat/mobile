@@ -71,11 +71,17 @@ class AuthGate extends ConsumerStatefulWidget {
 
 class _AuthGateState extends ConsumerState<AuthGate> {
   bool _minimumElapsed = false;
-  late final Timer _minimumTimer;
+  late Timer _minimumTimer;
 
   @override
   void initState() {
     super.initState();
+    _startMinimum();
+  }
+
+  /// The splash stays for at least three seconds from here.
+  void _startMinimum() {
+    _minimumElapsed = false;
     _minimumTimer = Timer(const Duration(seconds: 3), () {
       setState(() => _minimumElapsed = true);
     });
@@ -92,6 +98,20 @@ class _AuthGateState extends ConsumerState<AuthGate> {
     // Start the existing account work immediately, alongside the splash timer.
     // Errors and recovery remain actionable without waiting for decoration.
     final user = ref.watch(authUserProvider);
+    // Signing in or registering shows the splash as a launch does: for at
+    // least three seconds, not only for the moment the account takes to
+    // prepare. A launch that finds someone signed in comes from loading, not
+    // from "nobody", and keeps the timer it started with.
+    ref.listen(authUserProvider, (before, now) {
+      if (before != null &&
+          before.hasValue &&
+          !before.isLoading &&
+          before.value == null &&
+          now.value != null) {
+        _minimumTimer.cancel();
+        setState(_startMinimum);
+      }
+    });
     return user.when(
       loading: () => _Splash(),
       error: (e, _) => const _AuthError(),
