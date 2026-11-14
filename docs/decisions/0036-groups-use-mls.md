@@ -1,5 +1,10 @@
 # 0036: Group chats will use MLS
 
+Follow-up (2026-11-14): [0050](0050-group-chats.md) records the owner's suite, size
+and delivery decisions, and the [full design proposal](../protocol/group-chat-design.md)
+develops this direction. The IETF draft is now version 07, and includes
+post-quantum signature suites.
+
 Status: **accepted in principle** (owner, 2026-11-13). Group chats are not
 scheduled: the next release is the Rust core and iOS previews (0035), and
 OpenMLS is **not** part of that work. This records the direction so nobody
