@@ -76,6 +76,12 @@ class GuardedSecrets implements SecretStore {
   }
 
   @override
+  Future<Map<String, String>> readAll() async {
+    _check();
+    return inner.readAll();
+  }
+
+  @override
   Future<String?> read(String key) async {
     _check();
     return inner.read(key);

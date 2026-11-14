@@ -20,12 +20,38 @@ import 'package:fireplace/src/model/push/push_chat_index.dart';
 import 'package:fireplace/src/model/push/preview_credentials.dart';
 import 'package:fireplace/src/model/safety/push_challenge.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
+import 'package:fireplace/src/model/settings/account_preferences.dart';
+import 'package:fireplace/src/db/account_erasure.dart';
+import 'package:fireplace/src/db/ios_shared_storage.dart';
 
 final authProvider = Provider<FirebaseAuth>((_) => FirebaseAuth.instance);
 final firestoreProvider = Provider<FirebaseFirestore>(
   (_) => FirebaseFirestore.instance,
 );
 final secretStoreProvider = Provider<SecretStore>((_) => SecureSecretStore());
+final accountPreferencesProvider = Provider<AccountPreferences>(
+  (ref) => AccountPreferences(ref.watch(secretStoreProvider)),
+);
+final preferencesUidProvider = Provider<String?>((ref) {
+  // UI-only test harnesses need no Firebase platform plugin.
+  try {
+    final auth = ref.watch(authProvider);
+    ref.watch(authUserProvider);
+    return auth.currentUser?.uid;
+  } catch (_) {
+    return null;
+  }
+});
+final accountErasureDirectoriesProvider =
+    Provider<Future<List<Directory>> Function()>(
+      (_) => () async {
+        final roots = [await getApplicationDocumentsDirectory()];
+        if (Platform.isIOS) {
+          roots.add(Directory((await IosSharedStorage.prepare()).directory));
+        }
+        return roots;
+      },
+    );
 final iosPreviewCredentialsProvider = Provider<IosPreviewCredentials?>((ref) {
   if (!Platform.isIOS) return null;
   final credentials = IosPreviewCredentials(
@@ -67,14 +93,20 @@ final authUserProvider = StreamProvider<User?>((ref) {
 /// The lock this account's stores share between the app and the background
 /// push handler: a name in the isolate name server, and a generation file next
 /// to the history (decision 0030).
-SharedLock accountLock(String uid, Directory historyDir) => SharedLock(
+SharedLock accountLock(
+  String uid,
+  Directory historyDir, {
+  bool generation = true,
+}) => SharedLock(
   gate: Platform.isIOS
       ? CrossProcessLockGate(
           File('${historyDir.parent.path}/locks/$uid.lock'),
           isolateGate: IsolateLockGate('fireplace.account.$uid'),
         )
       : IsolateLockGate('fireplace.account.$uid'),
-  generation: FileLockGeneration(File('${historyDir.path}/lock.gen')),
+  generation: generation
+      ? FileLockGeneration(File('${historyDir.path}/lock.gen'))
+      : null,
 );
 
 /// Signed in, but the account is mid-deletion (or half deleted): finish deleting.
@@ -324,13 +356,37 @@ final chatsProvider = StreamProvider.autoDispose<List<ChatSummary>>((ref) {
 const deletedAccountLabel = 'Deleted account';
 
 final accountServiceProvider = Provider<AccountService>((ref) {
-  final session = ref.read(appSessionProvider).value;
+  // Refresh/error states may retain the previous, already-disposed session.
+  // A resume must not close or invalidate that stale session again.
+  final current = ref.watch(appSessionProvider);
+  final session = current.isLoading ? null : current.asData?.value;
+  final auth = ref.watch(authProvider);
+  final secrets = ref.watch(secretStoreProvider);
+  final preferences = ref.watch(accountPreferencesProvider);
+  final credentials = ref.watch(iosPreviewCredentialsProvider);
+  final erasureDirectories = ref.watch(accountErasureDirectoriesProvider);
+  final uid = auth.currentUser?.uid;
   return AccountService(
-    auth: ref.watch(authProvider),
+    auth: auth,
     db: ref.watch(firestoreProvider),
-    secrets: ref.watch(secretStoreProvider),
+    secrets: secrets,
+    preferences: preferences,
     stopSession: session?.close,
-    destroyLocalData: session?.destroyLocalData,
+    onMarked: () async {
+      // Drop normal account access immediately after the confirmed fence.
+      if (session != null) ref.invalidate(appSessionProvider);
+      await credentials?.beforeLocalSignOut();
+    },
+    destroyLocalData: () async {
+      if (uid == null) throw StateError('No account to erase.');
+      // Resume does not initialize a chat session. Resolve the exact account
+      // directories directly; never recreate/migrate history just to erase it.
+      await eraseAccountHistory(
+        uid: uid,
+        roots: await erasureDirectories(),
+        lockFor: (history) => accountLock(uid, history, generation: false),
+      );
+    },
   );
 });
 

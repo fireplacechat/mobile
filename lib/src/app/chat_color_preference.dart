@@ -1,16 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
-import 'package:fireplace/src/db/secret_store.dart';
+import 'package:fireplace/src/model/settings/account_preferences.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
 
-/// Appearance belongs to this installation, like the theme: the choice is
-/// kept on the device only and also colours the signed-out screens.
+/// The account's local chat colours; other accounts keep their own choices.
 class ChatAppearance extends Notifier<ChatBubbleColors> {
   static const storageKey = 'ui:chat-colors';
   Future<void> _writes = Future.value();
   Future<void> _loaded = Future.value();
   bool _chosen = false;
+  int _epoch = 0;
 
   /// Completes when the saved choice has been read (or found unreadable).
   Future<void> get loaded => _loaded;
@@ -18,16 +18,20 @@ class ChatAppearance extends Notifier<ChatBubbleColors> {
   @override
   ChatBubbleColors build() {
     _chosen = false;
-    _loaded = _load(ref.watch(secretStoreProvider));
+    _loaded = _load(
+      ref.watch(accountPreferencesProvider),
+      ref.watch(preferencesUidProvider),
+      ++_epoch,
+    );
     // The defaults show for the moment the saved choice takes to read.
     return const ChatBubbleColors();
   }
 
-  Future<void> _load(SecretStore store) async {
+  Future<void> _load(AccountPreferences store, String? uid, int epoch) async {
     try {
-      final saved = await store.read(storageKey);
+      final saved = await store.read(storageKey, uid);
       // A choice made while the saved one was loading wins.
-      if (!ref.mounted || _chosen || saved == null) return;
+      if (!ref.mounted || _epoch != epoch || _chosen || saved == null) return;
       state = ChatBubbleColors.parse(saved);
     } catch (_) {
       // Unreadable colours must not prevent opening the app.
@@ -46,8 +50,11 @@ class ChatAppearance extends Notifier<ChatBubbleColors> {
   Future<void> _choose(ChatBubbleColors colors) {
     _chosen = true;
     state = colors;
-    final store = ref.read(secretStoreProvider);
-    final write = _writes.then((_) => store.write(storageKey, colors.stored));
+    final store = ref.read(accountPreferencesProvider);
+    final uid = ref.read(preferencesUidProvider);
+    final write = _writes.then(
+      (_) => store.write(storageKey, uid, colors.stored),
+    );
     // Save choices in order, and allow another after a failed save.
     _writes = write.then<void>((_) {}, onError: (Object _, StackTrace _) {});
     return write;

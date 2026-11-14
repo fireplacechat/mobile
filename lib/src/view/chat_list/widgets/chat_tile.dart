@@ -80,10 +80,8 @@ class ChatTile extends ConsumerWidget {
     final held =
         ref.watch(identityAlertsProvider).value?.containsKey(chat.peerUid) ==
         true;
-    if (name == deletedAccountLabel) {
-      // the other person deleted their account: tidy up this conversation
-      ref.watch(peerDeletedCleanupProvider(chat.chatId));
-    }
+    // A deleted contact must not erase this account's received history merely
+    // because its chat list was opened (including another account on this phone).
     // The newest saved message, or a send still on its way: a message shows
     // here the moment it is sent. A remote delete stays in history so it
     // cannot be replayed, and the row shows the message before it instead.
