@@ -1,6 +1,6 @@
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
-import 'package:flutter/foundation.dart';
+import 'package:fireplace/src/widgets/settings_section.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,16 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/ui_fixture.dart';
 
 void main() {
-  testWidgets('Settings opens licences and returns without losing the page', (
+  testWidgets('About only shows privacy policy and terms of use', (
     tester,
   ) async {
-    LicenseRegistry.addLicense(
-      () => Stream.value(
-        const LicenseEntryWithLineBreaks([
-          'fixture-package',
-        ], 'Fixture licence'),
-      ),
-    );
     final fixture = UiFixture();
     addTearDown(fixture.session.close);
     await tester.pumpWidget(
@@ -30,28 +23,23 @@ void main() {
       ),
     );
     await settleUi(tester);
-    // About is the last section; the list builds rows as they scroll in.
     await tester.scrollUntilVisible(
-      find.byKey(const Key('openLicences')),
+      find.byKey(const Key('openTermsOfUse')),
       300,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('openLicences')));
-    await tester.pumpAndSettle();
-    expect(find.byType(LicensePage), findsOneWidget);
-    expect(find.text('fireplace.'), findsOneWidget);
-    expect(find.text('fixture-package'), findsOneWidget);
-    await tester.tap(find.text('fixture-package'));
-    await tester.pumpAndSettle();
-    expect(
-      find.textContaining('Fixture licence', findRichText: true),
-      findsOneWidget,
+    final about = find.ancestor(
+      of: find.text('About'),
+      matching: find.byType(UiSettingsSection),
     );
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(find.byType(SettingsScreen), findsOneWidget);
+    expect(
+      find.descendant(of: about, matching: find.byType(ListTile)),
+      findsNWidgets(2),
+    );
+    expect(find.byKey(const Key('openPrivacyPolicy')), findsOneWidget);
+    expect(find.byKey(const Key('openTermsOfUse')), findsOneWidget);
+    expect(find.byKey(const Key('openLicences')), findsNothing);
+    expect(find.text('Open-source licences'), findsNothing);
   });
 }

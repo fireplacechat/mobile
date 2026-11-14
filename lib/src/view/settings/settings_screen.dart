@@ -353,18 +353,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       trailing: const Icon(Icons.chevron_right),
                       onTap: _busy ? null : () => _openLegal(termsOfUseUrl),
                     ),
-                    ListTile(
-                      key: const Key('openLicences'),
-                      leading: const Icon(Icons.description_outlined),
-                      title: const Text('Open-source licences'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: _busy
-                          ? null
-                          : () => showLicensePage(
-                              context: context,
-                              applicationName: 'fireplace.',
-                            ),
-                    ),
                   ],
                 ),
               ],

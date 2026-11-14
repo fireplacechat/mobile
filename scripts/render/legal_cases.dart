@@ -18,7 +18,7 @@ final legalCases = <CatalogCase>[
     const SettingsScreen(),
     act: (tester, fixture) async {
       await tester.scrollUntilVisible(
-        find.byKey(const Key('openLicences')),
+        find.byKey(const Key('openTermsOfUse')),
         400,
         maxScrolls: 30,
       );
@@ -36,7 +36,7 @@ final legalCases = <CatalogCase>[
       ],
       act: (tester, fixture) async {
         await tester.scrollUntilVisible(
-          find.byKey(const Key('openLicences')),
+          find.byKey(const Key('openTermsOfUse')),
           400,
           maxScrolls: 30,
         );
@@ -53,7 +53,7 @@ final legalCases = <CatalogCase>[
     textScale: 2,
     act: (tester, fixture) async {
       await tester.scrollUntilVisible(
-        find.byKey(const Key('openLicences')),
+        find.byKey(const Key('openTermsOfUse')),
         400,
         maxScrolls: 30,
       );

@@ -15,6 +15,8 @@ typedef AdvancedSessions = ({
 /// [SessionStore.restoreSessions].
 typedef SessionUndo = List<(String uid, String deviceId, String? stored)>;
 
+/// This device's ratchet sessions with each peer device, in [SecretStore].
+/// [saveAhead] stores them before a message is published; see there for why.
 class SessionStore {
   SessionStore(this._secrets, this.device);
 

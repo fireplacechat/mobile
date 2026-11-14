@@ -1,6 +1,6 @@
 # Third-party notices
 
-Fireplace includes dependencies resolved in `pubspec.lock`. Their licence notices are available in the app through Settings → Open-source licences, using Flutter's licence registry. Preserve the notices and licence terms supplied with each dependency.
+Fireplace includes dependencies resolved in `pubspec.lock`. Flutter bundles their licence notices in the app's licence asset. Preserve the notices and licence terms supplied with each dependency.
 
 The following external test data is included:
 

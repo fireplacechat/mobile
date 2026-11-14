@@ -3,7 +3,7 @@
 ## What is configured
 - Package `com.fireplacechat.app`, label "Fireplace".
 - **No backups.** `allowBackup=false` plus `data_extraction_rules.xml` exclude everything from Google backup and phone-to-phone transfer. Keys live in the hardware-backed Keystore and cannot be restored elsewhere, so a restored copy of the app's data would be unreadable, and encrypted history has no business in a cloud backup.
-- **Permissions** (the build fails if any other appears; see `scripts/check_apk.sh`): `INTERNET`, `CAMERA` (QR codes; the camera is not required to install), `ACCESS_NETWORK_STATE`, `WAKE_LOCK`, and, from the switched-off push library, `POST_NOTIFICATIONS` and Google's push-receive permissions. The app never asks for notification permission unless push is enabled.
+- **Permissions** (checked by `scripts/check_apk.sh`): `INTERNET`, `CAMERA` (QR codes; optional hardware), `ACCESS_NETWORK_STATE`, `WAKE_LOCK`, `POST_NOTIFICATIONS` and Google's push-receive permissions. Normal builds include push; the first signed-in launch asks for notification permission. Device settings control alerts and message previews.
 - **CI** (`android-build`) builds a release APK with the *debug* key and runs the permission/backup check. That APK is never to be distributed.
 
 ## Signing key
@@ -32,7 +32,7 @@ scripts/check_apk.sh --distribution build/app/outputs/flutter-apk/app-arm64-v8a-
   `--signer <sha256>` or `EXPECTED_SIGNER_SHA256` to compare against a different fingerprint.
 - The ordinary check (no flag) still passes a debug-signed APK, with a note that it is NOT distributable, so CI keeps working.
 - `scripts/test_check_apk.sh` tests these rules on re-signed copies of a built APK (throwaway keys; your real key is never used). CI runs it.
-Almost all current phones need `app-arm64-v8a-release.apk` (about 28 MB). Older 32-bit phones: `app-armeabi-v7a-release.apk`.
+Use `app-arm64-v8a-release.apk` for ARM64 phones, `app-armeabi-v7a-release.apk` for 32-bit ARM phones, and the x86_64 build for an x86_64 emulator. Native crypto packaging is described in [setup](setup.md).
 
 ## Install on a phone (no developer programme needed)
 1. Copy the APK to the phone (USB, a private cloud link, or `adb install -r <apk>`).

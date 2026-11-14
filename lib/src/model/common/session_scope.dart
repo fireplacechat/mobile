@@ -1,5 +1,7 @@
 import 'dart:async';
 
+/// Cancellation and cleanup for one signed-in session's startup. Closes added
+/// resources in reverse order; if disposed mid-startup, [finish] does it.
 class SessionScope {
   SessionScope({required this.isMounted});
 

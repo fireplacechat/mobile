@@ -5,6 +5,8 @@ import 'package:fireplace/src/model/safety/safety_service.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 
+/// Keeps one receive subscription per chat that should sync (not an incoming
+/// request, blocked or hidden), seeding its unread baseline before it starts.
 class ChatSyncCoordinator {
   ChatSyncCoordinator({
     required this.uid,

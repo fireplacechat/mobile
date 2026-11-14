@@ -1,29 +1,31 @@
 # Roadmap
 
-Plans change, and nothing here is a promise or a date. Ideas and questions are welcome in
-[Discussions](https://github.com/fireplacechat/mobile/discussions); work that is ready to pick up is labelled
+Plans have no promised dates. The [feature status](roadmap/feature-matrix.md)
+describes current source; [open issues](https://github.com/fireplacechat/mobile/issues)
+track work and [Discussions](https://github.com/fireplacechat/mobile/discussions)
+is for ideas. Work that is ready to pick up is labelled
 [`help wanted`](https://github.com/fireplacechat/mobile/labels/help%20wanted) and
 [`good first issue`](https://github.com/fireplacechat/mobile/labels/good%20first%20issue).
 
-## Done recently
-- Push notifications while the app is closed: the sender's username and "New Message", never the message text, plus the unread badge on the app icon and notification settings in the app ([decision 0026](decisions/0026-push-notifications.md)).
-- The code is organised by feature, in small focused files, with a written architecture map ([docs/architecture.md](architecture.md)) and checks that keep it that way.
-- Contributor documents are in place: a Code of Conduct, a contributor license agreement, issue templates and starter issues.
+## Current work
 
-## Now
-- Preparing for a first beta on iOS and Android: testing on real devices, accessibility checks, store setup.
+- Prepare the first beta: real-device messaging checks, accessibility, and store setup.
+- Build MLS groups across the Rust core, backend and app, following the
+  [version 1 specification](protocol/group-chats-v1.md). The current app is 1:1.
+- Improve reliability and keep contributor documentation aligned with the code.
 
 ## Next
-- A clear offline state ("this will send when you are back online").
-- Message editing and deleting, after deciding exactly what those promise.
+
+- A clear offline state ("this will send when you are back online"). It must keep
+  a definite failure apart from an unknown outcome and never imply an automatic resend.
 
 ## Under consideration
-- Tappable links.
-- Compact message bubbles with the time inline.
-- Translations: choosing where strings live, then a translation workflow.
-- Stricter static analysis and more immutable state in the code.
+
+Tappable links, compact bubbles with the time inline, attachments, disappearing
+messages, chat archive/pin and translations. Each needs its own design first.
 
 ## Not planned
-- Group chats, voice and video calls, stickers and GIFs.
-- Typing indicators, read receipts, "online" or "last seen". These are left out on purpose.
-- Analytics, crash reporting or any tracking.
+
+- Voice and video calls, stickers and GIFs.
+- Typing indicators, read receipts, delivered ticks, online/last seen. Left out on purpose.
+- Analytics, crash reporting or any tracking. See [repository rules](../AGENTS.md).
