@@ -747,6 +747,8 @@ void main() {
         '${backend.name}: random schedule, seed $seed',
         () => CryptoBackend.runWith(backend, () => simulate(seed)),
         timeout: const Timeout(Duration(minutes: 4)),
+        // The app ships the Rust core; the Dart reference runs nightly.
+        tags: backend == CryptoBackendKind.dart ? 'nightly' : null,
       );
     }
   }
