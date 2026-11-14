@@ -173,7 +173,10 @@ class ChatDirectory {
     await _profile(peerUid);
   }
 
-  /// Puts this account's colour on its profile.
-  Future<void> publishColor(String color) =>
-      _db.collection('users').doc(uid).update({'color': color});
+  /// Puts this account's colour on its profile. The rules want the time of
+  /// the change with it, and refuse another within a few seconds.
+  Future<void> publishColor(String color) => _db
+      .collection('users')
+      .doc(uid)
+      .update({'color': color, 'colorAt': FieldValue.serverTimestamp()});
 }

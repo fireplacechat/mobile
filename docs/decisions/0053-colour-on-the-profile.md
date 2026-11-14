@@ -42,9 +42,13 @@ The owner's decision: **a person's colour is public**, like their username.
 
 ## How it is written and read
 
-- **Written** when a colour is chosen in Settings: one update of the profile.
-  When the app opens and the profile has no colour, the phone's colour is written
-  once (also for someone who never chose: the default, Ember). When the profile
+- **Written** when a colour chosen in Settings has been held for 10 seconds: one
+  update of the profile, however many colours were tried on the way. The update
+  carries the server time of the change (`colorAt`), and the rules refuse another
+  change within 5 seconds, so a modified app cannot write faster than that.
+  When the app opens and the profile has no colour, or not the one chosen on this
+  phone (the app was closed before it was published), the phone's colour is
+  written once (also for someone who never chose: the default, Ember). When the profile
   has one and this phone has no choice of its own, the phone takes the profile's,
   so a second phone starts in the same colour.
 - **Read** with the person's name. The app already reads each chat partner's

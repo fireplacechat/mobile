@@ -282,17 +282,18 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     );
     scope.add(chat.close);
     // This account's colour: a phone that has not chosen one takes the
-    // profile's, and a profile that has none gets this phone's. One write,
-    // once for each account.
+    // profile's. A profile that has none, or not the one chosen here (the
+    // app closed before it was published), gets this phone's: one write.
     unawaited(() async {
       try {
         final appearance = ref.read(chatBubbleColorsProvider.notifier);
         await appearance.loaded;
         if (scope.stopped) return;
         final published = ChatBubbleColor.values.asNameMap()[profile['color']];
-        if (published != null) {
+        final own = ref.read(chatBubbleColorsProvider).outgoing;
+        if (published != null && !appearance.hasOwnChoice) {
           appearance.adopt(published);
-        } else {
+        } else if (published != own) {
           await chat.publishColor(
             ref.read(chatBubbleColorsProvider).outgoing.name,
           );

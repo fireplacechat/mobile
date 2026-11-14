@@ -21,13 +21,22 @@ void main() {
     return (c, f);
   }
 
-  test('a chosen colour is published; a reset publishes the default', () async {
+  test('a colour is published once it has been held; trying several '
+      'publishes the last', () async {
+    ChatAppearance.publishHold = const Duration(milliseconds: 50);
+    addTearDown(() => ChatAppearance.publishHold = const Duration(seconds: 10));
     final (c, f) = await open();
     final appearance = c.read(chatBubbleColorsProvider.notifier);
     await appearance.outgoing(ChatBubbleColor.plum);
+    await appearance.outgoing(ChatBubbleColor.ocean);
+    await appearance.outgoing(ChatBubbleColor.forest);
+    expect(f.chat.publishedColors, isEmpty);
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(f.chat.publishedColors, ['forest']);
     await appearance.reset();
-    expect(f.chat.publishedColors, ['plum', 'ember']);
-  });
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    expect(f.chat.publishedColors, ['forest', 'ember']);
+  }, tags: 'timing');
 
   test('a phone without a choice takes the profile colour, once', () async {
     final (c, f) = await open();

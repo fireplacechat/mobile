@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
@@ -13,6 +14,16 @@ class ChatAppearance extends Notifier<ChatBubbleColors> {
   Future<void> _loaded = Future.value();
   bool _chosen = false, _saved = false;
   int _epoch = 0;
+  Timer? _publish;
+
+  /// How long a colour must stay chosen before it is put on the profile, so
+  /// trying several writes once (decision 0053). The rules refuse changes
+  /// that come faster than a few seconds apart.
+  @visibleForTesting
+  static Duration publishHold = const Duration(seconds: 10);
+
+  /// Whether this phone has a colour of its own: saved earlier or chosen now.
+  bool get hasOwnChoice => _chosen || _saved;
 
   /// Completes when the saved choice has been read (or found unreadable).
   Future<void> get loaded => _loaded;
@@ -21,6 +32,8 @@ class ChatAppearance extends Notifier<ChatBubbleColors> {
   ChatBubbleColors build() {
     _chosen = false;
     _saved = false;
+    _publish?.cancel();
+    ref.onDispose(() => _publish?.cancel());
     _loaded = _load(
       ref.watch(accountPreferencesProvider),
       ref.watch(preferencesUidProvider),
@@ -59,15 +72,18 @@ class ChatAppearance extends Notifier<ChatBubbleColors> {
   Future<void> _choose(ChatBubbleColors colors) {
     _chosen = true;
     state = colors;
-    // On the profile, for the people this account chats with. A failure is
-    // not shown: the choice still holds here, and Firestore sends a write
-    // made offline when it can.
-    final chat = ref.read(appSessionProvider).value?.chat;
-    if (chat != null) {
+    // On the profile, for the people this account chats with, once it has
+    // been held for a while. A failure is not shown: the choice still holds
+    // here, and it is published when the app next opens.
+    _publish?.cancel();
+    _publish = Timer(publishHold, () {
+      if (!ref.mounted) return;
+      final chat = ref.read(appSessionProvider).value?.chat;
+      if (chat == null) return;
       unawaited(
-        chat.publishColor(colors.outgoing.name).catchError((Object _) {}),
+        chat.publishColor(state.outgoing.name).catchError((Object _) {}),
       );
-    }
+    });
     final store = ref.read(accountPreferencesProvider);
     final uid = ref.read(preferencesUidProvider);
     final write = _writes.then(

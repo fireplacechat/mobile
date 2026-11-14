@@ -46,6 +46,7 @@ void main() {
     await alice.chat.publishColor('plum');
     final profile = (await db.doc('users/alice').get()).data()!;
     expect(profile['color'], 'plum');
+    expect(profile['colorAt'], isNotNull);
     expect(profile['username'], 'alice');
     expect(await bob.chat.usernameOf('alice'), 'alice');
     expect(bob.peerColors['alice'], 'plum');
