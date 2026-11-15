@@ -21,16 +21,16 @@ encrypting, publishing: seconds, straight after start-up), the message is
 written to history with the status **unconfirmed**, under the id it will have
 on the server. That status already
 means "may or may not have reached the server", which is exactly what is true
-if the app stops at that moment, and it already has its screen: the warning,
-"check" (which looks for that id on the server) and "send another copy".
+if the app stops at that moment. What the app then does with such a message is
+decision [0059](0059-finish-a-send-automatically.md).
 
 - Published: the same record becomes an ordinary sent message.
 - Refused, or stopped before publishing (nothing was committed): the record
   is removed. The failed send stays
   on screen from the list of sends, as before.
 - Outcome unknown: the record stays unconfirmed, as before.
-- App stopped during the send: the record is there on the next start, with the
-  warning. Nothing is sent again without the person asking.
+- App stopped during the send: the record is there on the next start, and the
+  app finishes sending it (0059).
 
 While the send is in progress the conversation leaves that record out and shows
 the bubble from the list of sends, as before, so an ordinary send never shows a
@@ -47,8 +47,6 @@ writes.
 
 ## What it does not do
 
-- It does not finish the send after a restart. Sending again by itself could
-  deliver a message twice.
 - If history cannot be written before publishing, the send goes on as it did
   before this note.
 - A send waits its turn for the account's storage like every other write. In

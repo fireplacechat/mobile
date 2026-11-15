@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:fireplace/fireplace_services.dart';
+import 'package:fireplace/src/model/chat/chat_tuning.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'durability_test.dart' show FlakySecretStore, Phone, eventually, fb;
@@ -427,6 +428,143 @@ void main() {
       release.complete();
       await editing;
       expect((await history()).single.body, 'new wording');
+    });
+  });
+
+  group('finishing a saved message that was not sent (decision 0059)', () {
+    Future<List<String>> serverIds() async => [
+      for (final d
+          in (await db.collection('chats/$chatId/messages').get()).docs)
+        d.id,
+    ];
+
+    test(
+      'not on the server: sent under its own id, and received once',
+      () async {
+        loseBeforeCommit();
+        final e = await sendExpectingUnconfirmed('finish me');
+        alice.commit = null;
+        expect(
+          await alice.chat.finishSend(chatId, e.messageId),
+          SendOutcome.confirmed,
+        );
+        expect(await serverIds(), [e.messageId]);
+        final h = await history();
+        expect(h.single.id, e.messageId);
+        expect(h.single.status, MessageStatus.ok);
+        // Asking again does nothing more.
+        expect(
+          await alice.chat.finishSend(chatId, e.messageId),
+          SendOutcome.confirmed,
+        );
+        expect(await serverIds(), [e.messageId]);
+        bob.sub = bob.chat.startSync(chatId);
+        await eventually(
+          () async => (await bob.bodies(chatId)).contains('finish me'),
+          'bob receives it',
+        );
+        expect(
+          (await bob.bodies(chatId)).where((b) => b == 'finish me'),
+          hasLength(1),
+        );
+      },
+    );
+
+    test(
+      'already on the server: settled without publishing anything',
+      () async {
+        commitThenLose();
+        final e = await sendExpectingUnconfirmed('was delivered');
+        var commits = 0;
+        alice.commit = (b) async {
+          commits++;
+          await b.commit();
+        };
+        expect(
+          await alice.chat.finishSend(chatId, e.messageId),
+          SendOutcome.confirmed,
+        );
+        expect(commits, 0);
+        expect(await serverIds(), [e.messageId]);
+        expect((await history()).single.status, MessageStatus.ok);
+      },
+    );
+
+    test('the network is still down: unknown, the saved copy stays', () async {
+      loseBeforeCommit();
+      final e = await sendExpectingUnconfirmed('still offline');
+      expect(
+        await alice.chat.finishSend(chatId, e.messageId),
+        SendOutcome.publishUnknown,
+      );
+      final h = await history();
+      expect(h.single.id, e.messageId);
+      expect(h.single.status, MessageStatus.unconfirmed);
+      expect(await serverIds(), isEmpty);
+    });
+
+    test(
+      'refused: not sent, and the saved copy stays for the person',
+      () async {
+        loseBeforeCommit();
+        final e = await sendExpectingUnconfirmed('refused later');
+        alice.commit = (_) async => throw fb('invalid-argument');
+        expect(
+          await alice.chat.finishSend(chatId, e.messageId),
+          SendOutcome.notPublished,
+        );
+        final h = await history();
+        expect(h.single.id, e.messageId);
+        expect(h.single.status, MessageStatus.unconfirmed);
+        expect(await serverIds(), isEmpty);
+      },
+    );
+
+    test('an earlier try arrives between the look and the send: the refusal '
+        'of the second is read as sent, and there is one message', () async {
+      // The first try's write is still on its way when the app looks.
+      late Future<void> Function() land;
+      alice.commit = (b) async {
+        land = b.commit;
+        throw fb('unavailable');
+      };
+      final e = await sendExpectingUnconfirmed('raced');
+      expect(await serverIds(), isEmpty);
+      alice.commit = (_) async {
+        await land(); // it arrives now
+        // The server takes an id once: the second write is refused.
+        throw fb('permission-denied');
+      };
+      final pacing = ChatTuning.pacing;
+      ChatTuning.pacing = false;
+      addTearDown(() => ChatTuning.pacing = pacing);
+      expect(
+        await alice.chat.finishSend(chatId, e.messageId),
+        SendOutcome.confirmed,
+      );
+      expect(await serverIds(), [e.messageId]);
+      expect((await history()).single.status, MessageStatus.ok);
+    });
+
+    test('a quoted reply is finished with its quote', () async {
+      await alice.chat.sendText(chatId, 'the question');
+      final target = (await history()).single;
+      loseBeforeCommit();
+      late SendNotConfirmedException e;
+      try {
+        await alice.chat.sendReply(chatId, 'the answer', target.id);
+        fail('expected not confirmed');
+      } on SendNotConfirmedException catch (x) {
+        e = x;
+      }
+      alice.commit = null;
+      expect(
+        await alice.chat.finishSend(chatId, e.messageId),
+        SendOutcome.confirmed,
+      );
+      final answer = (await history()).firstWhere((m) => m.id == e.messageId);
+      expect(answer.status, MessageStatus.ok);
+      expect(answer.quote?.targetId, target.id);
     });
   });
 }

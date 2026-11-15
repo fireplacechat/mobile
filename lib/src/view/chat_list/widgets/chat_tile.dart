@@ -183,13 +183,9 @@ class ChatTile extends ConsumerWidget {
         ? (!chat.accepted && chat.initiator != null
               ? 'Waiting for them to accept'
               : 'Encrypted chat')
-        // "(not confirmed)" comes first so the ellipsis never hides it.
+        // "(not sent)" comes first so the ellipsis never hides it.
         : (last.outgoing
-                  ? (latest!.notSent
-                        ? 'You (not sent): '
-                        : last.status == MessageStatus.unconfirmed
-                        ? 'You (not confirmed): '
-                        : 'You: ')
+                  ? (latest!.notSent ? 'You (not sent): ' : 'You: ')
                   : '') +
               (last.status == MessageStatus.undecryptable
                   ? 'Unreadable encrypted message'

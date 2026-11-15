@@ -1,3 +1,4 @@
+import 'package:fireplace/src/model/chat/send_resume.dart';
 import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
@@ -43,8 +44,12 @@ class ChatTimeline extends ConsumerWidget {
     required this.onLatest,
     this.outgoing = const {},
     this.onFailedSend,
+    this.onUnsentTap,
     this.flashed,
   });
+
+  /// A saved message that was not sent was tapped (decision 0059).
+  final ValueChanged<LocalMessage>? onUnsentTap;
 
   /// The message to highlight briefly after a jump to it.
   final ValueListenable<String?>? flashed;
@@ -66,6 +71,7 @@ class ChatTimeline extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final selection = ref.watch(messageSelectionProvider(chatId));
+    final resuming = ref.watch(sendResumeProvider);
     final theme = Theme.of(context);
     final highlight = ref
         .watch(chatBubbleColorsProvider)
@@ -146,6 +152,34 @@ class ChatTimeline extends ConsumerWidget {
                             RisingSend(child: bubble)
                           else
                             bubble,
+                        ],
+                      );
+                    }
+                    if (SendResume.unsent(message) &&
+                        !send.memoryPending.containsKey(message.id)) {
+                      // Saved, and still to be sent: the app goes on sending
+                      // it by itself, so it looks like any message on its
+                      // way. Only one that was given up on says so.
+                      final failed = resuming[message.id] == ResumeState.failed;
+                      return Column(
+                        key: ValueKey(message.id),
+                        children: [
+                          if (showDate) DaySeparator(date: message.sentAt),
+                          MessageBubble(
+                            key: anchorFor(message.id),
+                            message: message,
+                            senderName: name,
+                            outgoingSend: OutgoingSend(
+                              id: message.id,
+                              chatId: message.chatId,
+                              body: message.body,
+                              createdAt: message.sentAt,
+                              state: failed
+                                  ? OutgoingState.failed
+                                  : OutgoingState.sending,
+                            ),
+                            onFailedTap: () => onUnsentTap?.call(message),
+                          ),
                         ],
                       );
                     }

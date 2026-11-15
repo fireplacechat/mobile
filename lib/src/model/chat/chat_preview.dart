@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fireplace/src/model/chat/send_resume.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/outgoing_sends.dart';
@@ -49,7 +50,14 @@ final chatPreviewProvider = Provider.autoDispose.family<ChatPreview?, String>((
       notSent: newest.state == OutgoingState.failed,
     );
   }
-  return last == null ? null : ChatPreview(last);
+  if (last == null) return null;
+  // A saved message still being sent reads as any message of this account;
+  // one that was given up on reads as not sent (decision 0059).
+  final givenUp =
+      SendResume.unsent(last) &&
+      ref.watch(sendResumeProvider.select((s) => s[last.id])) ==
+          ResumeState.failed;
+  return ChatPreview(last, notSent: givenUp);
 });
 
 /// When a conversation last had a message, as far as this phone knows: the

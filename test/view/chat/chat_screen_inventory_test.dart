@@ -167,11 +167,6 @@ Future<UiFixture> mount(WidgetTester t, String state) async {
     await t.tap(find.byKey(const Key('send')));
     await settleUi(t);
   }
-  if (state == 'unconfirmed') {
-    await t.tap(find.byKey(const Key('checkSendStatus')));
-    await settleUi(t);
-    expect(find.byKey(const Key('checkNote')), findsOneWidget);
-  }
   if (state == 'scrolled') {
     t
         .widget<ListView>(find.byKey(const Key('messageTimeline')))
@@ -873,8 +868,6 @@ const expected = <String, Map<String, List<String>>>{
       '[<\'chatBack\'>]',
       '[<\'chatDetails\'>]',
       '[<\'chatSafetyNotices\'>]',
-      '[<\'checkNote\'>]',
-      '[<\'checkSendStatus\'>]',
       '[<\'composer\'>]',
       '[<\'messageBubble-1\'>]',
       '[<\'messageBubble-2\'>]',
@@ -883,11 +876,9 @@ const expected = <String, Map<String, List<String>>>{
       '[<\'messageBubble-5\'>]',
       '[<\'messageBubble-uncertain\'>]',
       '[<\'messageTimeline\'>]',
-      '[<\'resendUnconfirmed\'>]',
       '[<\'send\'>]',
+      '[<\'sendState-uncertain\'>]',
       '[<\'uncertain\'>]',
-      '[<\'unconfirmed-uncertain\'>]',
-      '[<\'unconfirmedTitle\'>]',
       '[<\'verify\'>]',
       '[<_ScaffoldSlot.appBar>]',
       '[<_ScaffoldSlot.body>]',
@@ -895,8 +886,6 @@ const expected = <String, Map<String, List<String>>>{
       '[<_ToolbarSlot.leading>]',
       '[<_ToolbarSlot.middle>]',
       '[<_ToolbarSlot.trailing>]',
-      '[GlobalKey#identity ink renderer]',
-      '[GlobalKey#identity ink renderer]',
       '[GlobalKey#identity ink renderer]',
       '[GlobalKey#identity ink renderer]',
       '[GlobalKey#identity ink renderer]',
@@ -960,22 +949,17 @@ const expected = <String, Map<String, List<String>>>{
       '12:00 pm',
       '12:00 pm',
       '12:00 pm',
-      '12:01 pm',
       'Are we still on for Saturday?',
       'Around two? There is no rush.',
-      'Check status',
-      'Could not check yet. Nothing was sent again. Try later.',
       'F',
       'Looking forward to it. What time works for you?',
       'Message',
-      'Message not confirmed',
+      'Not sent. Tap for options.',
       'Of course. I can bring dessert.',
       'Perfect. See you in the garden ☕',
       'Please check this message',
       'Sat, Oct 3',
-      'Send again…',
       'Sun, Oct 4',
-      'This message may have reached them. Sending it again could create a duplicate.',
       'fred',
     ],
     'semantics': [

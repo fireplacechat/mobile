@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/model/chat/send_resume.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/db/local_messages.dart';
@@ -184,6 +185,8 @@ class ChatActivity extends Notifier<ChatActivityState> {
             }
             (_known[id] ??= {}).addAll(messages.map((m) => m.id));
             _history[id] = messages;
+            // Finish what a closed app or a dropped network left unsent.
+            ref.read(sendResumeProvider.notifier).noticed(messages);
             _failed.remove(id);
             final session = _session!;
             final prefs = session.chatPreferences;

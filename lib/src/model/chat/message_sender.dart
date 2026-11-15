@@ -110,12 +110,20 @@ class MessageSender {
   Future<void> sendControl(String chatId, MessageMutation mutation) =>
       _send(chatId, '', mutation: mutation);
 
+  /// Sends a message that is already in the history as unconfirmed, under
+  /// the id it has (decision 0059). The server never takes an id twice, so
+  /// if an earlier try did arrive this one is refused: it cannot deliver the
+  /// message a second time. The saved copy is kept whatever happens.
+  Future<void> sendSaved(LocalMessage saved) =>
+      _send(saved.chatId, saved.body, quote: saved.quote, savedId: saved.id);
+
   Future<void> _send(
     String chatId,
     String text, {
     MessageMutation? mutation,
     MessageQuote? quote,
     String? replyTarget,
+    String? savedId,
   }) => _lock.run(() async {
     // 1. A received message may have left a journal that was not fully applied. It holds a
     // snapshot of the session; replaying it AFTER this send would roll the ratchet back and
@@ -133,11 +141,8 @@ class MessageSender {
     );
     quote = content.quote;
     mutation = content.mutation;
-    final ref = _db
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .doc();
+    final messages = _db.collection('chats').doc(chatId).collection('messages');
+    final ref = savedId == null ? messages.doc() : messages.doc(savedId);
     final sentAt = DateTime.now();
 
     // A message a person wrote is saved before anything else is done with
@@ -147,7 +152,7 @@ class MessageSender {
     // copy" choices. Edits, deletes and reactions are not saved ahead: saving
     // one applies it here, and a refused one would have to be taken back.
     var savedAhead = false;
-    if (mutation == null) {
+    if (mutation == null && savedId == null) {
       _inFlight.add(ref.id);
       try {
         await _messages.add(

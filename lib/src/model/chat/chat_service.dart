@@ -91,6 +91,7 @@ class ChatService {
     device,
     sendText: sendText,
     sendQuoted: _sender.sendQuoted,
+    sendSaved: (saved) => _sender.sendSaved(saved),
     peerOf: peerOf,
   );
   late final _journal = ReceiveJournal(
@@ -354,6 +355,11 @@ class ChatService {
 
   Future<SendOutcome> checkSendStatus(String chatId, String messageId) =>
       _recovery.checkSendStatus(chatId, messageId);
+
+  /// Finishes a saved message whose send did not end: see
+  /// [SendRecovery.finishSend].
+  Future<SendOutcome> finishSend(String chatId, String messageId) =>
+      _recovery.finishSend(chatId, messageId);
 
   Future<void> saveSentLocally({
     required String chatId,

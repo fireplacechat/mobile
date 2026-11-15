@@ -53,7 +53,7 @@ void main() {
   );
 
   testWidgets(
-    'chat list: an unconfirmed last message is not previewed like a delivered one',
+    'chat list: a last message that was not sent is not previewed like a delivered one',
     (t) async {
       final f = UiFixture();
       f.chat.summaries = [ChatSummary('alice_fred', 'fred', fixtureTime)];
@@ -85,10 +85,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(
-          of: tile,
-          matching: find.textContaining('not confirmed'),
-        ),
+        find.descendant(of: tile, matching: find.textContaining('not sent')),
         findsOneWidget,
       );
     },
@@ -122,10 +119,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.descendant(
-          of: tile,
-          matching: find.textContaining('not confirmed'),
-        ),
+        find.descendant(of: tile, matching: find.textContaining('not sent')),
         findsNothing,
       );
     },
