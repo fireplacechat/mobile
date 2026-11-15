@@ -52,7 +52,7 @@ costs one request and at most three decryptions per push, where it was ten.
 - What the extension is allowed to do (0043): it still writes nothing.
 - With the app closed, a message is still decrypted once by the extension
   for its preview and once by the app when it opens. Removing that would mean
-  the extension saving what it decrypts, as Signal's does. It is deliberately
+  the extension saving what it decrypts. It is deliberately
   not done: the history database is in the app's own storage, which the
   extension cannot reach (decision 0057), and giving the extension write
   access to sessions and history is the largest risk decision 0043 avoided.

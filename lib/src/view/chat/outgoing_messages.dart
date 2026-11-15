@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/model/chat/send_resume.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/message_quote.dart';
@@ -134,6 +135,38 @@ Future<void> chooseForFailedSend(
       onSendAgain();
     case FailedSendChoice.delete:
       queue.delete(send.id);
+  }
+}
+
+/// The same question for a saved message that was not sent (decision 0059).
+/// Sending again uses the message's own id, so it cannot arrive twice.
+Future<void> chooseForUnsent(
+  BuildContext context,
+  WidgetRef ref,
+  LocalMessage message,
+) async {
+  final choice = await showFailedSendDialog(
+    context,
+    OutgoingSend(
+      id: message.id,
+      chatId: message.chatId,
+      body: message.body,
+      createdAt: message.sentAt,
+      state: OutgoingState.failed,
+    ),
+  );
+  if (!context.mounted || choice == null) return;
+  switch (choice) {
+    case FailedSendChoice.sendAgain:
+      ref
+          .read(sendResumeProvider.notifier)
+          .tryAgain(message.chatId, message.id);
+    case FailedSendChoice.delete:
+      await ref
+          .read(appSessionProvider)
+          .value
+          ?.chat
+          .deleteMessageLocally(message.chatId, message.id);
   }
 }
 

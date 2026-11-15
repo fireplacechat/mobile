@@ -71,7 +71,7 @@ The app should look like one careful hand made it. Before building a screen, car
   danger colour.
 - **People are named as people.** In a sentence, the name alone ("dana invited you"), without "@". Where a person is meant, the avatar is
   their initial in their colour, never a placeholder symbol.
-- **Compare with the messengers people know** (Signal, WhatsApp, Telegram) for the same action, and look at your own render next to
+- **Compare with the messengers people know** for the same action, and look at your own render next to
   them before opening the pull request. If it looks plainer or wordier than theirs, it is not finished.
 
 ## Tests

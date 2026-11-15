@@ -518,6 +518,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   flashed: _timeline.flashed,
                   send: _sendController,
                   outgoing: outgoing,
+                  onUnsentTap: (message) =>
+                      chooseForUnsent(context, ref, message),
                   onFailedSend: (send) => chooseForFailedSend(
                     context,
                     ref,
