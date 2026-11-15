@@ -56,3 +56,31 @@ final class FirestorePreviewTests: XCTestCase {
     XCTAssertThrowsError(try FirestorePreview.fields(["bad": ["unknownValue": 1]]))
   }
 }
+
+final class PreviewForegroundTests: XCTestCase {
+  func testAFileTouchedWithinHalfAMinuteMeansOnScreen() {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    XCTAssertTrue(PreviewForeground.isFresh(modified: now, now: now))
+    XCTAssertTrue(PreviewForeground.isFresh(modified: now.addingTimeInterval(-29), now: now))
+    XCTAssertFalse(PreviewForeground.isFresh(modified: now.addingTimeInterval(-31), now: now))
+    // No file, or one left by an app that was killed long ago.
+    XCTAssertFalse(PreviewForeground.isFresh(modified: nil, now: now))
+    XCTAssertFalse(PreviewForeground.isFresh(modified: now.addingTimeInterval(-3600), now: now))
+    // A clock set back a little is allowed for; a file from the future is not trusted.
+    XCTAssertTrue(PreviewForeground.isFresh(modified: now.addingTimeInterval(3), now: now))
+    XCTAssertFalse(PreviewForeground.isFresh(modified: now.addingTimeInterval(60), now: now))
+  }
+
+  func testItReadsTheFilesTimeFromTheSharedFolder() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    XCTAssertFalse(PreviewForeground.appIsOnScreen(root: root))
+    let file = root.appendingPathComponent(PreviewForeground.fileName)
+    XCTAssertTrue(FileManager.default.createFile(atPath: file.path, contents: nil))
+    XCTAssertTrue(PreviewForeground.appIsOnScreen(root: root))
+    XCTAssertFalse(PreviewForeground.appIsOnScreen(root: root, now: Date().addingTimeInterval(120)))
+    try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-300)], ofItemAtPath: file.path)
+    XCTAssertFalse(PreviewForeground.appIsOnScreen(root: root))
+  }
+}

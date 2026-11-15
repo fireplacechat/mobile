@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
+import 'package:fireplace/src/app/ios_foreground_marker.dart';
 import 'package:fireplace/src/model/groups/group_models.dart'
     show groupsEnabled;
 import 'package:fireplace/src/model/groups/group_service.dart';
@@ -229,6 +230,14 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     scope.checkActive();
     final historyDir = await accountHistoryDirectory(user.uid, docs);
     await historyDir.create(recursive: true);
+    if (Platform.isIOS) {
+      // The notification extension does nothing for a push while the app is
+      // on screen (decision 0056). On iOS the history folder sits in the
+      // container the two share.
+      final onScreen = IosForegroundMarker(historyDir.parent.path)
+        ..start(SchedulerBinding.instance.lifecycleState);
+      scope.add(onScreen.stop);
+    }
     final lock = accountLock(user.uid, historyDir);
     scope.add(() async => lock.close());
     final prekeys = PreKeyService(db, secrets, lock: lock);
