@@ -243,6 +243,12 @@ class KeyService {
     }
   }
 
+  /// Checks an identity key learned somewhere other than a device record (a
+  /// group's member list): remembered on first sight, and a later difference
+  /// is an [IdentityChangedException], exactly as for a 1:1 contact.
+  Future<void> checkIdentity(String peerUid, List<int> identityPub) =>
+      _checkPin(peerUid, identityPub);
+
   Future<List<int>?> pinnedIdentity(String peerUid) async {
     final p = await _store.read(_trustKey('pin', peerUid));
     return p == null ? null : unb64(p);

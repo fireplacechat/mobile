@@ -17,6 +17,7 @@ import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/view/chat/message_menu_parts.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
 import 'package:fireplace/src/view/chat/message_widgets.dart';
+import 'package:fireplace/src/view/groups/group_held_notice.dart';
 import 'package:fireplace/src/view/groups/group_info_screen.dart';
 import 'package:fireplace/src/view/groups/group_message_row.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
@@ -374,6 +375,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       ),
       body: Column(
         children: [
+          GroupHeldNotice(gid: widget.gid),
           Expanded(
             child: rows.isEmpty && !joinedLater
                 ? const UiEmptyState(

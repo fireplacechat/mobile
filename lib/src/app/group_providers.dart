@@ -6,6 +6,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/model/groups/group_service.dart';
+import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
 
 /// The signed-in account's group service, or null (groups off or not ready).
@@ -25,6 +26,15 @@ final groupsProvider = StreamProvider.autoDispose<Map<String, GroupInfo>>((
   final service = ref.watch(groupServiceProvider);
   return service == null ? Stream.value(const {}) : service.watchGroups();
 });
+
+/// Groups and invitations stopped by a member's changed security code.
+final groupHeldProvider =
+    StreamProvider.autoDispose<Map<String, IdentityChangedException>>((ref) {
+      final service = ref.watch(groupServiceProvider);
+      return service == null
+          ? Stream.value(const {})
+          : service.watchHeldChanges();
+    });
 
 final groupInvitationsProvider =
     StreamProvider.autoDispose<List<GroupInvitation>>((ref) {
