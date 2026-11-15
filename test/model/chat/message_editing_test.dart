@@ -62,7 +62,9 @@ void main() {
     expect(db.dump(), isNot(contains('Meet on')));
     for (final doc
         in (await db.collection('chats/$chat/messages').get()).docs) {
-      expect(doc.data().keys.toSet(), {
+      // The same fields for every kind; an edit, a delete or a reaction taken
+      // back also carries the quiet mark (decision 0054), and nothing more.
+      expect(doc.data().keys.toSet()..remove('quiet'), {
         'senderUid',
         'senderDevice',
         'ts',

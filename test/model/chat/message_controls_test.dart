@@ -69,7 +69,9 @@ void main() {
           .get();
       expect(docs.docs, hasLength(4));
       for (final doc in docs.docs) {
-        expect(doc.data().keys.toSet(), {
+        // The same fields for every kind; an edit, a delete or a reaction taken
+        // back also carries the quiet mark (decision 0054), and nothing more.
+        expect(doc.data().keys.toSet()..remove('quiet'), {
           'senderUid',
           'senderDevice',
           'ts',

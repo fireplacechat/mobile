@@ -32,19 +32,39 @@ class SafetyService {
 
   /// Loads the block list and keeps it current. Call once after sign-in.
   Future<void> start() async {
-    _blocked = (await _blocks.get()).docs.map((d) => d.id).toSet();
-    _blockedCtrl.add(_blocked);
-    _sub = _blocks.snapshots(includeMetadataChanges: true).listen((s) {
-      // A delete is visible in the SDK cache before the server accepts it.
-      // Keep receiving/sending disabled until our unblock is acknowledged.
-      _blocked = {
-        if (s.metadata.hasPendingWrites) ..._blocked,
-        for (final d in s.docs) d.id,
-        ..._pendingUnblocks,
-      };
-      _blockedCtrl.add(_blocked);
-    }, onError: (_) {});
+    // The listener's first answer from the server is the starting list; a
+    // separate read before it would fetch the same documents twice.
+    final fromServer = Completer<void>();
+    final any = Completer<void>();
+    _sub = _blocks
+        .snapshots(includeMetadataChanges: true)
+        .listen(
+          (s) {
+            // A delete is visible in the SDK cache before the server accepts it.
+            // Keep receiving/sending disabled until our unblock is acknowledged.
+            _blocked = {
+              if (s.metadata.hasPendingWrites) ..._blocked,
+              for (final d in s.docs) d.id,
+              ..._pendingUnblocks,
+            };
+            _blockedCtrl.add(_blocked);
+            if (!any.isCompleted) any.complete();
+            if (!s.metadata.isFromCache && !fromServer.isCompleted) {
+              fromServer.complete();
+            }
+          },
+          onError: (Object e, StackTrace st) {
+            // As a failed first read did: the account cannot start without it.
+            if (!any.isCompleted) any.completeError(e, st);
+            if (!fromServer.isCompleted) fromServer.complete();
+          },
+        );
+    // Offline, the copy on this phone stands in until the server answers.
+    await fromServer.future.timeout(_serverWait, onTimeout: () {});
+    await any.future;
   }
+
+  static const _serverWait = Duration(seconds: 3);
 
   Future<void> dispose() async {
     await _sub?.cancel();
