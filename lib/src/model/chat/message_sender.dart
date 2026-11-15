@@ -185,6 +185,9 @@ class MessageSender {
       // After this the server copy may be deleted (backend decision 0010: an operator
       // purge today; an automatic TTL is planned).
       'expireAt': Timestamp.fromDate(DateTime.now().add(messageRetention)),
+      // No alert for it (decision 0054). All the server learns is that this
+      // document is not a message a person reads.
+      if (mutation?.quiet ?? false) 'quiet': true,
     };
     final lastBump = (chat['lastMessageAt'] as Timestamp?)?.toDate();
 

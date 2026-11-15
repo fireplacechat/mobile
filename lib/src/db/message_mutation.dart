@@ -16,6 +16,13 @@ class MessageMutation {
   final ReactionOperation operation;
   final int revision;
 
+  /// Whether this is sent as a quiet message (decision 0054): an edit, a
+  /// delete or a reaction taken back is not something to alert anyone about.
+  /// A new reaction is: it has its own notification.
+  bool get quiet =>
+      kind != MessageMutationKind.reaction ||
+      operation == ReactionOperation.clear;
+
   Map<String, dynamic> toJson() => {
     'type': kind.name,
     'targetId': targetId,

@@ -891,6 +891,7 @@ class GroupService {
       gid,
       encodeMessagePayload(text: '', now: _now(), mutation: checked),
       mutation: checked,
+      quiet: checked.quiet,
     );
   }
 
@@ -934,6 +935,7 @@ class GroupService {
             if (hello) 'hello': true,
           }),
         ),
+        quiet: true,
       );
     } catch (_) {
       // Shared again with the next change; members show Stone meanwhile.
@@ -971,6 +973,7 @@ class GroupService {
       await _publish(
         gid,
         utf8.encode(jsonEncode({'v': 4, 'type': 'notice', ...notice})),
+        quiet: true,
       );
     } catch (_) {
       // The removal still happens.
@@ -990,6 +993,10 @@ class GroupService {
     String? text,
     MessageMutation? mutation,
     MessageQuote? quote,
+
+    /// No alert for it (decision 0054): a colour, a notice, an edit, a delete
+    /// or a reaction taken back.
+    bool quiet = false,
   }) async {
     final n = _now().microsecondsSinceEpoch;
     final id = '$deviceId-$n';
@@ -1026,6 +1033,7 @@ class GroupService {
       'ct': Blob(unb64(result['ciphertext'] as String)),
       'at': FieldValue.serverTimestamp(),
       'expireAt': Timestamp.fromDate(sentAt.add(const Duration(days: 30))),
+      if (quiet) 'quiet': true,
     };
     try {
       await publishWithClock(

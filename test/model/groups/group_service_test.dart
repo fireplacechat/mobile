@@ -81,6 +81,48 @@ void main() {
     },
   );
 
+  test('colours, notices, edits, deletes and reactions taken back are quiet; '
+      'texts and new reactions are not', () async {
+    final gid = await bookClub();
+    final events = db.collection('groups/$gid/events');
+    Future<int> loud() async => (await events.get()).docs
+        .where((d) => d.data()['quiet'] != true)
+        .length;
+    // Joining exchanged colours: every one of those is quiet.
+    await until(
+      () async => alice.service.colorsOf(gid).containsKey('bob'),
+      what: 'colours',
+    );
+    expect((await events.get()).docs, isNotEmpty);
+    expect(await loud(), 0);
+
+    await alice.service.send(gid, 'Thursday at 7');
+    expect(await loud(), 1);
+    await until(
+      () async => (await texts(bob, gid)).contains('Thursday at 7'),
+      what: 'Bob receives',
+    );
+    final id = (await bob.messages.watch(groupChatId(gid)).first).single.id;
+    await bob.service.react(gid, id, '👍');
+    expect(await loud(), 2);
+    await until(
+      () async => (await alice.messages.get(
+        groupChatId(gid),
+        id,
+      ))!.reactions.isNotEmpty,
+      what: 'the reaction',
+    );
+    await until(
+      () async =>
+          (await bob.messages.get(groupChatId(gid), id))!.reactions.isNotEmpty,
+      what: 'the reaction on the phone of Bob',
+    );
+    await bob.service.react(gid, id, '👍'); // taken back
+    await alice.service.edit(gid, id, 'Thursday at 8');
+    await alice.service.deleteForEveryone(gid, id);
+    expect(await loud(), 2);
+  });
+
   test(
     'messages reach the other member, never twice, with the right sender',
     () async {
