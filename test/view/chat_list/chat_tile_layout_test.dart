@@ -1,4 +1,5 @@
 import 'package:fireplace/fireplace_services.dart';
+import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
@@ -177,12 +178,12 @@ void main() {
       );
 
       // Marking them seen on this device clears it; nothing came from a server.
-      await f.session.chatPreferences.markSeen('alice_fred', [
-        '1',
-        '3',
-        '5',
-        'new',
-      ]);
+      final container = ProviderScope.containerOf(
+        t.element(find.byType(ChatListScreen)),
+      );
+      await container
+          .read(chatActivityProvider.notifier)
+          .seen('alice_fred', await f.chat.store.all('alice_fred'));
       await settleUi(t);
       expect(unread('alice_fred'), findsNothing);
     },

@@ -17,7 +17,7 @@ void main() {
         secrets: secrets,
         uid: 'alice',
       );
-      await p.markSeen('chat-sensitive-name', ['message-id-sensitive']);
+      await p.togglePin('chat-sensitive-name', 'message-id-sensitive');
       await p.mute('chat-sensitive-name', true);
       await p.previews(true);
       final bytes = await File('${dir.path}/chat-ui.enc').readAsBytes();
@@ -36,7 +36,7 @@ void main() {
         secrets: secrets,
         uid: 'alice',
       );
-      expect(reopened.seen['chat-sensitive-name'], {'message-id-sensitive'});
+      expect(reopened.pinned['chat-sensitive-name'], ['message-id-sensitive']);
       expect(reopened.muted, {'chat-sensitive-name'});
       expect(reopened.previewText, isTrue);
       await reopened.close();
@@ -48,7 +48,7 @@ void main() {
         uid: 'alice',
       );
       expect(damaged.available, isFalse);
-      expect(damaged.seen, isEmpty);
+      expect(damaged.pinned, isEmpty);
       expect(damaged.previewText, isFalse);
       await expectLater(damaged.mute('new-chat', true), throwsStateError);
       await damaged.reset();
@@ -115,7 +115,7 @@ void main() {
     );
     expect(wrongAccount.available, isFalse);
     expect(wrongAccount.muted, isEmpty);
-    expect(wrongAccount.seen, isEmpty);
+    expect(wrongAccount.pinned, isEmpty);
     await wrongAccount.close();
   });
   test('write failure rolls back and later queued writes still work', () async {
@@ -143,14 +143,14 @@ void main() {
           if (calls == 1) await hold.future;
         },
       );
-      final seen = p.markSeen('a', ['1', '2']);
+      final seen = p.togglePin('a', '1');
       final mute = p.mute('a', true);
       final preview = p.previews(true);
       await Future<void>.delayed(Duration.zero);
       expect(calls, 1);
       hold.complete();
       await Future.wait([seen, mute, preview]);
-      expect(p.seen['a'], {'1', '2'});
+      expect(p.pinned['a'], ['1']);
       expect(p.muted, {'a'});
       expect(p.previewText, isTrue);
       await p.close();

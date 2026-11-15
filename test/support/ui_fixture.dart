@@ -67,6 +67,11 @@ class FixtureChat extends Fake implements ChatService {
   @override
   void prepareToSend(String chatId) {}
   @override
+  Future<void> markRead(String chatId, Iterable<String> messageIds) =>
+      store.markRead(chatId, messageIds);
+  @override
+  Future<int> unreadCount(String chatId) => store.unreadCount(chatId);
+  @override
   Future<void> showOlderMessages(String chatId) => store.showOlder(chatId);
   @override
   Future<void> revealMessage(String chatId, String messageId) =>

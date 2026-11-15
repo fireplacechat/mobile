@@ -49,16 +49,12 @@ void main() {
         expect(prefs.available, isFalse);
         expect(await secrets.read('chatprefskey:alice'), raw);
         await expectLater(prefs.previews(true), throwsStateError);
-        await prefs.reset(
-          history: {
-            'c': {'existing'},
-          },
-        );
+        await prefs.reset(baselined: ['c']);
         final repaired = unb64((await secrets.read('chatprefskey:alice'))!);
         expect(repaired, hasLength(32));
         expect(repaired, isNot(everyElement(0)));
         expect(prefs.previewText, isTrue);
-        expect(prefs.seen['c'], {'existing'});
+        expect(prefs.needsBaseline('c'), isFalse);
         expect(await history.readAsString(), 'fixture history preserved');
         await prefs.close();
         final reopened = await LocalChatPreferences.open(
@@ -68,7 +64,7 @@ void main() {
         );
         expect(reopened.available, isTrue);
         expect(reopened.needsBaseline('c'), isFalse);
-        expect(reopened.seen['c'], {'existing'});
+        expect(reopened.needsBaseline('another'), isTrue);
         await reopened.close();
       },
     );
@@ -136,15 +132,16 @@ void main() {
     expect(c.read(chatActivityProvider).unread['alice_fred'], 1);
     expect(c.read(chatActivityProvider).arrivals.single.id, 'new-old-time');
     // A concurrent initial snapshot/reopen must never absorb a later arrival.
-    await prefs.seedExisting('alice_fred', ['new-old-time']);
-    expect(prefs.seen['alice_fred'], isNot(contains('new-old-time')));
+    // The baseline was claimed when the chat first loaded: nobody gets it
+    // again, so nothing marks the late message as read.
+    expect(await prefs.claimBaseline('alice_fred'), isFalse);
+    expect(await f.chat.store.unreadCount('alice_fred'), 1);
     final reopened = await LocalChatPreferences.open(
       dir: dir,
       secrets: secrets,
       uid: 'alice',
     );
     expect(reopened.needsBaseline('alice_fred'), isFalse);
-    expect(reopened.seen['alice_fred'], isNot(contains('new-old-time')));
     await reopened.close();
     await prefs.mute('alice_fred', true);
     await prefs.previews(false);
@@ -167,13 +164,14 @@ void main() {
         baselineExisting: true,
         save: (_) async => hold.future,
       );
-      final first = prefs.seedExisting('c', ['old']);
-      final raced = prefs.seedExisting('c', ['old', 'new']);
+      // Each would mark what it saw as read; only the first may.
+      final first = prefs.claimBaseline('c');
+      final raced = prefs.claimBaseline('c');
       await Future<void>.delayed(Duration.zero);
-      expect(prefs.seen, isEmpty);
+      expect(prefs.needsBaseline('c'), isTrue);
       hold.complete();
-      await Future.wait([first, raced]);
-      expect(prefs.seen['c'], {'old'});
+      expect(await Future.wait([first, raced]), [true, false]);
+      expect(prefs.needsBaseline('c'), isFalse);
       await prefs.close();
     },
   );
@@ -187,18 +185,12 @@ void main() {
           if (fail) throw StateError('disk full');
         },
       );
-      await expectLater(prefs.seedExisting('c', ['old']), throwsStateError);
+      await expectLater(prefs.claimBaseline('c'), throwsStateError);
       expect(prefs.available, isFalse);
-      expect(prefs.seen, isEmpty);
       fail = false;
-      await prefs.reset(
-        history: {
-          'c': {'old', 'current'},
-        },
-      );
+      await prefs.reset(baselined: ['c']);
       expect(prefs.available, isTrue);
       expect(prefs.needsBaseline('c'), isFalse);
-      expect(prefs.seen['c'], {'old', 'current'});
       await prefs.close();
     },
   );

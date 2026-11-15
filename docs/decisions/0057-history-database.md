@@ -126,6 +126,33 @@ decrypted, so the message must be on disk before the app goes on (decision
   that case.
 - **Erasing an account** removes the database folder as well.
 
+## Windows (step 3)
+
+- A conversation is read as its newest 200 messages. Scrolling back to the
+  oldest shown loads 200 more; jumping to an old message (a search result, a
+  quote, a pin) loads up to it and 50 before.
+- What a window shows is always the true end of the conversation: a message
+  that arrives late with an old send time is not shown at the window's start,
+  and a message leaving a full window lets an older one in. A test checks this
+  over random changes.
+- Search reads whole histories, when a search is made.
+
+## Read flags (issue 180)
+
+- Each message has a read flag. Unread is an indexed count. What this account
+  sent, and what its author deleted, counts as read.
+- **Why a flag and not a "seen up to here" mark:** a message can arrive late
+  with an early place in the conversation (held for a security-code check,
+  then released). A mark would count it as seen without it ever being shown.
+- The list of seen ids in the preferences file is carried into the flags once,
+  then removed from the file. The file keeps mutes, pins, the preview choice
+  and which chats have had their first-run baseline.
+- The baseline rule is unchanged: when read state starts for a chat, exactly
+  the messages already there are marked read, by whoever claims the baseline
+  first, so a message arriving meanwhile stays unread.
+- Schema version 2 adds a status column, so a count can leave out lines that
+  are not readable messages (group notices) without opening each record.
+
 ## Cost and size
 
 No server cost: the database is on the phone. The library adds a few megabytes

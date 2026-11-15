@@ -76,35 +76,42 @@ ChatBubbleColor memberColor(MemberColors colors, String uid) =>
     ChatBubbleColor.values.asNameMap()[colors[uid]] ?? ChatBubbleColor.stone;
 
 /// Messages from other people in a group that this phone has not shown yet.
-/// Counted here from the local history, like 1:1 chats: the server holds no
-/// read state and nobody is told what was read.
-final groupUnreadProvider = Provider.autoDispose.family<int, String>((
-  ref,
-  gid,
-) {
-  final prefs = ref.watch(appSessionProvider).value?.chatPreferences;
-  if (prefs == null || !prefs.available) return 0;
-  final changes = prefs.changes.listen((_) => ref.invalidateSelf());
-  ref.onDispose(changes.cancel);
-  final id = groupChatId(gid);
-  final incoming = [
-    for (final m
-        in ref.watch(groupMessagesProvider(gid)).value ??
-            const <LocalMessage>[])
-      if (!m.outgoing &&
-          m.visible &&
-          !m.remotelyDeleted &&
-          m.status == MessageStatus.ok)
-        m.id,
-  ];
-  if (prefs.needsBaseline(id)) {
-    // What is already here when the group first appears is not "new".
-    unawaited(prefs.seedExisting(id, incoming).catchError((Object _) {}));
-    return 0;
-  }
-  final seen = prefs.seen[id] ?? const <String>{};
-  return incoming.where((m) => !seen.contains(m)).length;
-});
+/// Counted by the history database from each message's read flag (issue
+/// 180), like 1:1 chats: the server holds no read state and nobody is told
+/// what was read. Zero while it is being counted.
+final groupUnreadCountProvider = FutureProvider.autoDispose.family<int, String>(
+  (ref, gid) async {
+    final prefs = ref.watch(appSessionProvider).value?.chatPreferences;
+    final service = ref.watch(groupServiceProvider);
+    if (prefs == null || service == null || !prefs.available) return 0;
+    final changes = prefs.changes.listen((_) => ref.invalidateSelf());
+    ref.onDispose(changes.cancel);
+    final id = groupChatId(gid);
+    // Counted again whenever the group's history changes.
+    final messages =
+        ref.watch(groupMessagesProvider(gid)).value ?? const <LocalMessage>[];
+    if (prefs.needsBaseline(id)) {
+      // What is already here when the group first appears is not "new":
+      // exactly these, so a message arriving meanwhile stays unread.
+      final existing = [
+        for (final m in messages)
+          if (!m.outgoing) m.id,
+      ];
+      try {
+        if (await prefs.claimBaseline(id)) {
+          await service.markRead(gid, existing);
+        }
+      } catch (_) {
+        return 0;
+      }
+    }
+    return service.unreadCount(gid);
+  },
+);
+
+final groupUnreadProvider = Provider.autoDispose.family<int, String>(
+  (ref, gid) => ref.watch(groupUnreadCountProvider(gid)).value ?? 0,
+);
 
 /// Whether this phone has muted a group. Kept with the 1:1 mutes, on the
 /// phone only: the server and the other members never learn of it.

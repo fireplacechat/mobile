@@ -221,6 +221,13 @@ class ChatService {
   Future<LocalMessage?> message(String chatId, String messageId) async =>
       (await _messages.get(chatId, messageId))?.forAccount(uid);
 
+  /// Records, on this device only, that the person has seen these messages.
+  Future<void> markRead(String chatId, Iterable<String> messageIds) =>
+      _messages.markRead(chatId, messageIds);
+
+  /// Messages from the other person not yet seen.
+  Future<int> unreadCount(String chatId) => _messages.unreadCount(chatId);
+
   /// Gives [watchMessages] the next older messages as well.
   Future<void> showOlderMessages(String chatId) =>
       _messages.showOlder(chatId, more: ChatTuning.historyWindow);

@@ -128,7 +128,7 @@ final referenceCases = <CatalogCase>[
     act: (t, f) async {
       // Everything except the first conversation has been read.
       for (final peer in ['tabitha', 'dana', 'juniper']) {
-        await f.session.chatPreferences.markSeen('alice_$peer', ['ref-$peer']);
+        await f.chat.store.markRead('alice_$peer', ['ref-$peer']);
       }
       await settleUi(t);
     },

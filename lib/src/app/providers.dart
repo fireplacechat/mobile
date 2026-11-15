@@ -27,6 +27,7 @@ import 'package:fireplace/src/model/notifications/preview_notifier.dart';
 import 'package:fireplace/src/model/push/push_chat_index.dart';
 import 'package:fireplace/src/model/push/preview_credentials.dart';
 import 'package:fireplace/src/model/safety/push_challenge.dart';
+import 'package:fireplace/src/model/settings/legacy_seen.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/model/settings/account_preferences.dart';
 import 'package:fireplace/src/db/account_erasure.dart';
@@ -268,6 +269,15 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       uid: user.uid,
     );
     scope.add(chatPreferences.close);
+    scope.checkActive();
+    // Seen ids from before the history database become read flags (issue
+    // 180). A failure leaves them for the next start; until then those chats
+    // show as unread.
+    try {
+      await moveLegacySeen(chatPreferences, store);
+    } catch (_) {
+      if (scope.stopped) rethrow;
+    }
     scope.checkActive();
     // 7. Start safety state and the chat service.
     final safety = SafetyService(db, secrets, user.uid);
