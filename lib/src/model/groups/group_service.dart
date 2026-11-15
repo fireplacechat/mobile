@@ -77,6 +77,18 @@ class GroupService {
   final _groupSubs = <String, List<StreamSubscription<Object?>>>{};
   final _rosters = <String, Map<String, dynamic>>{};
   // Events that arrived ahead of this device's epoch, waiting for Commits.
+  /// How many times a group message was handed to the core to decrypt.
+  @visibleForTesting
+  int eventAttempts = 0;
+
+  /// Group event documents read successfully since the app started.
+  final _handledEvents = <String, Set<String>>{};
+
+  /// The counter in this device's last message id. Ids must differ: two
+  /// messages sent in the same clock tick (a newcomer's colour and their
+  /// first message, say) would otherwise share one, and the server refuses
+  /// the second.
+  int _lastMessageNumber = 0;
   final _waiting =
       <String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>{};
   final _pending = <String>{}; // groups with an own Commit awaiting its slot
@@ -359,6 +371,7 @@ class GroupService {
     _rosters.remove(gid);
     _departures.remove(gid);
     _removalLines.remove(gid);
+    _handledEvents.remove(gid);
     try {
       await _change(
         {'op': 'forget', 'gid': gid},
@@ -736,6 +749,12 @@ class GroupService {
       if (info == null || _closed) return;
       final data = doc.data();
       final epoch = (data['epoch'] as num?)?.toInt() ?? -1;
+      // A listener passes every document it holds each time one arrives. One
+      // read successfully in this session is not tried again: its key is
+      // spent. (A colour or notice is not in the history, so the check below
+      // does not catch it.) One that could not be read yet is tried again.
+      final handled = _handledEvents[gid] ??= {};
+      if (handled.contains(doc.id)) continue;
       if (epoch > info.epoch) {
         (_waiting[gid] ??= []).add(doc);
         continue;
@@ -749,6 +768,7 @@ class GroupService {
       if (data['device'] == deviceId) continue;
       final ct = data['ct'];
       if (ct is! Blob) continue;
+      eventAttempts++;
       try {
         await _change(
           {'op': 'process', 'gid': gid, 'message': b64(ct.bytes)},
@@ -762,6 +782,7 @@ class GroupService {
           beforeSave: (r) =>
               _store(gid, doc.id, data, unb64(r['plain'] as String)),
         );
+        handled.add(doc.id);
       } on GroupCryptoException {
         // Undecryptable (too old, or not for this device): skip it.
       }
@@ -998,7 +1019,9 @@ class GroupService {
     /// or a reaction taken back.
     bool quiet = false,
   }) async {
-    final n = _now().microsecondsSinceEpoch;
+    final clock = _now().microsecondsSinceEpoch;
+    final n = clock > _lastMessageNumber ? clock : _lastMessageNumber + 1;
+    _lastMessageNumber = n;
     final id = '$deviceId-$n';
     final chatId = groupChatId(gid);
     final result = await _serial(() async {
