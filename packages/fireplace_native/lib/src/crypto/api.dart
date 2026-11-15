@@ -87,6 +87,7 @@ extension NativeCryptoApi on NativeCrypto {
     String device,
     List<int> x,
     List<int> kem,
+    List<int> secret,
   ) => NativeCrypto.decodeJson(
     _seal(
       NativeCrypto.jsonBytes(identity),
@@ -94,18 +95,21 @@ extension NativeCryptoApi on NativeCrypto {
       utf8.encode(device),
       x,
       kem,
+      secret,
     ),
   );
   Map<String, dynamic> linkOpen(
     Map<String, dynamic> sealed,
     String uid,
     Map<String, dynamic> device,
+    List<int> secret,
   ) => NativeCrypto.decodeJson(
-    _ternary(
-      'fp_link_open',
+    _quaternary(
+      'fp_link_open_v2',
       NativeCrypto.jsonBytes(sealed),
       utf8.encode(uid),
       NativeCrypto.jsonBytes(device),
+      secret,
     ),
   );
   bool sessionValidate(Map<String, dynamic> state) =>

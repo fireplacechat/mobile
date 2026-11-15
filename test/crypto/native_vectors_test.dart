@@ -215,6 +215,7 @@ void main() {
       device['deviceId'] as String,
       unb64(device['x25519Pub']),
       unb64(device['kemPub']),
+      dart.linkSecret,
     );
     final actual = {
       'identity': jsonEncode(identity),

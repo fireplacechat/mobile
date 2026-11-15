@@ -58,6 +58,15 @@ class RecoveryBackup {
 }
 
 class LinkCrypto {
+  /// The random value a new device shows in its QR code and sends nowhere.
+  static Uint8List newSecret() {
+    final random = Random.secure();
+    return Uint8List.fromList([
+      for (var i = 0; i < reference.LinkCrypto.secretLength; i++)
+        random.nextInt(256),
+    ]);
+  }
+
   static Future<String> requestFingerprint(List<int> x, List<int> kem) async =>
       useRust
       ? _nativeCrypto.linkFingerprint(x, kem)
@@ -75,6 +84,7 @@ class LinkCrypto {
     required String deviceId,
     required Uint8List x25519Pub,
     required Uint8List kemPub,
+    required List<int> secret,
   }) async {
     if (!useRust) {
       return reference.LinkCrypto.seal(
@@ -83,6 +93,7 @@ class LinkCrypto {
         deviceId: deviceId,
         x25519Pub: x25519Pub,
         kemPub: kemPub,
+        secret: secret,
       );
     }
     try {
@@ -93,6 +104,7 @@ class LinkCrypto {
           deviceId,
           x25519Pub,
           kemPub,
+          secret,
         ),
       );
     } on NativeCryptoException {
@@ -104,15 +116,21 @@ class LinkCrypto {
     reference.SealedIdentity sealed, {
     required String uid,
     required reference.DeviceKeys keys,
+    required List<int> secret,
   }) async {
     if (!useRust) {
       return AccountIdentity._(
-        await reference.LinkCrypto.open(sealed, uid: uid, keys: keys),
+        await reference.LinkCrypto.open(
+          sealed,
+          uid: uid,
+          keys: keys,
+          secret: secret,
+        ),
       );
     }
     try {
       return AccountIdentity.fromJson(
-        _nativeCrypto.linkOpen(sealed.toJson(), uid, keys.toJson()),
+        _nativeCrypto.linkOpen(sealed.toJson(), uid, keys.toJson(), secret),
       );
     } on NativeCryptoException {
       throw reference.LinkException(

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/providers.dart';
@@ -244,7 +245,12 @@ void main() {
     (t) async {
       final r = ActionRecovery();
       final f = UiFixture();
-      r.request = LinkRequest('alice', f.session.device.keys, 'example-qr');
+      r.request = LinkRequest(
+        'alice',
+        f.session.device.keys,
+        Uint8List(16),
+        'example-qr',
+      );
       r.response = Completer<SealedIdentity>();
       await host(
         t,

@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:fireplace/src/crypto/dart_reference.dart' as reference;

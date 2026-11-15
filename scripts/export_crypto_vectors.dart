@@ -208,6 +208,9 @@ Future<Map<String, Object>> scriptedTranscript() async {
   };
 }
 
+/// The QR secret of the scripted link. It is given, not drawn from the stream.
+final linkSecret = Uint8List.fromList(List.generate(16, (i) => i * 11 + 7));
+
 Future<Map<String, Object>> scriptedRecoveryAndLink() async {
   installTestRng(pattern());
   final identity = await AccountIdentity.generate();
@@ -220,6 +223,7 @@ Future<Map<String, Object>> scriptedRecoveryAndLink() async {
     deviceId: device.deviceId,
     x25519Pub: device.x25519Pub,
     kemPub: device.kemPub,
+    secret: linkSecret,
   );
   installTestRng(null);
   return {
@@ -229,6 +233,7 @@ Future<Map<String, Object>> scriptedRecoveryAndLink() async {
     'blob': blob,
     'device': jsonEncode(device.toJson()),
     'sealed': jsonEncode(sealed.toJson()),
+    'linkSecret': b64(linkSecret),
     'uid': 'ada',
   };
 }

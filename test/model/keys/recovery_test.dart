@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/fireplace_services.dart';
@@ -172,6 +175,84 @@ void main() {
     );
 
     test(
+      'a response made without the secret in the QR code does not open',
+      () async {
+        final req = await fresh.recovery.startLink('alice');
+        final honestCode = await existing.recovery.approveLink(
+          'alice',
+          existingDev.identity,
+          req.qrPayload,
+        );
+        // Someone who can write the response and knows every public value
+        // picks an identity of their own. Whatever code it gives, the new
+        // device cannot open what was sealed without its secret.
+        final evil = await AccountIdentity.generate();
+        final forged = await LinkCrypto.seal(
+          evil,
+          uid: 'alice',
+          deviceId: req.keys.deviceId,
+          x25519Pub: req.keys.x25519Pub,
+          kemPub: req.keys.kemPub,
+          secret: Uint8List(16),
+        );
+        final forgedCode = await LinkCrypto.confirmationCode(
+          evil.publicBytes,
+          req.keys.x25519Pub,
+          req.keys.kemPub,
+        );
+        for (final code in [honestCode, forgedCode]) {
+          await expectLater(
+            fresh.recovery.completeLink(req, forged, code),
+            throwsA(isA<RecoveryException>()),
+          );
+        }
+        expect(await fresh.secrets.read('identity:alice'), isNull);
+      },
+    );
+
+    test('the secret is in the QR code and not on the server', () async {
+      final req = await fresh.recovery.startLink('alice');
+      final qr = LinkQr.parse(req.qrPayload)!;
+      expect(qr.secret, req.secret);
+      expect(qr.secret, hasLength(16));
+      final other = await fresh.recovery.startLink('alice');
+      expect(other.secret, isNot(req.secret));
+      final stored =
+          (await db
+                  .collection('users/alice/linkRequests')
+                  .doc(req.keys.deviceId)
+                  .get())
+              .data()!
+              .toString();
+      expect(stored.contains(req.qrPayload.split('/').last), isFalse);
+      expect(stored.contains(base64Encode(req.secret)), isFalse);
+    });
+
+    test('a QR code from an older version is refused in plain words', () async {
+      final req = await fresh.recovery.startLink('alice');
+      final qr = LinkQr.parse(req.qrPayload)!;
+      await expectLater(
+        existing.recovery.approveLink(
+          'alice',
+          existingDev.identity,
+          'fireplace://link/1/alice/${qr.deviceId}/${qr.fingerprint}',
+        ),
+        throwsA(
+          isA<RecoveryException>().having(
+            (e) => e.message,
+            'message',
+            contains('Update Fireplace on the new device'),
+          ),
+        ),
+      );
+      final snap = await db
+          .collection('users/alice/linkRequests')
+          .doc(qr.deviceId)
+          .get();
+      expect(snap.data()!.containsKey('response'), isFalse);
+    });
+
+    test(
       'server swapping the identity in the response is caught by the code',
       () async {
         final req = await fresh.recovery.startLink('alice');
@@ -180,7 +261,8 @@ void main() {
           existingDev.identity,
           req.qrPayload,
         );
-        // attacker replaces the response with their own identity sealed to the same device
+        // Even a response sealed with the right secret is refused when its
+        // identity does not give the code the person was shown.
         final evil = await AccountIdentity.generate();
         final forged = await LinkCrypto.seal(
           evil,
@@ -188,6 +270,7 @@ void main() {
           deviceId: req.keys.deviceId,
           x25519Pub: req.keys.x25519Pub,
           kemPub: req.keys.kemPub,
+          secret: req.secret,
         );
         await expectLater(
           fresh.recovery.completeLink(req, forged, honestCode),
@@ -324,16 +407,27 @@ void main() {
   });
 
   test('LinkQr parsing', () {
-    final q = LinkQr('uid1', 'abcdefgh_-12', 'A' * 22);
+    final secret = Uint8List.fromList(List.generate(16, (i) => 255 - i * 3));
+    final q = LinkQr('uid1', 'abcdefgh_-12', 'A' * 22, secret);
     final p = LinkQr.parse(q.encode())!;
     expect(
       [p.uid, p.deviceId, p.fingerprint],
       ['uid1', 'abcdefgh_-12', 'A' * 22],
     );
+    expect(p.secret, secret);
+    expect(q.encode(), startsWith('fireplace://link/2/uid1/abcdefgh_-12/'));
+    final old = 'fireplace://link/1/uid1/abcdefgh_-12/${'A' * 22}';
+    expect(LinkQr.isOld(old), isTrue);
+    expect(LinkQr.isOld(q.encode()), isFalse);
     for (final j in [
       null,
       '',
+      old,
       'fireplace://link/2/a/b/c',
+      // No secret, a short one, a long one.
+      'fireplace://link/2/uid1/abcdefgh_-12/${'A' * 22}',
+      'fireplace://link/2/uid1/abcdefgh_-12/${'A' * 22}/${'A' * 21}',
+      'fireplace://link/2/uid1/abcdefgh_-12/${'A' * 22}/${'A' * 23}',
       'fireplace://verify/1/${'1' * 60}',
     ]) {
       expect(LinkQr.parse(j), isNull);

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -16,26 +17,51 @@ class RecoveryException implements Exception {
 
 /// What the new device shows while waiting for an existing device to approve it.
 class LinkRequest {
-  LinkRequest(this.uid, this.keys, this.qrPayload);
+  LinkRequest(this.uid, this.keys, this.secret, this.qrPayload);
   final String uid;
   final DeviceKeys keys;
+
+  /// Shown in the QR code and kept in memory only. It is never written to
+  /// the server or to disk.
+  final Uint8List secret;
   final String qrPayload;
 }
 
-/// Parsed QR code `fireplace://link/1/<uid>/<deviceId>/<fingerprint>`.
+/// Parsed QR code
+/// `fireplace://link/2/<uid>/<deviceId>/<fingerprint>/<secret>`.
+///
+/// The secret is 16 random bytes that only the QR code carries. The approving
+/// device puts it into the key that seals the identity, so a response made
+/// without reading the QR code does not open (decision 0060).
 class LinkQr {
-  LinkQr(this.uid, this.deviceId, this.fingerprint);
+  LinkQr(this.uid, this.deviceId, this.fingerprint, this.secret);
   final String uid, deviceId, fingerprint;
+  final Uint8List secret;
 
-  String encode() => 'fireplace://link/1/$uid/$deviceId/$fingerprint';
+  String encode() =>
+      'fireplace://link/2/$uid/$deviceId/$fingerprint/'
+      '${base64Url.encode(secret).replaceAll('=', '')}';
 
   static final _re = RegExp(
-    r'^fireplace://link/1/([A-Za-z0-9]{1,128})/([A-Za-z0-9_-]{8,64})/([A-Za-z0-9_-]{16,32})$',
+    r'^fireplace://link/2/([A-Za-z0-9]{1,128})/([A-Za-z0-9_-]{8,64})/([A-Za-z0-9_-]{16,32})/([A-Za-z0-9_-]{22})$',
   );
+
+  /// The form older versions show. It has no secret, so it is not answered.
+  static final _old = RegExp(r'^fireplace://link/1/');
+
+  static bool isOld(String? raw) => _old.hasMatch((raw ?? '').trim());
 
   static LinkQr? parse(String? raw) {
     final m = _re.firstMatch((raw ?? '').trim());
-    return m == null ? null : LinkQr(m.group(1)!, m.group(2)!, m.group(3)!);
+    if (m == null) return null;
+    final Uint8List secret;
+    try {
+      secret = base64Url.decode(base64Url.normalize(m.group(4)!));
+    } on FormatException {
+      return null;
+    }
+    if (secret.length != 16) return null;
+    return LinkQr(m.group(1)!, m.group(2)!, m.group(3)!, secret);
   }
 }
 
@@ -123,7 +149,13 @@ class RecoveryService {
       'kemPub': base64Encode(keys.kemPub),
       'createdAt': FieldValue.serverTimestamp(),
     });
-    return LinkRequest(uid, keys, LinkQr(uid, keys.deviceId, fp).encode());
+    final secret = LinkCrypto.newSecret();
+    return LinkRequest(
+      uid,
+      keys,
+      secret,
+      LinkQr(uid, keys.deviceId, fp, secret).encode(),
+    );
   }
 
   /// Completes when an existing device has written its sealed response.
@@ -155,18 +187,26 @@ class RecoveryService {
     }
   }
 
-  /// The confirmation code the new device expects to see on the approving device.
-  /// Throws if [typedCode] doesn't match, so a swapped identity is never installed.
+  /// Opens the response and installs the identity. Only a device that read
+  /// this device's QR code can have made a response that opens. The typed
+  /// code is a second look by the person: it must be the one the approving
+  /// device shows.
   Future<LocalDevice> completeLink(
     LinkRequest req,
     SealedIdentity sealed,
     String typedCode,
   ) async {
-    final identity = await LinkCrypto.open(
-      sealed,
-      uid: req.uid,
-      keys: req.keys,
-    );
+    final AccountIdentity identity;
+    try {
+      identity = await LinkCrypto.open(
+        sealed,
+        uid: req.uid,
+        keys: req.keys,
+        secret: req.secret,
+      );
+    } on LinkException {
+      throw RecoveryException('Could not link this device. Start again.');
+    }
     final expected = await LinkCrypto.confirmationCode(
       identity.publicBytes,
       req.keys.x25519Pub,
@@ -193,6 +233,11 @@ class RecoveryService {
     AccountIdentity identity,
     String qrPayload,
   ) async {
+    if (LinkQr.isOld(qrPayload)) {
+      throw RecoveryException(
+        'Update Fireplace on the new device, then show the code again.',
+      );
+    }
     final qr = LinkQr.parse(qrPayload);
     if (qr == null) {
       throw RecoveryException("That isn't a Fireplace link code.");
@@ -227,6 +272,7 @@ class RecoveryService {
       deviceId: qr.deviceId,
       x25519Pub: x,
       kemPub: k,
+      secret: qr.secret,
     );
     await _requests(uid).doc(qr.deviceId).update({'response': sealed.toJson()});
     return LinkCrypto.confirmationCode(identity.publicBytes, x, k);
