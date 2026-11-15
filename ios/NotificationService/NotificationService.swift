@@ -40,6 +40,12 @@ final class NotificationService: UNNotificationServiceExtension, @unchecked Send
                 legacyMarker: request.content.userInfo["fp"] as? String,
                 legacyKey: request.content.userInfo["k"] as? String) else { throw PreviewFailure.unavailable }
         try deadline.check()
+        // The app is on screen: it shows its own notice and receives the
+        // message itself. No keychain, no network, no decryption (0056).
+        if PreviewForeground.appIsOnScreen(root: root) {
+          self.finish(nil, outcome: 4, run: run)
+          return
+        }
         guard self.begin(root: root, run: run) else { throw PreviewFailure.deadline }
         let store = PreviewKeychain(group: group)
         guard let auth = try store.object("ios-preview-auth", cap: 32 * 1024) else { throw PreviewFailure.unavailable }
