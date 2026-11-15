@@ -164,6 +164,12 @@ void main() {
       final reference = MemoryMessageStore();
       var database = await open();
       final ids = {for (final c in chats) c: <String>[]};
+      // A conversation left open: what its listener was last given must
+      // match too, after every single step.
+      final shown = <String, List<LocalMessage>>{};
+      var listeners = [
+        for (final c in chats) database.watch(c).listen((l) => shown[c] = l),
+      ];
       for (var step = 0; step < 220; step++) {
         final chat = chats[r.nextInt(chats.length)];
         final known = ids[chat]!;
@@ -199,12 +205,31 @@ void main() {
           await both((s) => s.deleteChat(chat));
         } else {
           // Closing and opening again loses nothing.
+          for (final l in listeners) {
+            await l.cancel();
+          }
           await database.close();
           database = await open();
+          final reopened = database;
+          listeners = [
+            for (final c in chats)
+              reopened.watch(c).listen((l) => shown[c] = l),
+          ];
+        }
+        await Future<void>.delayed(Duration.zero);
+        for (final c in chats) {
+          expect(
+            shape(shown[c] ?? const []),
+            shape(await reference.watch(c).first),
+            reason: 'seed $seed step $step: open conversation $c',
+          );
         }
         if (step % 11 == 0 || step == 219) {
           await compare(reference, database, ids, 'seed $seed step $step');
         }
+      }
+      for (final l in listeners) {
+        await l.cancel();
       }
       await database.close();
     });
@@ -223,16 +248,20 @@ void main() {
     );
   });
 
-  test('watchers see each change, also from a second connection after the '
-      'lock reports one', () async {
-    final lock = SharedLock();
+  test('watchers see each change, also one made through another connection '
+      'once the lock reports it', () async {
+    // The app and the background push handler each have a lock on the same
+    // generation file; that is how one learns the other wrote.
+    final generation = File('${dir.path}/lock.gen');
+    SharedLock lock() => SharedLock(generation: FileLockGeneration(generation));
+    final mine = lock();
     final store = await SqliteMessageStore.open(
       dir: dir,
       secrets: secrets,
       uid: 'alice',
-      lock: lock,
+      lock: mine,
     );
-    addTearDown(store.close);
+    opened.add(store);
     final seen = <int>[];
     final sub = store.watch(chats.first).listen((l) => seen.add(l.length));
     addTearDown(sub.cancel);
@@ -240,12 +269,28 @@ void main() {
     await store.add(text(r, chats.first, 'a', const []));
     await store.add(text(r, chats.first, 'b', const []));
     await Future<void>.delayed(Duration.zero);
-    expect(seen, [0, 1, 2]);
-    // Another isolate's connection, as the background push handler has.
-    final other = await open();
+    // (The first use of a lock also reports a change, so the empty
+    // conversation may be shown twice.)
+    expect(seen.toSet().toList(), [0, 1, 2]);
+
+    final other = await SqliteMessageStore.open(
+      dir: dir,
+      secrets: secrets,
+      uid: 'alice',
+      lock: lock(),
+    );
     await other.add(text(r, chats.first, 'c', const []));
     await other.close();
+    // The next time this side takes the lock it finds the other wrote, and
+    // shows the conversation as it now is.
+    await mine.run(() async {});
+    await Future<void>.delayed(Duration.zero);
+    expect(seen.last, 3);
     expect((await store.watch(chats.first).first).length, 3);
+    // And its own next change builds on that.
+    await store.add(text(r, chats.first, 'd', const []));
+    await Future<void>.delayed(Duration.zero);
+    expect(seen.last, 4);
   });
 
   test('deleted text is gone from the file, also once decrypted', () async {

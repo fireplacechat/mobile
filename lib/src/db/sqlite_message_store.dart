@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
 
 import 'package:fireplace/src/crypto/codec.dart';
+import 'package:fireplace/src/db/encrypted_message_store.dart';
 import 'package:fireplace/src/db/history_log.dart'
     show changedRecords, keepsContent;
 import 'package:fireplace/src/db/local_messages.dart';
@@ -29,9 +30,14 @@ import 'package:fireplace/src/db/shared_lock.dart';
 /// erases content the write-ahead log is emptied, and `secure_delete`
 /// overwrites the freed space, so deleted text does not stay in the file.
 class SqliteMessageStore implements LocalMessageStore {
-  SqliteMessageStore._(this._db, this._lock) {
+  SqliteMessageStore._(this._db, this._lock, this._legacy) {
     _lock.onInvalidate(_reload);
   }
+
+  /// The per-chat files this database replaces. A chat's file is imported
+  /// the first time the chat is used, then removed.
+  final EncryptedFileMessageStore? _legacy;
+  final _ready = <String, Future<void>>{};
 
   static const fileName = 'history.db';
   static const schemaVersion = 1;
@@ -52,6 +58,7 @@ class SqliteMessageStore implements LocalMessageStore {
     required String uid,
     SharedLock? lock,
     bool createKey = true,
+    EncryptedFileMessageStore? legacy,
   }) async {
     final keyName = 'msgkey:$uid';
     var raw = await secrets.read(keyName);
@@ -69,7 +76,7 @@ class SqliteMessageStore implements LocalMessageStore {
       db.close();
       rethrow;
     }
-    return SqliteMessageStore._(db, lock ?? SharedLock());
+    return SqliteMessageStore._(db, lock ?? SharedLock(), legacy);
   }
 
   static void _configure(Database db, List<int> key) {
@@ -136,6 +143,8 @@ CREATE TABLE messages (
         'CREATE INDEX messages_unread ON messages (chat_id) '
         'WHERE read = 0 AND visible = 1 AND outgoing = 0',
       );
+      // Chats whose file from before the database has been imported.
+      db.execute('CREATE TABLE imported (chat_id TEXT PRIMARY KEY)');
       db.execute('PRAGMA user_version = $schemaVersion');
       db.execute('COMMIT');
     } catch (_) {
@@ -219,12 +228,14 @@ CREATE TABLE messages (
       final current = _family(chatId, ids);
       final next = projectMessageRecords(change(current));
       var erased = false;
-      for (final m in changedRecords(current, next)) {
+      final changed = changedRecords(current, next);
+      for (final m in changed) {
         final old = current[m.id];
         if (old != null && !keepsContent(old, m)) erased = true;
         _put(m);
       }
       _db.execute('COMMIT');
+      _updateView(chatId, current, changed);
       return erased;
     } catch (_) {
       _db.execute('ROLLBACK');
@@ -246,9 +257,117 @@ CREATE TABLE messages (
       _decode(row),
   ];
 
+  /// The conversations someone is watching, as last shown: kept in step
+  /// with each change, so a new message does not read the whole
+  /// conversation from the database again.
+  final _views = <String, List<LocalMessage>>{};
+
+  /// Brings a watched conversation's view up to date with [changed], the
+  /// records a change just saved ([before] is how they were). Anything it
+  /// cannot place exactly makes the next reader ask the database.
+  void _updateView(
+    String chatId,
+    Map<String, LocalMessage> before,
+    List<LocalMessage> changed,
+  ) {
+    final view = _views[chatId];
+    if (view == null) return;
+    for (final m in changed) {
+      final at = view.indexWhere((x) => x.id == m.id);
+      final old = before[m.id];
+      if (at < 0) {
+        if (!m.visible) continue;
+        if (old != null && old.visible) {
+          // Shown before, yet not in the view: the view is not to be trusted.
+          _views.remove(chatId);
+          return;
+        }
+        if (old != null) {
+          // A hidden record became a shown one: its place among messages
+          // with the same send time is its arrival, which the view lacks.
+          _views.remove(chatId);
+          return;
+        }
+        // New: after everything sent at the same time or earlier.
+        var i = view.length;
+        while (i > 0 && view[i - 1].sentAt.isAfter(m.sentAt)) {
+          i--;
+        }
+        view.insert(i, m);
+      } else if (!m.visible) {
+        view.removeAt(at);
+      } else if (view[at].sentAt == m.sentAt) {
+        view[at] = m;
+      } else {
+        _views.remove(chatId);
+        return;
+      }
+    }
+  }
+
+  List<LocalMessage> _view(String chatId) =>
+      List.unmodifiable(_views[chatId] ??= _visible(chatId));
+
   void _emit(String chatId) {
     final c = _ctrls[chatId];
-    if (c != null && !c.isClosed) c.add(_visible(chatId));
+    if (c == null || c.isClosed || !c.hasListener) {
+      // Nobody is watching: do not keep the conversation in memory.
+      _views.remove(chatId);
+      return;
+    }
+    c.add(_view(chatId));
+  }
+
+  /// Completes once [chatId]'s file from before the database, if there is
+  /// one, is in the database (decision 0057). Every use of a chat waits for
+  /// this, so nothing reads or writes a chat that is half moved.
+  ///
+  /// The whole file goes in as one transaction, with a row that says so. The
+  /// file is removed only after that is saved: stopped before, the import
+  /// starts again from an untouched file; stopped after, only the removal
+  /// is left to do. The file's name is a hash of the chat id and its
+  /// contents are sealed to it, so files are found chat by chat, as each
+  /// chat is first used.
+  Future<void> _imported(String chatId) {
+    final legacy = _legacy;
+    if (legacy == null) return Future.value();
+    return _ready[chatId] ??= _lock
+        .run(() async {
+          final done = _db.select('SELECT 1 FROM imported WHERE chat_id = ?', [
+            chatId,
+          ]).isNotEmpty;
+          final List<LocalMessage>? records;
+          try {
+            records = await legacy.legacyRecords(chatId);
+          } catch (_) {
+            // A file that cannot be read stays where it is; the chat starts
+            // empty here, as it would have opened empty before.
+            return;
+          }
+          if (records == null) return;
+          if (!done) {
+            _db.execute('BEGIN IMMEDIATE');
+            try {
+              for (final m in records) {
+                // Anything already here is newer than the file.
+                if (_row(chatId, m.id) == null) _put(m);
+              }
+              _db.execute('INSERT INTO imported (chat_id) VALUES (?)', [
+                chatId,
+              ]);
+              _db.execute('COMMIT');
+            } catch (_) {
+              _db.execute('ROLLBACK');
+              rethrow;
+            }
+          }
+          await legacy.deleteChat(chatId);
+        })
+        .catchError((Object e, StackTrace st) {
+          // Try again on the next use rather than remember the failure.
+          _ready.remove(chatId);
+          Error.throwWithStackTrace(e, st);
+        });
   }
 
   /// Queues [write] behind earlier ones, holding the lock (taken first, as
@@ -266,25 +385,35 @@ CREATE TABLE messages (
   /// Another isolate wrote: show the chats someone is watching as they are.
   void _reload() {
     if (_closed) return;
+    _views.clear();
     for (final chatId in _ctrls.keys.toList()) {
       if (_ctrls[chatId]!.hasListener) _emit(chatId);
     }
   }
 
   @override
-  Future<bool> has(String chatId, String messageId) async => _db.select(
-    'SELECT 1 FROM messages WHERE chat_id = ? AND id = ?',
-    [chatId, messageId],
-  ).isNotEmpty;
+  Future<bool> has(String chatId, String messageId) async {
+    await _imported(chatId);
+    return _db.select('SELECT 1 FROM messages WHERE chat_id = ? AND id = ?', [
+      chatId,
+      messageId,
+    ]).isNotEmpty;
+  }
 
   @override
   Future<LocalMessage?> get(String chatId, String messageId) async {
+    await _imported(chatId);
     final m = _row(chatId, messageId);
     return m == null || m.locallyDeleted ? null : m;
   }
 
   @override
-  Future<void> add(LocalMessage m) => _write(() {
+  Future<void> add(LocalMessage m) async {
+    await _imported(m.chatId);
+    return _addNow(m);
+  }
+
+  Future<void> _addNow(LocalMessage m) => _write(() {
     // A deleted message stays deleted, whatever arrives under its id.
     if (_row(m.chatId, m.id)?.locallyDeleted == true) return;
     final erased = _apply(m.chatId, [
@@ -297,7 +426,12 @@ CREATE TABLE messages (
   });
 
   @override
-  Future<void> remove(String chatId, String messageId) => _write(() {
+  Future<void> remove(String chatId, String messageId) async {
+    await _imported(chatId);
+    return _removeNow(chatId, messageId);
+  }
+
+  Future<void> _removeNow(String chatId, String messageId) => _write(() {
     _apply(
       chatId,
       [messageId],
@@ -311,7 +445,12 @@ CREATE TABLE messages (
   });
 
   @override
-  Future<void> clearChat(String chatId) => _write(() {
+  Future<void> clearChat(String chatId) async {
+    await _imported(chatId);
+    return _clearNow(chatId);
+  }
+
+  Future<void> _clearNow(String chatId) => _write(() {
     _db.execute('BEGIN IMMEDIATE');
     try {
       final ids = [
@@ -329,13 +468,20 @@ CREATE TABLE messages (
       _db.execute('ROLLBACK');
       rethrow;
     }
+    _views.remove(chatId);
     _forget();
     _emit(chatId);
   });
 
   @override
-  Future<void> deleteChat(String chatId) => _write(() {
+  Future<void> deleteChat(String chatId) async {
+    await _imported(chatId);
+    return _deleteNow(chatId);
+  }
+
+  Future<void> _deleteNow(String chatId) => _write(() {
     _db.execute('DELETE FROM messages WHERE chat_id = ?', [chatId]);
+    _views.remove(chatId);
     _forget();
     _emit(chatId);
   });
@@ -350,14 +496,15 @@ CREATE TABLE messages (
         cancelled = true;
         await sub.cancel();
       };
-      scheduleMicrotask(() {
-        if (cancelled || _closed) return;
+      unawaited(() async {
         try {
-          s.add(_visible(chatId));
+          await _imported(chatId);
+          if (cancelled || _closed) return;
+          s.add(_view(chatId));
         } catch (error, stack) {
-          s.addError(error, stack);
+          if (!cancelled) s.addError(error, stack);
         }
-      });
+      }());
     });
   }
 
@@ -368,15 +515,31 @@ CREATE TABLE messages (
       name: _db.select('PRAGMA $name').first.values.first,
   };
 
+  /// Wipes history and key (sign-out / "delete local data").
+  Future<void> destroy(SecretStore secrets, String uid, Directory dir) async {
+    await close();
+    final legacy = _legacy;
+    // The files' store removes the key they share; do it once.
+    if (legacy != null) {
+      await legacy.destroy(secrets, uid);
+    } else {
+      await secrets.delete('msgkey:$uid');
+    }
+    if (await dir.exists()) await dir.delete(recursive: true);
+  }
+
   /// Drains pending writes, releases listeners and closes the file.
   Future<void> close() async {
     if (_closed) return;
+    await Future.wait(_ready.values.map((f) => f.catchError((Object _) {})));
     await _writes;
+    await _legacy?.close();
     _closed = true;
     for (final controller in _ctrls.values) {
       unawaited(controller.close());
     }
     _ctrls.clear();
+    _views.clear();
     _db.close();
   }
 }

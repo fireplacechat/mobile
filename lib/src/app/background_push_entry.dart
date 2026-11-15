@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/firebase_setup.dart';
+import 'package:fireplace/src/app/account_history.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/notifications/preview_notifier.dart';
 import 'package:fireplace/src/model/push/background_push.dart';
@@ -67,10 +68,11 @@ Future<BackgroundSession> _open(FirebaseFirestore db, String uid) async {
   if (!await historyDir.exists()) throw StateError('No history yet.');
   final lock = accountLock(uid, historyDir);
   try {
-    final store = await EncryptedFileMessageStore.open(
-      dir: historyDir,
-      secrets: secrets,
+    final store = await openAccountHistory(
       uid: uid,
+      documents: docs,
+      historyDir: historyDir,
+      secrets: secrets,
       lock: lock,
       createKey: false,
     );

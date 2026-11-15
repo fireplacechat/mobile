@@ -295,6 +295,15 @@ class EncryptedFileMessageStore implements LocalMessageStore {
     _ctrls.clear();
   }
 
+  /// For the move to the database (decision 0057): every record of a chat,
+  /// in the order it arrived, with the hidden ones (edits, reactions, the
+  /// markers deleted messages leave). Null when this chat has no file here.
+  Future<List<LocalMessage>?> legacyRecords(String chatId) async {
+    final f = await _file(chatId);
+    if (!await f.exists() && !await _logOf(f).exists()) return null;
+    return (await _load(chatId)).values.toList();
+  }
+
   /// Wipes history and key (sign-out / "delete local data").
   Future<void> destroy(SecretStore secrets, String uid) async {
     await secrets.delete('msgkey:$uid');

@@ -253,10 +253,11 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     }
     scope.checkActive();
     // 6. Open local history and preferences.
-    final store = await EncryptedFileMessageStore.open(
-      dir: historyDir,
-      secrets: secrets,
+    final store = await openAccountHistory(
       uid: user.uid,
+      documents: docs,
+      historyDir: historyDir,
+      secrets: secrets,
       lock: lock,
     );
     scope.add(store.close);
@@ -416,7 +417,11 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
       destroyLocalData: () async {
         await chatPreferences.close();
         await secrets.delete('chatprefskey:${user.uid}');
-        await store.destroy(secrets, user.uid);
+        await store.destroy(
+          secrets,
+          user.uid,
+          accountDatabaseDirectory(user.uid, docs, historyDir),
+        );
       },
       dispose: scope.cleanup,
     );
