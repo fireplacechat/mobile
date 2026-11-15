@@ -46,6 +46,7 @@ the existing iOS API-key restriction. Read-only live metadata checks on
 2026-11-13 confirmed that restriction and unenforced App Check for Firestore
 and Firebase Auth; no setting was changed.
 
+(Changed by decision 0056: the newest three, not the oldest ten.)
 The REST query requests at most ten new documents from one chat, projecting
 only sender fields, timestamp and the envelope for this device. Its response
 is capped at 512 KB while streaming, before appending an oversized chunk.

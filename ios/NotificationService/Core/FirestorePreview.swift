@@ -27,7 +27,11 @@ public struct PreviewDocument {
 }
 
 public enum FirestorePreview {
-  public static let pageLimit = 10
+  /// The newest few messages since the app last saved its place (decision
+  /// 0056). The alert is about the newest; the one or two before it are read
+  /// so that a reaction or a delete that follows a text is seen with it. The
+  /// ratchet skips over anything older without decrypting it.
+  public static let pageLimit = 3
   public static func pushKey(threadIdentifier: String, legacyMarker: String? = nil, legacyKey: String? = nil) -> String? {
     let key = threadIdentifier.isEmpty ? (legacyMarker == "1" ? legacyKey : nil) : threadIdentifier
     guard let key = key, key.utf8.count == 32,
@@ -54,7 +58,9 @@ public enum FirestorePreview {
     var query: [String: Any] = [
       "from": [["collectionId": "messages"]],
       "select": ["fields": ["senderUid", "senderDevice", "ts", "envelopes.`\(device)`"].map { ["fieldPath": $0] }],
-      "orderBy": [["field": ["fieldPath": "ts"], "direction": cursor == nil ? "DESCENDING" : "ASCENDING"]],
+      // Newest first, always: counting up from the saved place would stop at
+      // the oldest few of a long backlog and never reach the newest.
+      "orderBy": [["field": ["fieldPath": "ts"], "direction": "DESCENDING"]],
       "limit": pageLimit
     ]
     if let cursor = cursor {
