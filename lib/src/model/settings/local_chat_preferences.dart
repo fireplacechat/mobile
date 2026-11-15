@@ -18,6 +18,11 @@ class LocalChatPreferences {
   }) : _save = save,
        _baselineExisting = baselineExisting;
   final Future<void> Function(String)? _save;
+
+  /// The ids of seen messages, as versions before the history database kept
+  /// them (issue 180). Read state is a flag on each message now. A file from
+  /// before still carries these; the app moves them into the database and
+  /// then calls [clearLegacySeen]. Nothing adds to it.
   final seen = <String, Set<String>>{};
   final muted = <String>{};
 
@@ -222,10 +227,11 @@ class LocalChatPreferences {
     return done;
   }
 
-  Future<void> markSeen(String chatId, Iterable<String> ids) {
-    final copy = ids.toSet();
-    if (copy.difference(seen[chatId] ?? {}).isEmpty) return Future.value();
-    return _update(() => (seen[chatId] ??= {}).addAll(copy));
+  /// Drops the seen ids of versions before the history database, once they
+  /// have been moved there.
+  Future<void> clearLegacySeen() {
+    if (seen.isEmpty) return Future.value();
+    return _update(seen.clear);
   }
 
   Future<void> mute(String chatId, bool value) => _update(() {
@@ -247,38 +253,42 @@ class LocalChatPreferences {
       pinned[chatId] = ids;
     }
   });
-  Future<void> seedExisting(String chatId, Iterable<String> ids) async {
-    if (!available || !needsBaseline(chatId)) return;
-    final snapshot = ids.toSet();
+
+  /// When read state starts for a chat (a new install, or after a reset),
+  /// what is already in it is not new. The first caller to claim a chat's
+  /// baseline gets true and marks what it saw there as read; anyone else
+  /// gets false, so a later snapshot cannot absorb messages that arrived
+  /// meanwhile.
+  Future<bool> claimBaseline(String chatId) async {
+    if (!available || !needsBaseline(chatId)) return false;
+    var claimed = false;
     try {
       await _update(() {
-        // A concurrent initial snapshot must not absorb later arrivals.
         if (!needsBaseline(chatId)) return;
-        (seen[chatId] ??= {}).addAll(snapshot);
         _baselinedChats.add(chatId);
+        claimed = true;
       });
     } catch (_) {
       _available = false;
       if (!_changes.isClosed) _changes.add(null);
       rethrow;
     }
+    return claimed;
   }
 
-  Future<void> reset({Map<String, Set<String>> history = const {}}) {
-    final snapshot = {
-      for (final e in history.entries) e.key: Set<String>.of(e.value),
-    };
+  /// Back to defaults. [baselined] are the chats whose present messages the
+  /// caller has already marked as read.
+  Future<void> reset({Iterable<String> baselined = const []}) {
+    final chats = baselined.toSet();
     return _update(() {
-      seen
-        ..clear()
-        ..addAll(snapshot);
+      seen.clear();
       muted.clear();
       pinned.clear();
       previewText = true;
       _baselineExisting = true;
       _baselinedChats
         ..clear()
-        ..addAll(snapshot.keys);
+        ..addAll(chats);
     }, recover: true);
   }
 

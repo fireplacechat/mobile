@@ -122,6 +122,14 @@ class GroupService {
   Stream<List<LocalMessage>> watchMessages(String gid) =>
       _messages.watch(groupChatId(gid), newest: ChatTuning.historyWindow);
 
+  /// Records, on this device only, that the person has seen these messages.
+  Future<void> markRead(String gid, Iterable<String> messageIds) =>
+      _messages.markRead(groupChatId(gid), messageIds);
+
+  /// Readable messages from other members not yet seen.
+  Future<int> unreadCount(String gid) =>
+      _messages.unreadCount(groupChatId(gid), onlyOk: true);
+
   /// Gives [watchMessages] the next older messages as well.
   Future<void> showOlderMessages(String gid) =>
       _messages.showOlder(groupChatId(gid), more: ChatTuning.historyWindow);

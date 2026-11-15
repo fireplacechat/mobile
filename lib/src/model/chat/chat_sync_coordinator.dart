@@ -61,10 +61,12 @@ class ChatSyncCoordinator {
           // Capture disk history before starting receive sync. Later network
           // arrivals must not be swallowed by first-run read bookkeeping.
           final existing = await store.all(id);
-          await chatPreferences.seedExisting(
-            id,
-            existing.where((m) => !m.outgoing).map((m) => m.id),
-          );
+          if (await chatPreferences.claimBaseline(id)) {
+            await store.markRead(id, [
+              for (final m in existing)
+                if (!m.outgoing) m.id,
+            ]);
+          }
         } catch (_) {
           // A broken UI sidecar does not stop messaging; Settings offers reset.
         }

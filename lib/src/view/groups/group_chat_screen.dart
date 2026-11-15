@@ -66,15 +66,26 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 
   void _seen(List<LocalMessage>? messages) {
     final prefs = ref.read(appSessionProvider).value?.chatPreferences;
-    if (prefs == null || messages == null || !prefs.available) return;
-    unawaited(
-      prefs
-          .markSeen(groupChatId(widget.gid), [
-            for (final m in messages)
-              if (!m.outgoing) m.id,
-          ])
-          .catchError((Object _) {}),
-    );
+    final service = ref.read(groupServiceProvider);
+    if (prefs == null ||
+        service == null ||
+        messages == null ||
+        !prefs.available ||
+        // Nothing unseen: nothing to write.
+        ref.read(groupUnreadProvider(widget.gid)) == 0) {
+      return;
+    }
+    unawaited(() async {
+      try {
+        await service.markRead(widget.gid, [
+          for (final m in messages)
+            if (!m.outgoing) m.id,
+        ]);
+        if (mounted) ref.invalidate(groupUnreadCountProvider(widget.gid));
+      } catch (_) {
+        // The count stays; it is tried again with the next message.
+      }
+    }());
   }
 
   @override

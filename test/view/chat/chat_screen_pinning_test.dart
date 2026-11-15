@@ -224,11 +224,10 @@ void main() {
   testWidgets('unread persistence failure shows feedback without escaping', (
     t,
   ) async {
-    final prefs = LocalChatPreferences(
-      save: (_) async => throw StateError('save'),
-    );
-    final f = UiFixture(chatPreferences: prefs);
+    // Read state is saved in the history store (issue 180).
+    final f = UiFixture();
     await f.seed();
+    f.chat.markReadError = StateError('save');
     await host(t, f);
     final dynamic state = t.state(find.byType(ChatScreen));
     state.didChangeAppLifecycleState(AppLifecycleState.resumed);

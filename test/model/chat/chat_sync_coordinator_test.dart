@@ -188,16 +188,20 @@ void main() {
         ),
       );
     }
+    // What was here before sync began is read by the time it starts.
+    Future<int>? unreadAtStart;
     chat.onStart = (_) {
-      expect(prefs.seen['bob'], {'received'});
+      unreadAtStart = store.unreadCount('bob');
       expect(prefs.needsBaseline('bob'), isFalse);
     };
     coordinator.chatsChanged([summary('bob')]);
     await entered.future;
     expect(chat.starts, isEmpty);
+    expect(await store.unreadCount('bob'), 1);
     release.complete();
     await flush();
     expect(chat.starts, ['bob']);
+    expect(await unreadAtStart, 0);
   });
 
   for (final action in ['block', 'hide', 'stop', 'remove', 'request']) {
