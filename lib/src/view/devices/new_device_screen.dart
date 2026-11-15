@@ -6,6 +6,8 @@ import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/status.dart';
 import 'package:fireplace/src/view/devices/link_wait_screen.dart';
+import 'package:fireplace/src/view/devices/start_fresh_waiting.dart';
+import 'package:fireplace/src/view/safety/safety_action_sheet.dart';
 import 'package:fireplace/src/view/devices/recovery_entry_screen.dart';
 
 /// Shown when the account already has devices but this install has no keys.
@@ -45,6 +47,7 @@ class _NewDeviceScreenState extends ConsumerState<NewDeviceScreen> {
   });
   @override
   Widget build(BuildContext context) {
+    final pending = ref.watch(pendingStartProvider(widget.uid)).value;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -52,64 +55,67 @@ class _NewDeviceScreenState extends ConsumerState<NewDeviceScreen> {
             padding: EdgeInsets.all(24),
             child: ConstrainedBox(
               constraints: BoxConstraints(maxWidth: 420),
-              child: Column(
-                children: [
-                  FireplaceLogo(size: 72),
-                  SizedBox(height: 12),
-                  Text(
-                    'Set up this device',
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.headlineSmall,
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Your account already uses end-to-end encryption on another '
-                    'device. To read and send messages here, prove it is you.',
-                    textAlign: TextAlign.center,
-                  ),
-                  SizedBox(height: 24),
-                  if (_error != null) UiActionError(message: _error!),
-                  _Option(
-                    key: Key('optLink'),
-                    icon: Icons.qr_code_2,
-                    title: 'Link with your other device',
-                    subtitle: 'Show a QR code and scan it from a device you already use.',
-                    onTap: _busy
-                        ? null
-                        : () => _open(LinkWaitScreen(uid: widget.uid)),
-                  ),
-                  _Option(
-                    key: Key('optRecovery'),
-                    icon: Icons.key,
-                    title: 'Use your recovery key',
-                    subtitle: 'The 36-character key you saved when you set up backup.',
-                    onTap: _busy
-                        ? null
-                        : () => _open(RecoveryEntryScreen(uid: widget.uid)),
-                  ),
-                  _Option(
-                    key: Key('optReset'),
-                    icon: Icons.warning_amber_rounded,
-                    iconColor: FireplaceUiTokens.of(context).danger,
-                    title: 'I lost everything: start fresh',
-                    subtitle:
-                        'Creates a new identity. Your contacts will see a security-code '
-                        'change. Old messages stay unreadable.',
-                    onTap: _busy
-                        ? null
-                        : () => _run(() => _confirmReset(context, ref)),
-                  ),
-                  SizedBox(height: 12),
-                  TextButton(
-                    onPressed: _busy
-                        ? null
-                        : () => _run(
-                            () => ref.read(authServiceProvider).signOut(),
-                          ),
-                    child: Text('Sign out'),
-                  ),
-                ],
-              ),
+              child: pending != null
+                  ? StartFreshWaiting(uid: widget.uid, pending: pending)
+                  : Column(
+                      children: [
+                        FireplaceLogo(size: 72),
+                        SizedBox(height: 12),
+                        Text(
+                          'Set up this device',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'Your account already uses end-to-end encryption on another '
+                          'device. To read and send messages here, prove it is you.',
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: 24),
+                        if (_error != null) UiActionError(message: _error!),
+                        _Option(
+                          key: Key('optLink'),
+                          icon: Icons.qr_code_2,
+                          title: 'Link with your other device',
+                          subtitle: 'Show a QR code and scan it from a device you already use.',
+                          onTap: _busy
+                              ? null
+                              : () => _open(LinkWaitScreen(uid: widget.uid)),
+                        ),
+                        _Option(
+                          key: Key('optRecovery'),
+                          icon: Icons.key,
+                          title: 'Use your recovery key',
+                          subtitle: 'The 36-character key you saved when you set up backup.',
+                          onTap: _busy
+                              ? null
+                              : () =>
+                                    _open(RecoveryEntryScreen(uid: widget.uid)),
+                        ),
+                        _Option(
+                          key: Key('optReset'),
+                          icon: Icons.warning_amber_rounded,
+                          iconColor: FireplaceUiTokens.of(context).danger,
+                          title: 'I lost everything: start fresh',
+                          subtitle:
+                              'Creates a new identity. Your contacts will see a security-code '
+                              'change. Old messages stay unreadable.',
+                          onTap: _busy
+                              ? null
+                              : () => _run(() => _confirmReset(context, ref)),
+                        ),
+                        SizedBox(height: 12),
+                        TextButton(
+                          onPressed: _busy
+                              ? null
+                              : () => _run(
+                                  () => ref.read(authServiceProvider).signOut(),
+                                ),
+                          child: Text('Sign out'),
+                        ),
+                      ],
+                    ),
             ),
           ),
         ),
@@ -117,7 +123,31 @@ class _NewDeviceScreenState extends ConsumerState<NewDeviceScreen> {
     );
   }
 
+  /// With a device on the account, starting fresh is asked for and waits
+  /// (decision 0063): the devices are told and can stop it.
   Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
+    final takeover = ref.read(takeoverServiceProvider);
+    if (await takeover.hasDevices(widget.uid)) {
+      final wait = await takeover.wait(widget.uid);
+      if (!context.mounted) return;
+      final ok = await showSafetyActionSheet<bool>(
+        context: context,
+        title: 'Start fresh?',
+        message: 'Your account will be ready in ${wait.label}.',
+        actions: const [
+          SafetySheetAction(
+            label: 'Start fresh',
+            value: true,
+            style: SafetyActionStyle.destructive,
+            buttonKey: Key('confirmStartFresh'),
+          ),
+          SafetySheetAction(label: 'Cancel', value: false),
+        ],
+      );
+      if (ok == true) await takeover.start(widget.uid);
+      return;
+    }
+    if (!context.mounted) return;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => UiDialog(

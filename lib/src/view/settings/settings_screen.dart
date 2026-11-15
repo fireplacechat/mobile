@@ -8,6 +8,8 @@ import 'package:fireplace/src/view/settings/browser_error_dialog.dart';
 import 'package:fireplace/src/model/common/external_browser.dart';
 import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
+import 'package:fireplace/src/view/account/lost_phone_wait_screen.dart';
+import 'package:fireplace/src/model/account/takeover.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
 import 'package:fireplace/src/model/push/push_notification_service.dart';
 import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
@@ -54,6 +56,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  Future<void> _setWait(AppSession s, LostPhoneWait wait) => _run(() async {
+    await ref.read(takeoverServiceProvider).setWait(s.uid, s.device, wait);
+    ref.invalidate(lostPhoneWaitProvider(s.uid));
+  });
 
   Future<void> _open(Widget page) => _run(() async {
     await Navigator.of(context)
@@ -279,6 +286,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onTap: _busy
                           ? null
                           : () => _open(const RecoveryKeyScreen()),
+                    ),
+                    LostPhoneWaitTile(
+                      wait:
+                          ref.watch(lostPhoneWaitProvider(s.uid)).value ??
+                          LostPhoneWait.standard,
+                      enabled: !_busy,
+                      onChanged: (wait) => _setWait(s, wait),
                     ),
                     ListTile(
                       key: Key('linkDevice'),

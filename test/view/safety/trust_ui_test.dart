@@ -3,6 +3,7 @@ import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/model/account/takeover.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
@@ -105,7 +106,22 @@ void main() {
         'createdAt': Timestamp.now(),
       });
     });
-    await t.pumpWidget(host(a1, const DevicesScreen()));
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          authUserProvider.overrideWithValue(const AsyncData(null)),
+          appSessionProvider.overrideWithValue(AsyncData(a1)),
+          // This server does not check device requests: removal is direct.
+          takeoverServiceProvider.overrideWithValue(
+            TakeoverService(db, _NoAuth()),
+          ),
+        ],
+        child: MaterialApp(
+          theme: fireplaceTheme(Brightness.light),
+          home: const DevicesScreen(),
+        ),
+      ),
+    );
     for (var i = 0; i < 40; i++) {
       await t.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 25)),
@@ -128,3 +144,5 @@ void main() {
     expect(find.text('Removed'), findsOneWidget);
   });
 }
+
+class _NoAuth extends Fake implements AuthService {}

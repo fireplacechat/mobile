@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/ios_foreground_marker.dart';
+import 'package:fireplace/src/model/account/takeover.dart';
 import 'package:fireplace/src/model/groups/group_models.dart'
     show groupsEnabled;
 import 'package:fireplace/src/model/groups/group_service.dart';
@@ -541,6 +542,29 @@ final recoveryServiceProvider = Provider<RecoveryService>((ref) {
   final secrets = ref.watch(secretStoreProvider);
   return RecoveryService(db, secrets, KeyService(db, secrets));
 });
+
+/// The clock the waiting screens read, so previews and tests can fix it.
+final takeoverClockProvider = Provider<DateTime Function()>(
+  (ref) => DateTime.now,
+);
+
+final takeoverServiceProvider = Provider<TakeoverService>(
+  (ref) => TakeoverService(
+    ref.watch(firestoreProvider),
+    ref.watch(authServiceProvider),
+  ),
+);
+
+/// A new phone waiting to start fresh on this account (decision 0063).
+final pendingStartProvider = StreamProvider.autoDispose
+    .family<PendingStart?, String>(
+      (ref, uid) => ref.watch(takeoverServiceProvider).watch(uid),
+    );
+
+final lostPhoneWaitProvider = FutureProvider.autoDispose
+    .family<LostPhoneWait, String>(
+      (ref, uid) => ref.watch(takeoverServiceProvider).wait(uid),
+    );
 
 final hasBackupProvider = FutureProvider.autoDispose<bool>((ref) async {
   final s = ref.watch(appSessionProvider).value;

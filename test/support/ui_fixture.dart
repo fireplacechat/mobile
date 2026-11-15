@@ -8,6 +8,7 @@ import 'dart:typed_data';
 
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/model/account/takeover.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/model/chat/message_controls.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
@@ -47,6 +48,87 @@ class FixtureKeys extends Fake implements KeyService {
 }
 
 class FixtureSafety extends Fake implements SafetyService {}
+
+/// Starting fresh with a wait (decision 0063), without a server: the waiting
+/// start and the chosen wait are plain values a test sets.
+class FixtureTakeover extends Fake implements TakeoverService {
+  final _changes = StreamController<PendingStart?>.broadcast();
+  PendingStart? _pending;
+  LostPhoneWait chosen = LostPhoneWait.standard;
+  bool devices = true;
+  Object? error;
+  int stops = 0, starts = 0, withdrawals = 0;
+
+  PendingStart? get waiting => _pending;
+  set waiting(PendingStart? value) {
+    _pending = value;
+    _changes.add(value);
+  }
+
+  @override
+  Stream<PendingStart?> watch(String uid) async* {
+    yield _pending;
+    yield* _changes.stream;
+  }
+
+  @override
+  Future<PendingStart?> pending(String uid) async => _pending;
+  @override
+  Future<LostPhoneWait> wait(String uid) async => chosen;
+  @override
+  Future<bool> hasDevices(String uid) async => devices;
+  @override
+  Future<void> chooseAtSignUp(String uid, LostPhoneWait wait) async {
+    chosen = wait;
+  }
+
+  @override
+  Future<void> setWait(
+    String uid,
+    LocalDevice device,
+    LostPhoneWait wait,
+  ) async {
+    if (error != null) throw error!;
+    chosen = wait;
+  }
+
+  @override
+  Future<void> removeDevice(
+    String uid,
+    LocalDevice device,
+    String target, {
+    required Future<void> Function() direct,
+  }) => direct();
+
+  @override
+  Future<PendingStart> start(String uid) async {
+    starts++;
+    final made = PendingStart(
+      startedAt: fixtureTime,
+      readyAt: fixtureTime.add(chosen.length),
+    );
+    waiting = made;
+    return made;
+  }
+
+  @override
+  Future<void> withdraw(String uid) async {
+    withdrawals++;
+    waiting = null;
+  }
+
+  @override
+  Future<void> stop(
+    String uid,
+    LocalDevice device, {
+    required String password,
+    required String newPassword,
+  }) async {
+    if (error != null) throw error!;
+    stops++;
+    waiting = null;
+  }
+}
 
 class FixtureChat extends Fake implements ChatService {
   final store = MemoryMessageStore();
@@ -283,6 +365,7 @@ class UiFixture {
 
   /// The app's clock in this fixture; a test may move it on.
   DateTime now = fixtureTime;
+  final takeover = FixtureTakeover();
   Map<String, List<int>> alerts = {};
   List<String> freshDevices = [];
   Set<String> blocked = {};
@@ -306,6 +389,9 @@ class UiFixture {
       (ref) => hiddenFuture ?? Future.value(hidden),
     ),
     hasBackupProvider.overrideWith((ref) async => hasBackup),
+    takeoverServiceProvider.overrideWithValue(takeover),
+    takeoverClockProvider.overrideWithValue(() => now),
+    pendingStartProvider.overrideWith((ref, uid) => takeover.watch(uid)),
     if (overrideAuth) authUserProvider.overrideWithValue(const AsyncData(null)),
   ];
 

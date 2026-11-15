@@ -44,6 +44,9 @@ import 'package:fireplace/src/view/devices/new_device_screen.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
 import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
 import 'package:fireplace/src/view/devices/link_new_device_screen.dart';
+import 'package:fireplace/src/view/account/lost_phone_wait_screen.dart';
+import 'package:fireplace/src/view/account/takeover_alert.dart';
+import 'package:fireplace/src/model/account/takeover.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/view/safety/blocked_users_screen.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
@@ -61,6 +64,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../test/support/ui_fixture.dart';
 import '../../test/support/account_fixture.dart';
+
+/// Lets a bottom sheet slide all the way up (or away).
+Future<void> openSheet(WidgetTester t) async {
+  await settleUi(t);
+  await t.pump(const Duration(milliseconds: 400));
+  await t.pump(const Duration(milliseconds: 400));
+  await settleUi(t);
+}
 
 Future<void> loadFonts() async {
   final emojiPath = Platform.environment['RENDER_EMOJI_FONT'];
@@ -742,6 +753,46 @@ void main() {
     const CatalogCase('recovery', RecoveryKeyScreen()),
     const CatalogCase('link-device', LinkNewDeviceScreen()),
     const CatalogCase('new-device', NewDeviceScreen(uid: 'alice')),
+    // Starting fresh waits, and a device can stop it (decision 0063).
+    CatalogCase(
+      'start-fresh-question',
+      const NewDeviceScreen(uid: 'alice'),
+      act: (t, f) async {
+        await t.ensureVisible(find.byKey(const Key('optReset')));
+        await t.tap(find.byKey(const Key('optReset')));
+        await openSheet(t);
+      },
+    ),
+    CatalogCase(
+      'start-fresh-waiting',
+      const NewDeviceScreen(uid: 'alice'),
+      prepare: (f) => f.takeover.waiting = PendingStart(
+        startedAt: fixtureTime,
+        readyAt: fixtureTime.add(const Duration(days: 3)),
+      ),
+    ),
+    CatalogCase(
+      'start-fresh-ready',
+      const NewDeviceScreen(uid: 'alice'),
+      prepare: (f) => f.takeover.waiting = PendingStart(
+        startedAt: fixtureTime.subtract(const Duration(days: 3)),
+        readyAt: fixtureTime,
+      ),
+    ),
+    CatalogCase(
+      'takeover-alert',
+      const TakeoverAlertScreen(uid: 'alice'),
+      prepare: (f) => f.takeover.waiting = PendingStart(
+        startedAt: fixtureTime,
+        readyAt: fixtureTime.add(const Duration(days: 3)),
+      ),
+    ),
+    const CatalogCase('takeover-stop', StopTakeoverScreen(uid: 'alice')),
+    const CatalogCase('takeover-stopped', TakeoverAlertScreen(uid: 'alice')),
+    const CatalogCase(
+      'lost-phone-wait',
+      LostPhoneWaitScreen(selected: LostPhoneWait.threeDays),
+    ),
     ...accountDeletionCases(),
     const CatalogCase('delete-account', DeleteAccountScreen()),
     const CatalogCase('deletion-resume', DeleteAccountScreen(resume: true)),

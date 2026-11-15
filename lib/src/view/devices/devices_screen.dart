@@ -63,11 +63,18 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
       if (ok != true || !mounted) return;
       final s = ref.read(appSessionProvider).value;
       if (s == null) throw StateError('Account is not ready');
-      await s.keys.revokeDevice(
-        s.uid,
-        d.deviceId,
-        thisDeviceId: s.device.keys.deviceId,
-      );
+      await ref
+          .read(takeoverServiceProvider)
+          .removeDevice(
+            s.uid,
+            s.device,
+            d.deviceId,
+            direct: () => s.keys.revokeDevice(
+              s.uid,
+              d.deviceId,
+              thisDeviceId: s.device.keys.deviceId,
+            ),
+          );
       if (mounted) setState(() => _devices = _load());
     } catch (_) {
       if (mounted) {

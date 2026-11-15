@@ -75,10 +75,19 @@ void main() {
     await t.enterText(find.byKey(const Key('password')), 'correct horse');
     await t.enterText(find.byKey(const Key('invite')), 'not-a-code');
     // Sign-up needs the 16+ declaration before the button does anything.
-    await t.ensureVisible(find.byKey(const Key('age16')));
+    // The form is longer than the screen: bring each control to the middle.
+    await Scrollable.ensureVisible(
+      t.element(find.byKey(const Key('age16'))),
+      alignment: 0.5,
+    );
+    await t.pump();
     await t.tap(find.byKey(const Key('age16')));
     await t.pump();
-    await t.ensureVisible(find.byKey(const Key('submit')));
+    await Scrollable.ensureVisible(
+      t.element(find.byKey(const Key('submit'))),
+      alignment: 0.5,
+    );
+    await t.pump();
     await t.tap(find.byKey(const Key('submit')));
     await t.pumpAndSettle();
     expect(
