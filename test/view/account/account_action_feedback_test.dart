@@ -50,7 +50,10 @@ void main() {
       await host(t, f, const DevicesScreen());
       await t.tap(find.byKey(const Key('revoke_example-second-device')));
       await flush(t);
+      // The sheet slides up from the bottom; Cancel is its lowest button.
+      await flush(t);
       await t.tap(find.text('Cancel'));
+      await flush(t);
       await flush(t);
       expect(k.removals, 0);
       final remove = t
@@ -62,6 +65,7 @@ void main() {
       remove();
       await flush(t);
       expect(find.text('Remove this device?'), findsOneWidget);
+      await flush(t);
       await t.tap(find.byKey(const Key('confirmRevoke')));
       await flush(t);
       expect(k.removals, 1);
@@ -72,8 +76,8 @@ void main() {
     },
   );
   testWidgets(
-    'a lost device: the identity is replaced only after a second question, '
-    'and the device is not merely marked removed',
+    'after removing a device the app asks once whether it was lost; only '
+    'that answer resets the security code',
     (t) async {
       final k = ActionKeys();
       final f = UiFixture(keys: k);
@@ -84,25 +88,31 @@ void main() {
         const DevicesScreen(),
         extra: [recoveryServiceProvider.overrideWithValue(r)],
       );
-      Future<void> open() async {
+      Future<void> remove() async {
         await t.tap(find.byKey(const Key('revoke_example-second-device')));
         await flush(t);
-        await t.tap(find.byKey(const Key('revokeLost')));
+        // One question at a time: nothing about loss before the removal.
+        expect(find.text('Was it lost or stolen?'), findsNothing);
+        await flush(t);
+        await t.tap(find.byKey(const Key('confirmRevoke')));
+        // Removed, and the follow-up sheet has slid up.
+        await flush(t);
         await flush(t);
       }
 
-      await open();
-      expect(find.text('Replace your security code?'), findsOneWidget);
-      await t.tap(find.text('Cancel'));
+      await remove();
+      expect(k.removals, 1);
+      expect(find.text('Was it lost or stolen?'), findsOneWidget);
+      await t.tap(find.byKey(const Key('keepIdentity')));
+      await flush(t);
       await flush(t);
       expect(r.resets, 0);
-      expect(k.removals, 0);
+      expect(find.text('Was it lost or stolen?'), findsNothing);
 
-      await open();
-      await t.tap(find.byKey(const Key('confirmReplaceIdentity')));
+      await remove();
+      await t.tap(find.byKey(const Key('resetAfterLoss')));
       await flush(t);
       expect(r.resets, 1);
-      expect(k.removals, 0);
       expect(t.takeException(), isNull);
     },
   );

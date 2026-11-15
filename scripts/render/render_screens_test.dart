@@ -62,6 +62,14 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../test/support/ui_fixture.dart';
 import '../../test/support/account_fixture.dart';
 
+/// Lets a bottom sheet slide all the way up (or away).
+Future<void> openSheet(WidgetTester t) async {
+  await settleUi(t);
+  await t.pump(const Duration(milliseconds: 400));
+  await t.pump(const Duration(milliseconds: 400));
+  await settleUi(t);
+}
+
 Future<void> loadFonts() async {
   final emojiPath = Platform.environment['RENDER_EMOJI_FONT'];
   if (emojiPath != null) {
@@ -744,7 +752,7 @@ void main() {
       const DevicesScreen(),
       act: (t, f) async {
         await t.tap(find.byKey(const Key('revoke_example-second-device')));
-        await settleUi(t);
+        await openSheet(t);
       },
     ),
     CatalogCase(
@@ -752,9 +760,10 @@ void main() {
       const DevicesScreen(),
       act: (t, f) async {
         await t.tap(find.byKey(const Key('revoke_example-second-device')));
-        await settleUi(t);
-        await t.tap(find.byKey(const Key('revokeLost')));
-        await settleUi(t);
+        await openSheet(t);
+        await t.tap(find.byKey(const Key('confirmRevoke')));
+        await openSheet(t);
+        await openSheet(t);
       },
     ),
     const CatalogCase('recovery', RecoveryKeyScreen()),

@@ -17,11 +17,15 @@ group credential are signed by an identity that contacts no longer trust.
 
 ## Decision
 
-Removing a device asks one more thing. "Remove this device?" offers:
+Removing a device is two small questions, each with one thing to decide,
+on the sheet the app uses for such questions:
 
-- **Remove**: as before. For a device the person still has, or has wiped.
-- **It was lost or stolen**: a second question, "Replace your security
-  code?", and then the identity is replaced.
+1. **"Remove this device?"** Remove or Cancel, as before.
+2. Once it is removed: **"Was it lost or stolen?"** with "Reset your security
+   code to lock it out. Your other devices and groups need setting up
+   again." The answers are "Reset security code" and "No, I have it".
+
+"No, I have it" ends there: the device is removed and nothing else changes.
 
 Replacing does, in this order:
 
@@ -66,8 +70,8 @@ left because the phone was offline: its keys are discarded all the same.
 - Contacts must accept the new security code before messages flow again,
   and a careful contact will want to verify it.
 - Messages the lost device already received stay on it.
-- If the person chooses plain Remove for a device that was in fact stolen,
-  nothing here helps; the threat model says what Remove does.
+- If the person answers "No, I have it" for a device that was in fact
+  stolen, nothing here helps; the threat model says what removing does.
 
 ## Costs
 
@@ -83,5 +87,6 @@ per group. Nothing recurring. No new server fields or rules.
   groups, publishes key packages for the new device, and the account can be
   invited and read messages again; a restart of the same device keeps its
   groups.
-- Screen: the identity is replaced only after the second question, and
-  cancelling either question changes nothing.
+- Screen: the second question comes only after the device is removed; "No, I
+  have it" changes nothing more; only "Reset security code" replaces the
+  identity.
