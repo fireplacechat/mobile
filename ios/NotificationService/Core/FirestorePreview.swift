@@ -115,3 +115,30 @@ public enum FirestorePreview {
     return documents
   }
 }
+
+/// Whether the app is on screen (decision 0056). While it is, the system shows
+/// no banner and the app receives the message itself, so the extension has
+/// nothing to do.
+///
+/// The extension cannot ask iOS, so the app says so: it touches an empty file
+/// in the shared container about every ten seconds while it is on screen and
+/// removes it when it leaves (`IosForegroundMarker` in the app). A file left
+/// behind by an app that was killed stops counting after `freshFor`.
+public enum PreviewForeground {
+  /// Written by the app; keep the two the same.
+  public static let fileName = "foreground"
+  public static let freshFor: TimeInterval = 30
+
+  /// A small allowance for a clock set back between the write and the read.
+  public static func isFresh(modified: Date?, now: Date) -> Bool {
+    guard let modified = modified else { return false }
+    let age = now.timeIntervalSince(modified)
+    return age >= -5 && age <= freshFor
+  }
+
+  public static func appIsOnScreen(root: URL, now: Date = Date()) -> Bool {
+    let file = root.appendingPathComponent(fileName)
+    let values = try? file.resourceValues(forKeys: [.contentModificationDateKey])
+    return isFresh(modified: values?.contentModificationDate, now: now)
+  }
+}
