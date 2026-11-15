@@ -123,6 +123,53 @@ void main() {
     expect(await loud(), 2);
   });
 
+  test('a message is decrypted once, however many follow it', () async {
+    final gid = await bookClub();
+    await until(
+      () async => bob.service.colorsOf(gid).containsKey('alice'),
+      what: 'colours',
+    );
+    // Colour messages are not kept in the history; they must not be tried
+    // again each time another message arrives.
+    final before = bob.service.eventAttempts;
+    for (var i = 1; i <= 5; i++) {
+      await alice.service.send(gid, 'message $i');
+      await until(
+        () async => (await texts(bob, gid)).contains('message $i'),
+        what: 'message $i',
+      );
+    }
+    expect(bob.service.eventAttempts - before, 5);
+  });
+
+  test('two messages sent in the same clock tick both arrive', () async {
+    final gid = await bookClub();
+    // A clock that does not move: both messages would get the same id.
+    final frozen = DateTime.utc(2030);
+    final carol = await Phone.create(db, 'carol', root, clock: () => frozen);
+    server.watchAccount('carol');
+    await alice.service.invite(gid, 'carol');
+    await until(
+      () async => carol.service.invitations.isNotEmpty,
+      what: 'invitation',
+    );
+    await carol.service.accept(gid);
+    await until(
+      () async => alice.service.groups[gid]!.members.length == 3,
+      what: 'three people',
+    );
+    await Future.wait([
+      carol.service.send(gid, 'first'),
+      carol.service.send(gid, 'second'),
+    ]);
+    await until(
+      () async =>
+          (await texts(alice, gid)).toSet().containsAll({'first', 'second'}),
+      what: 'both messages',
+    );
+    await carol.service.close();
+  });
+
   test(
     'messages reach the other member, never twice, with the right sender',
     () async {
