@@ -79,8 +79,6 @@ extension NativeCryptoApi on NativeCrypto {
       );
   String linkFingerprint(List<int> x, List<int> kem) =>
       utf8.decode(_binary('fp_link_fingerprint', x, kem));
-  String linkConfirmation(List<int> identity, List<int> x, List<int> kem) =>
-      utf8.decode(_ternary('fp_link_confirmation', identity, x, kem));
   Map<String, dynamic> linkSeal(
     Map<String, dynamic> identity,
     String uid,

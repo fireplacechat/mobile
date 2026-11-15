@@ -11,7 +11,7 @@
 Goals: Firebase and network observers cannot read message bodies; a participant can detect replacement of a contact's identity key; a stolen copy of a session heals after a round trip or two; strangers cannot flood or probe other users freely; people can block and delete.
 
 ## What is implemented
-- **Accounts:** username + password on Firebase Auth via a synthetic address `<username>@users.fireplace.invalid`. No email/phone. Optional recovery key; device linking by QR + 6-digit code.
+- **Accounts:** username + password on Firebase Auth via a synthetic address `<username>@users.fireplace.invalid`. No email/phone. Optional recovery key; device linking by a QR code scanned from the new device (0060).
 - **Identity:** each account has a hybrid Ed25519 + ML-DSA-65 identity. Each device has X25519 + ML-KEM-768 keys certified by that identity. A contact's identity is pinned on first use (TOFU); a change blocks sending until the user accepts it. Safety number / QR verification binds the pin.
 - **Handshake (protocol v4):** PQXDH-style with signed and one-time prekeys; transcript commits to both identities and all public keys involved.
 - **Ratchet:** hybrid double ratchet (X25519 + ML-KEM-768 on every direction change), per-message AES-256-GCM keys that are deleted after use. Forward secrecy for processed messages; post-compromise security after the compromised side answers with fresh keys.

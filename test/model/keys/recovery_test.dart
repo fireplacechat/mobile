@@ -124,17 +124,17 @@ void main() {
     });
 
     test(
-      'happy path: QR -> approve -> code matches -> new device installed',
+      'happy path: QR -> approve -> new device installed, nothing typed',
       () async {
         final req = await fresh.recovery.startLink('alice');
         expect(LinkQr.parse(req.qrPayload), isNotNull);
-        final code = await existing.recovery.approveLink(
+        await existing.recovery.approveLink(
           'alice',
           existingDev.identity,
           req.qrPayload,
         );
         final sealed = await fresh.recovery.awaitResponse(req);
-        final dev = await fresh.recovery.completeLink(req, sealed, code);
+        final dev = await fresh.recovery.completeLink(req, sealed);
         expect(dev.identity.publicBytes, existingDev.identity.publicBytes);
         expect(await dev.bundle.verifyCert(), isTrue);
         expect(
@@ -153,39 +153,12 @@ void main() {
     );
 
     test(
-      'wrong confirmation code is rejected and nothing is installed',
-      () async {
-        final req = await fresh.recovery.startLink('alice');
-        await existing.recovery.approveLink(
-          'alice',
-          existingDev.identity,
-          req.qrPayload,
-        );
-        final sealed = await fresh.recovery.awaitResponse(req);
-        await expectLater(
-          fresh.recovery.completeLink(req, sealed, '000000x'),
-          throwsA(isA<RecoveryException>()),
-        );
-        expect(await fresh.secrets.read('identity:alice'), isNull);
-        expect(
-          (await db.collection('users/alice/devices').get()).docs,
-          hasLength(1),
-        );
-      },
-    );
-
-    test(
       'a response made without the secret in the QR code does not open',
       () async {
         final req = await fresh.recovery.startLink('alice');
-        final honestCode = await existing.recovery.approveLink(
-          'alice',
-          existingDev.identity,
-          req.qrPayload,
-        );
         // Someone who can write the response and knows every public value
-        // picks an identity of their own. Whatever code it gives, the new
-        // device cannot open what was sealed without its secret.
+        // picks an identity of their own. The new device cannot open what
+        // was sealed without its secret.
         final evil = await AccountIdentity.generate();
         final forged = await LinkCrypto.seal(
           evil,
@@ -195,18 +168,26 @@ void main() {
           kemPub: req.keys.kemPub,
           secret: Uint8List(16),
         );
-        final forgedCode = await LinkCrypto.confirmationCode(
-          evil.publicBytes,
-          req.keys.x25519Pub,
-          req.keys.kemPub,
+        await expectLater(
+          fresh.recovery.completeLink(req, forged),
+          throwsA(isA<RecoveryException>()),
         );
-        for (final code in [honestCode, forgedCode]) {
-          await expectLater(
-            fresh.recovery.completeLink(req, forged, code),
-            throwsA(isA<RecoveryException>()),
-          );
-        }
         expect(await fresh.secrets.read('identity:alice'), isNull);
+        expect(
+          (await db.collection('users/alice/devices').get()).docs,
+          hasLength(1),
+        );
+        // The request is still there, so the real answer can still arrive.
+        await existing.recovery.approveLink(
+          'alice',
+          existingDev.identity,
+          req.qrPayload,
+        );
+        final dev = await fresh.recovery.completeLink(
+          req,
+          await fresh.recovery.awaitResponse(req),
+        );
+        expect(dev.identity.publicBytes, existingDev.identity.publicBytes);
       },
     );
 
@@ -251,34 +232,6 @@ void main() {
           .get();
       expect(snap.data()!.containsKey('response'), isFalse);
     });
-
-    test(
-      'server swapping the identity in the response is caught by the code',
-      () async {
-        final req = await fresh.recovery.startLink('alice');
-        final honestCode = await existing.recovery.approveLink(
-          'alice',
-          existingDev.identity,
-          req.qrPayload,
-        );
-        // Even a response sealed with the right secret is refused when its
-        // identity does not give the code the person was shown.
-        final evil = await AccountIdentity.generate();
-        final forged = await LinkCrypto.seal(
-          evil,
-          uid: 'alice',
-          deviceId: req.keys.deviceId,
-          x25519Pub: req.keys.x25519Pub,
-          kemPub: req.keys.kemPub,
-          secret: req.secret,
-        );
-        await expectLater(
-          fresh.recovery.completeLink(req, forged, honestCode),
-          throwsA(isA<RecoveryException>()),
-        );
-        expect(await fresh.secrets.read('identity:alice'), isNull);
-      },
-    );
 
     test(
       'server swapping the new device keys is caught by the QR fingerprint',
@@ -350,7 +303,7 @@ void main() {
 
     test('linked device can chat with a contact', () async {
       final req = await fresh.recovery.startLink('alice');
-      final code = await existing.recovery.approveLink(
+      await existing.recovery.approveLink(
         'alice',
         existingDev.identity,
         req.qrPayload,
@@ -358,7 +311,6 @@ void main() {
       final dev = await fresh.recovery.completeLink(
         req,
         await fresh.recovery.awaitResponse(req),
-        code,
       );
       await db.collection('usernames').doc('alice').set({'uid': 'alice'});
       await db.collection('usernames').doc('bob').set({'uid': 'bob'});

@@ -464,7 +464,7 @@ void main() {
       },
     ),
     CatalogCase(
-      'link-approval-code',
+      'link-approved',
       LinkNewDeviceScreen(
         scanCode: (_) async => 'example-invalid-qr-only-fake-service',
       ),

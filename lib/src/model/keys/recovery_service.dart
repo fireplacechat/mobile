@@ -188,13 +188,11 @@ class RecoveryService {
   }
 
   /// Opens the response and installs the identity. Only a device that read
-  /// this device's QR code can have made a response that opens. The typed
-  /// code is a second look by the person: it must be the one the approving
-  /// device shows.
+  /// this device's QR code can have made a response that opens, so nothing
+  /// else is asked of the person.
   Future<LocalDevice> completeLink(
     LinkRequest req,
     SealedIdentity sealed,
-    String typedCode,
   ) async {
     final AccountIdentity identity;
     try {
@@ -207,16 +205,6 @@ class RecoveryService {
     } on LinkException {
       throw RecoveryException('Could not link this device. Start again.');
     }
-    final expected = await LinkCrypto.confirmationCode(
-      identity.publicBytes,
-      req.keys.x25519Pub,
-      req.keys.kemPub,
-    );
-    if (typedCode.trim() != expected) {
-      throw RecoveryException(
-        'The code does not match. Do not continue unless you can explain why.',
-      );
-    }
     final device = await _keys.installDevice(req.uid, identity, req.keys);
     await _requests(req.uid).doc(req.keys.deviceId).delete();
     return device;
@@ -227,8 +215,9 @@ class RecoveryService {
 
   // --------------------------------------------- linking: the APPROVING device
 
-  /// Scans the new device's QR. Returns the confirmation code to display.
-  Future<String> approveLink(
+  /// Answers the QR code scanned from the new device: seals the identity to
+  /// the keys and with the secret that code shows.
+  Future<void> approveLink(
     String uid,
     AccountIdentity identity,
     String qrPayload,
@@ -275,6 +264,5 @@ class RecoveryService {
       secret: qr.secret,
     );
     await _requests(uid).doc(qr.deviceId).update({'response': sealed.toJson()});
-    return LinkCrypto.confirmationCode(identity.publicBytes, x, k);
   }
 }

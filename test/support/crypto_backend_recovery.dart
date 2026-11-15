@@ -63,13 +63,6 @@ class LinkCrypto {
       useRust
       ? nativeCrypto.linkFingerprint(x, kem)
       : reference.LinkCrypto.requestFingerprint(x, kem);
-  static Future<String> confirmationCode(
-    List<int> identity,
-    List<int> x,
-    List<int> kem,
-  ) async => useRust
-      ? nativeCrypto.linkConfirmation(identity, x, kem)
-      : reference.LinkCrypto.confirmationCode(identity, x, kem);
   static Future<reference.SealedIdentity> seal(
     reference.AccountIdentity identity, {
     required String uid,

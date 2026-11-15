@@ -138,33 +138,8 @@ void main() => bothCryptoBackends(() {
       );
     });
 
-    test('confirmation code depends on identity and device keys; fingerprint on keys', () async {
-      final id1 = await AccountIdentity.generate();
-      final id2 = await AccountIdentity.generate();
+    test('the fingerprint depends on the device keys', () async {
       final d = await DeviceKeys.generate();
-      final c1 = await LinkCrypto.confirmationCode(
-        id1.publicBytes,
-        d.x25519Pub,
-        d.kemPub,
-      );
-      expect(RegExp(r'^\d{6}$').hasMatch(c1), isTrue);
-      expect(
-        await LinkCrypto.confirmationCode(
-          id1.publicBytes,
-          d.x25519Pub,
-          d.kemPub,
-        ),
-        c1,
-      );
-      expect(
-        await LinkCrypto.confirmationCode(
-              id2.publicBytes,
-              d.x25519Pub,
-              d.kemPub,
-            ) ==
-            c1,
-        isFalse,
-      );
       final d2 = await DeviceKeys.generate();
       expect(
         await LinkCrypto.requestFingerprint(d.x25519Pub, d.kemPub),

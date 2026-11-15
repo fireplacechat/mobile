@@ -77,20 +77,6 @@ class LinkCrypto {
         .replaceAll('=', '');
   }
 
-  /// 6-digit code both devices display; the user checks they match.
-  static Future<String> confirmationCode(
-    List<int> identityPub,
-    List<int> x25519Pub,
-    List<int> kemPub,
-  ) async {
-    final h = (await Sha256().hash(
-      lp([utf8Bytes('fireplace/v1/link-sas'), identityPub, x25519Pub, kemPub]),
-    )).bytes;
-    final n =
-        ByteData.sublistView(Uint8List.fromList(h)).getUint32(0) % 1000000;
-    return n.toString().padLeft(6, '0');
-  }
-
   static Uint8List _info(
     String uid,
     String deviceId,

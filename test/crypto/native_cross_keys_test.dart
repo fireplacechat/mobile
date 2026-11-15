@@ -148,18 +148,6 @@ void main() {
         )).publicBytes,
         identity.publicBytes,
       );
-      expect(
-        nativeCrypto.linkConfirmation(
-          identity.publicBytes,
-          device.x25519Pub,
-          device.kemPub,
-        ),
-        await dart.LinkCrypto.confirmationCode(
-          identity.publicBytes,
-          device.x25519Pub,
-          device.kemPub,
-        ),
-      );
     },
   );
 }

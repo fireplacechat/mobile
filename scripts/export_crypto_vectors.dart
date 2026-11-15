@@ -6,7 +6,7 @@
 // Each scripted section restarts the same recorded byte stream, in the same
 // order the Rust test replays. The natural section leaves the stream off, so
 // its handshake is cross-checked (Rust opens it) rather than compared byte
-// for byte. Fingerprints, safety numbers and link codes draw no bytes.
+// for byte. Fingerprints and safety numbers draw no bytes.
 
 import 'dart:convert';
 import 'dart:io';
@@ -91,11 +91,6 @@ Future<Map<String, Object>> scriptedHandshake() async {
     bobKeys.x25519Pub,
     bobKeys.kemPub,
   );
-  final linkCode = await LinkCrypto.confirmationCode(
-    aliceId.publicBytes,
-    bobKeys.x25519Pub,
-    bobKeys.kemPub,
-  );
   installTestRng(null);
   return {
     'prekeyNow': prekeyNow,
@@ -120,7 +115,6 @@ Future<Map<String, Object>> scriptedHandshake() async {
     'safety': safety,
     'safetySwapped': safetySwapped,
     'linkFingerprint': linkFingerprint,
-    'linkCode': linkCode,
   };
 }
 

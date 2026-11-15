@@ -53,16 +53,22 @@ affected.
 Keeping the old form for a time would keep the old guarantee for that time,
 so it is not kept.
 
-## The typed code
+## The typed code is gone
 
-The 6-digit code is still shown on the approving device and typed on the new
-one. It no longer carries the guarantee; the secret does. Whether to keep the
-step is a separate decision.
+Before, the approving device showed a 6-digit code and the person typed it on
+the new device. The secret now does that work, and does it without anything
+to read or type, so the step is removed: the person scans the QR code and the
+new device finishes on its own. The approving device then says the device is
+linked and where to remove it.
+
+The code's function is removed from the core and from the Dart reference, and
+its known answer from the shared vectors.
 
 ## Core
 
 `fireplace-crypto` replaces `fp_link_seal` and `fp_link_open` with
-`fp_link_seal_v2` and `fp_link_open_v2`, which take the secret. The names
+`fp_link_seal_v2` and `fp_link_open_v2`, which take the secret, and removes
+`fp_link_confirmation`. The names
 changed so that a caller built for the old form fails to find the function
 rather than calling it with the wrong arguments. The Dart reference
 implementation makes the same change, and one known answer is shared between
@@ -79,5 +85,8 @@ the two.
   and nothing is installed, whatever code is typed; the secret is not in the
   request written to the server; two requests have different secrets; a
   version 1 QR code is refused in plain words and no response is written.
-- The existing linking tests (fingerprint mismatch, wrong code, expiry,
-  second answer, cancellation, timeout) pass unchanged.
+- Screens: the new device shows no field to type in and finishes when the
+  answer arrives; an answer that does not open shows an error and can be
+  tried again; the approving device shows that the device is linked.
+- The existing linking tests (fingerprint mismatch, expiry, second answer,
+  cancellation, timeout) pass unchanged.

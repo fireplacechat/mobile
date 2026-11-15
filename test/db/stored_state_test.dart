@@ -247,12 +247,12 @@ void main() {
         ),
       );
       final req2 = await fresh.startLink('alice');
-      final code = await existing.approveLink(
-        'alice',
-        dev.identity,
-        req2.qrPayload,
-      );
-      expect(code, matches(RegExp(r'^\d{6}$')));
+      await existing.approveLink('alice', dev.identity, req2.qrPayload);
+      final answered = await db
+          .collection('users/alice/linkRequests')
+          .doc(req2.keys.deviceId)
+          .get();
+      expect(answered.data()!['response'], isNotNull);
     });
   });
 }
