@@ -105,15 +105,23 @@ class InviteTicket extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          Text(
-            formatInviteCode(slot.code),
-            key: Key('inviteCode$i'),
-            style: theme.textTheme.headlineSmall?.copyWith(
-              // Not monospace: its O looks like a zero, and codes have no 0.
-              fontWeight: FontWeight.w600,
-              letterSpacing: 2,
-              color: slot.used ? t.secondaryText : t.text,
-              decoration: slot.used ? TextDecoration.lineThrough : null,
+          // Always one line: on a narrow phone, or with large text, the code
+          // is drawn smaller instead of breaking at its hyphens.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(
+              formatInviteCode(slot.code),
+              key: Key('inviteCode$i'),
+              maxLines: 1,
+              softWrap: false,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                // Not monospace: its O looks like a zero, and codes have no 0.
+                fontWeight: FontWeight.w600,
+                letterSpacing: 2,
+                color: slot.used ? t.secondaryText : t.text,
+                decoration: slot.used ? TextDecoration.lineThrough : null,
+              ),
             ),
           ),
           if (!slot.used) ...[

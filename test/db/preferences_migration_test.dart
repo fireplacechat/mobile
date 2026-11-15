@@ -136,6 +136,10 @@ void main() {
     // again, so nothing marks the late message as read.
     expect(await prefs.claimBaseline('alice_fred'), isFalse);
     expect(await f.chat.store.unreadCount('alice_fred'), 1);
+    // Saves are queued, so this one finishes after the baseline claims
+    // before it. Reading the file while one of them is being renamed into
+    // place fails that save on Windows.
+    await prefs.mute('alice_fred', true);
     final reopened = await LocalChatPreferences.open(
       dir: dir,
       secrets: secrets,
@@ -143,7 +147,6 @@ void main() {
     );
     expect(reopened.needsBaseline('alice_fred'), isFalse);
     await reopened.close();
-    await prefs.mute('alice_fred', true);
     await prefs.previews(false);
     await c.read(chatActivityProvider.notifier).resetPreferences();
     await until(() => c.read(chatActivityProvider).unread['alice_fred'] == 0);

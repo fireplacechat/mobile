@@ -80,8 +80,10 @@ class ChatComposer extends StatelessWidget {
         text: 'Review this contact’s security code before sending.',
       );
     } else {
-      return SafeArea(
-        top: false,
+      // The bar's colour runs to the bottom of the screen, under the home
+      // indicator; only its contents keep clear of it.
+      return ColoredBox(
+        color: FireplaceUiTokens.of(context).panel,
         child: CallbackShortcuts(
           bindings: {
             const SingleActivator(LogicalKeyboardKey.enter, control: true):
@@ -89,10 +91,8 @@ class ChatComposer extends StatelessWidget {
             const SingleActivator(LogicalKeyboardKey.enter, meta: true):
                 submit ?? send!.send,
           },
-          child: Container(
-            decoration: BoxDecoration(
-              color: FireplaceUiTokens.of(context).panel,
-            ),
+          child: SafeArea(
+            top: false,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
