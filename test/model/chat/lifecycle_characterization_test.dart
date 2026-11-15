@@ -193,6 +193,6 @@ void main() {
 
 class _ThrowingLoad extends MemoryMessageStore {
   @override
-  Stream<List<LocalMessage>> watch(String chatId) =>
+  Stream<List<LocalMessage>> watch(String chatId, {int? newest}) =>
       Stream.error(const FormatException('corrupt history'));
 }

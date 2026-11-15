@@ -14,7 +14,12 @@ List<MessageSearchHit> _scan((Map<String, List<LocalMessage>>, String) input) =>
     searchMessages(input.$1, input.$2);
 final messageSearchProvider = FutureProvider.autoDispose
     .family<List<MessageSearchHit>, String>((ref, query) async {
-      final history = ref.watch(chatActivityProvider.select((s) => s.history));
+      // The chat list holds only each conversation's newest messages; a
+      // search reads all of them, from the history database, when asked.
+      final chats = ref.watch(
+        chatActivityProvider.select((s) => s.history.keys.toList()),
+      );
+      final chat = ref.watch(appSessionProvider).value?.chat;
       final waiting = Completer<void>();
       final timer = Timer(const Duration(milliseconds: 250), waiting.complete);
       ref.onDispose(() {
@@ -22,7 +27,16 @@ final messageSearchProvider = FutureProvider.autoDispose
         if (!waiting.isCompleted) waiting.complete();
       });
       await waiting.future;
-      if (!ref.mounted) return [];
+      if (!ref.mounted || chat == null) return [];
+      final history = <String, List<LocalMessage>>{};
+      for (final id in chats) {
+        try {
+          history[id] = await chat.allMessages(id);
+        } catch (_) {
+          // An unreadable history is not searched.
+        }
+        if (!ref.mounted) return [];
+      }
       return compute(_scan, (history, query));
     });
 

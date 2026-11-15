@@ -151,7 +151,16 @@ class GuardedMessages implements LocalMessageStore {
   }
 
   @override
-  Stream<List<LocalMessage>> watch(String chatId) => inner.watch(chatId);
+  Stream<List<LocalMessage>> watch(String chatId, {int? newest}) =>
+      inner.watch(chatId, newest: newest);
+  @override
+  Future<List<LocalMessage>> all(String chatId) => inner.all(chatId);
+  @override
+  Future<void> showOlder(String chatId, {int more = 200}) =>
+      inner.showOlder(chatId, more: more);
+  @override
+  Future<void> reveal(String chatId, String messageId) =>
+      inner.reveal(chatId, messageId);
 }
 
 enum PublishMode {

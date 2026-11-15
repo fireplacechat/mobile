@@ -185,7 +185,25 @@ abstract class LocalMessageStore {
 
   /// Erases content and retains a hidden replay tombstone on this device.
   Future<void> remove(String chatId, String messageId);
-  Stream<List<LocalMessage>> watch(String chatId);
+
+  /// The conversation as it is shown, oldest first, now and after each
+  /// change. With [newest], at least that many of the newest messages: a
+  /// long conversation is then not read whole (decision 0057). A store may
+  /// give more than was asked for.
+  Stream<List<LocalMessage>> watch(String chatId, {int? newest});
+
+  /// The whole conversation as it is shown, once. For the few things that
+  /// need all of it (search, a first-run baseline); it changes nothing for
+  /// those watching.
+  Future<List<LocalMessage>> all(String chatId);
+
+  /// Gives those watching [chatId] at least [more] older messages as well,
+  /// when there are any.
+  Future<void> showOlder(String chatId, {int more = 200});
+
+  /// Makes sure those watching [chatId] are given the message [messageId],
+  /// however old, with a little of what came before it.
+  Future<void> reveal(String chatId, String messageId);
 
   /// Forget a whole conversation on this device.
   Future<void> deleteChat(String chatId);
@@ -239,6 +257,14 @@ class MemoryMessageStore implements LocalMessageStore {
     _ctrls[chatId]?.add(const []);
   }
 
+  // Everything is in memory already: a window would save nothing.
+  @override
+  Future<List<LocalMessage>> all(String chatId) async => _sorted(chatId);
+  @override
+  Future<void> showOlder(String chatId, {int more = 200}) async {}
+  @override
+  Future<void> reveal(String chatId, String messageId) async {}
+
   @override
   Future<void> clearChat(String chatId) async {
     final records = _chats[chatId];
@@ -250,7 +276,7 @@ class MemoryMessageStore implements LocalMessageStore {
   }
 
   @override
-  Stream<List<LocalMessage>> watch(String chatId) {
+  Stream<List<LocalMessage>> watch(String chatId, {int? newest}) {
     final c = _ctrls[chatId] ??=
         StreamController<List<LocalMessage>>.broadcast();
     return Stream.multi((s) {

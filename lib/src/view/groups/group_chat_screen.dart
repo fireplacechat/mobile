@@ -37,6 +37,7 @@ class GroupChatScreen extends ConsumerStatefulWidget {
 }
 
 class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
+  bool _loadingOlder = false;
   final _text = TextEditingController();
   final _edit = TextEditingController();
   final _focus = FocusNode();
@@ -371,68 +372,89 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                         'Messages are end-to-end encrypted. Say hello when '
                         'you’re ready.',
                   )
-                : ThinScrollbar(
-                    child: ListView.builder(
-                      key: const Key('groupMessages'),
-                      reverse: true,
-                      // The same insets as a 1:1 timeline, so a held message is
-                      // lifted without moving.
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: MessageMenuMetrics.edge,
-                        vertical: 12,
-                      ),
-                      itemCount: rows.length + (joinedLater ? 1 : 0),
-                      itemBuilder: (_, i) {
-                        if (i == rows.length) {
-                          // MLS gives a newcomer no keys for earlier messages.
-                          return const GroupQuietLine(
-                            key: Key('historyStart'),
-                            text:
-                                'Messages sent before you joined aren’t shown.',
+                : NotificationListener<ScrollNotification>(
+                    // Nearing the oldest shown: load the next older messages.
+                    onNotification: (n) {
+                      if (n.metrics.axis == Axis.vertical &&
+                          n.metrics.extentAfter <= 800 &&
+                          !_loadingOlder) {
+                        final service = ref.read(groupServiceProvider);
+                        if (service != null) {
+                          _loadingOlder = true;
+                          unawaited(
+                            service
+                                .showOlderMessages(widget.gid)
+                                .catchError((Object _) {})
+                                .whenComplete(() => _loadingOlder = false),
                           );
                         }
-                        final index = rows.length - 1 - i;
-                        final m = rows[index];
-                        final before = index == 0 ? null : rows[index - 1];
-                        final after = index == rows.length - 1
-                            ? null
-                            : rows[index + 1];
-                        final showDate =
-                            before == null ||
-                            !sameLocalDay(before.sentAt, m.sentAt);
-                        final notice = m.status == MessageStatus.notice
-                            ? GroupNotice.decode(m.body)
-                            : null;
-                        return Column(
-                          key: ValueKey(m.id),
-                          children: [
-                            if (showDate) DaySeparator(date: m.sentAt),
-                            if (m.status == MessageStatus.notice)
-                              if (notice != null)
-                                GroupNoticeLine(notice: notice),
-                            if (m.status != MessageStatus.notice)
-                              GroupMessageRow(
-                                gid: widget.gid,
-                                message: m,
-                                color: memberColor(colors, m.senderUid),
-                                showName: !m.outgoing && !sameRun(m, before),
-                                showAvatar: !m.outgoing && !sameRun(m, after),
-                                actions: _actionsFor(m, me),
-                                onReactions: () => _showReactions(m, me),
-                              ),
-                            if (m.outgoing &&
-                                m.status == MessageStatus.unconfirmed)
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  'Not confirmed',
-                                  key: Key('unconfirmed_${m.id}'),
-                                  style: Theme.of(context).textTheme.bodySmall,
+                      }
+                      return false;
+                    },
+                    child: ThinScrollbar(
+                      child: ListView.builder(
+                        key: const Key('groupMessages'),
+                        reverse: true,
+                        // The same insets as a 1:1 timeline, so a held message is
+                        // lifted without moving.
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: MessageMenuMetrics.edge,
+                          vertical: 12,
+                        ),
+                        itemCount: rows.length + (joinedLater ? 1 : 0),
+                        itemBuilder: (_, i) {
+                          if (i == rows.length) {
+                            // MLS gives a newcomer no keys for earlier messages.
+                            return const GroupQuietLine(
+                              key: Key('historyStart'),
+                              text: 'Messages sent before you joined aren’t shown.',
+                            );
+                          }
+                          final index = rows.length - 1 - i;
+                          final m = rows[index];
+                          final before = index == 0 ? null : rows[index - 1];
+                          final after = index == rows.length - 1
+                              ? null
+                              : rows[index + 1];
+                          final showDate =
+                              before == null ||
+                              !sameLocalDay(before.sentAt, m.sentAt);
+                          final notice = m.status == MessageStatus.notice
+                              ? GroupNotice.decode(m.body)
+                              : null;
+                          return Column(
+                            key: ValueKey(m.id),
+                            children: [
+                              if (showDate) DaySeparator(date: m.sentAt),
+                              if (m.status == MessageStatus.notice)
+                                if (notice != null)
+                                  GroupNoticeLine(notice: notice),
+                              if (m.status != MessageStatus.notice)
+                                GroupMessageRow(
+                                  gid: widget.gid,
+                                  message: m,
+                                  color: memberColor(colors, m.senderUid),
+                                  showName: !m.outgoing && !sameRun(m, before),
+                                  showAvatar: !m.outgoing && !sameRun(m, after),
+                                  actions: _actionsFor(m, me),
+                                  onReactions: () => _showReactions(m, me),
                                 ),
-                              ),
-                          ],
-                        );
-                      },
+                              if (m.outgoing &&
+                                  m.status == MessageStatus.unconfirmed)
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Text(
+                                    'Not confirmed',
+                                    key: Key('unconfirmed_${m.id}'),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall,
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
           ),

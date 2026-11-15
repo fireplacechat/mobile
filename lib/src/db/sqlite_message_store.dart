@@ -293,8 +293,19 @@ CREATE TABLE messages (
         while (i > 0 && view[i - 1].sentAt.isAfter(m.sentAt)) {
           i--;
         }
+        // Older than everything in a window that does not reach the start
+        // of the conversation: it belongs before the window, not in it.
+        final limit = _limits[chatId];
+        if (i == 0 && limit != null && view.length >= limit) continue;
         view.insert(i, m);
       } else if (!m.visible) {
+        // One fewer in a window that was full: an older message now belongs
+        // in it, which only the database knows.
+        final limit = _limits[chatId];
+        if (limit != null && view.length >= limit) {
+          _views.remove(chatId);
+          return;
+        }
         view.removeAt(at);
       } else if (view[at].sentAt == m.sentAt) {
         view[at] = m;
@@ -305,14 +316,46 @@ CREATE TABLE messages (
     }
   }
 
-  List<LocalMessage> _view(String chatId) =>
-      List.unmodifiable(_views[chatId] ??= _visible(chatId));
+  /// How much of each watched conversation its watchers asked for: a number
+  /// of newest messages, or null for all of it.
+  final _limits = <String, int?>{};
+
+  List<LocalMessage> _newest(String chatId, int count) => [
+    for (final row in _db.select(
+      'SELECT record FROM messages WHERE chat_id = ? AND visible = 1 '
+      'ORDER BY sent_at DESC, seq DESC LIMIT ?',
+      [chatId, count],
+    ))
+      _decode(row),
+  ].reversed.toList();
+
+  List<LocalMessage> _view(String chatId) {
+    final limit = _limits[chatId];
+    return List.unmodifiable(
+      _views[chatId] ??= limit == null
+          ? _visible(chatId)
+          : _newest(chatId, limit),
+    );
+  }
+
+  /// Widens what [chatId]'s watchers are given to [limit] (null: all).
+  void _widen(String chatId, int? limit) {
+    if (!_limits.containsKey(chatId)) {
+      _limits[chatId] = limit;
+      return;
+    }
+    final now = _limits[chatId];
+    if (now == null || (limit != null && limit <= now)) return;
+    _limits[chatId] = limit;
+    _views.remove(chatId);
+  }
 
   void _emit(String chatId) {
     final c = _ctrls[chatId];
     if (c == null || c.isClosed || !c.hasListener) {
       // Nobody is watching: do not keep the conversation in memory.
       _views.remove(chatId);
+      _limits.remove(chatId);
       return;
     }
     c.add(_view(chatId));
@@ -487,20 +530,77 @@ CREATE TABLE messages (
   });
 
   @override
-  Stream<List<LocalMessage>> watch(String chatId) {
+  Future<List<LocalMessage>> all(String chatId) async {
+    await _imported(chatId);
+    return _visible(chatId);
+  }
+
+  @override
+  Future<void> showOlder(String chatId, {int more = 200}) async {
+    await _imported(chatId);
+    final limit = _limits[chatId];
+    // Fewer than asked for are shown: there is nothing older.
+    if (limit == null || (_views[chatId]?.length ?? limit) < limit) return;
+    _widen(chatId, limit + more);
+    _emit(chatId);
+  }
+
+  @override
+  Future<void> reveal(String chatId, String messageId) async {
+    await _imported(chatId);
+    final limit = _limits[chatId];
+    if (limit == null) return;
+    final target = _db.select(
+      'SELECT sent_at, seq FROM messages '
+      'WHERE chat_id = ? AND id = ? AND visible = 1',
+      [chatId, messageId],
+    );
+    if (target.isEmpty) return;
+    final at = target.first['sent_at'] as int, seq = target.first['seq'] as int;
+    final newer =
+        _db.select(
+              'SELECT count(*) AS n FROM messages WHERE chat_id = ?1 '
+              'AND visible = 1 AND (sent_at > ?2 OR (sent_at = ?2 AND seq >= ?3))',
+              [chatId, at, seq],
+            ).first['n']
+            as int;
+    if (newer + _revealMargin <= limit) return;
+    _widen(chatId, newer + _revealMargin);
+    _emit(chatId);
+  }
+
+  /// How many messages before a revealed one come with it.
+  static const _revealMargin = 50;
+
+  @override
+  Stream<List<LocalMessage>> watch(String chatId, {int? newest}) {
     final c = _ctrls[chatId] ??= StreamController.broadcast();
     return Stream.multi((s) {
       var cancelled = false;
       final sub = c.stream.listen(s.add, onError: s.addError, onDone: s.close);
+      final before = _limits.containsKey(chatId) ? _limits[chatId] : -1;
+      _widen(chatId, newest);
+      // Someone already watching is now owed more: show them.
+      final widened = before != -1 && _limits[chatId] != before;
       s.onCancel = () async {
         cancelled = true;
         await sub.cancel();
+        // The last watcher left: forget the window, so the conversation is
+        // not kept in memory and the next watcher starts from what it asks.
+        if (!c.hasListener) {
+          _views.remove(chatId);
+          _limits.remove(chatId);
+        }
       };
       unawaited(() async {
         try {
           await _imported(chatId);
           if (cancelled || _closed) return;
-          s.add(_view(chatId));
+          if (widened) {
+            _emit(chatId);
+          } else {
+            s.add(_view(chatId));
+          }
         } catch (error, stack) {
           if (!cancelled) s.addError(error, stack);
         }
