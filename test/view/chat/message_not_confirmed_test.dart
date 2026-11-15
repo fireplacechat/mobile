@@ -243,7 +243,7 @@ void main() {
     'published but not saved: says so, never offers a resend, and Save repairs only the history',
     (t) async {
       final r = await open(t);
-      r.history.failAdds = 1;
+      r.history.failAdds = 2; // before publishing, and after
       await typeAndSend(t, 'sent but unsaved');
       expect(find.text('Sent — could not save on this device'), findsOneWidget);
       expect(
@@ -272,7 +272,7 @@ void main() {
     (t) async {
       final r = await open(t);
       loseBeforeCommit(r);
-      r.history.failAdds = 1;
+      r.history.failAdds = 2; // before publishing, and the warning
       await typeAndSend(t, 'memory only');
       expect(find.text('Message not confirmed'), findsOneWidget);
       expect(find.text('memory only'), findsOneWidget);

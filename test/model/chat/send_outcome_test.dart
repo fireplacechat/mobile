@@ -200,7 +200,8 @@ void main() {
   });
 
   test('published but not saved on this phone: reported as such, never as a failure; Save repairs only the history', () async {
-    aliceHistory.failAdds = 1;
+    // Both writes fail: the copy saved before publishing and the one after.
+    aliceHistory.failAdds = 2;
     late SendNotConfirmedException e;
     try {
       await alice.chat.sendText(chatId, 'sent but unsaved');
@@ -231,7 +232,8 @@ void main() {
 
   test('if even the warning cannot be saved, the exception says so and carries the text', () async {
     loseBeforeCommit();
-    aliceHistory.failAdds = 1;
+    // Both writes fail: the copy saved before publishing and the warning.
+    aliceHistory.failAdds = 2;
     final e = await sendExpectingUnconfirmed('memory only');
     expect(e.outcome, SendOutcome.publishUnknown);
     expect(
@@ -324,5 +326,107 @@ void main() {
       () async => (await bob.bodies(chatId)).contains('three'),
       'delivered across the gap',
     );
+  });
+
+  group('a message is saved before it is published (issue 191)', () {
+    test('while it is being published it is already in the history, as not '
+        'confirmed, and the conversation does not show it yet', () async {
+      final publishing = Completer<void>();
+      final release = Completer<void>();
+      alice.commit = (b) async {
+        publishing.complete();
+        await release.future;
+        await b.commit();
+      };
+      final shown = <List<String>>[];
+      final sub = alice.chat
+          .watchMessages(chatId)
+          .listen((m) => shown.add([for (final x in m) x.body]));
+      addTearDown(sub.cancel);
+      final sending = alice.chat.sendText(chatId, 'do not lose me');
+      await publishing.future;
+
+      // Closing the app here leaves exactly this behind: the next start
+      // shows the message with its warning, and "check" settles it.
+      final stored = (await history()).single;
+      expect(stored.body, 'do not lose me');
+      expect(stored.status, MessageStatus.unconfirmed);
+      expect(stored.outgoing, isTrue);
+      expect(await serverCount(), 0);
+      // No warning for a send that is only in progress.
+      await pumpEventQueue();
+      expect(shown.expand((bodies) => bodies), isEmpty);
+      expect(await alice.chat.allMessages(chatId), isEmpty);
+
+      release.complete();
+      await sending;
+      final sent = (await history()).single;
+      expect(sent.id, stored.id, reason: 'the same message, not a second one');
+      expect(sent.status, MessageStatus.ok);
+      expect(await serverCount(), 1);
+      await pumpEventQueue();
+      expect(shown.last, ['do not lose me']);
+      expect((await alice.chat.allMessages(chatId)).single.id, stored.id);
+    });
+
+    test(
+      'the copy left by a closed app is settled by checking: it arrived',
+      () async {
+        // As if the app had been closed after the server took the message.
+        commitThenLose();
+        final e = await sendExpectingUnconfirmed('arrived');
+        expect((await history()).single.status, MessageStatus.unconfirmed);
+        expect(
+          await alice.chat.checkSendStatus(chatId, e.messageId),
+          SendOutcome.confirmed,
+        );
+        expect((await history()).single.status, MessageStatus.ok);
+      },
+    );
+
+    test('a refused message leaves nothing in the history', () async {
+      alice.commit = (_) async => throw fb('invalid-argument');
+      await expectLater(
+        alice.chat.sendText(chatId, 'refused'),
+        throwsA(isA<SendRefusedException>()),
+      );
+      expect(await history(), isEmpty);
+      expect(await serverCount(), 0);
+      // And the next one goes as usual.
+      alice.commit = null;
+      await alice.chat.sendText(chatId, 'accepted');
+      final h = await history();
+      expect(h.single.body, 'accepted');
+      expect(h.single.status, MessageStatus.ok);
+    });
+
+    test('a send that stops before publishing leaves nothing', () async {
+      // Nobody to send to: it fails while preparing, after the copy was saved.
+      const nobody = 'alice_carol';
+      await expectLater(
+        alice.chat.sendText(nobody, 'to nobody'),
+        throwsA(isA<ChatException>()),
+      );
+      expect(await aliceHistory.watch(nobody).first, isEmpty);
+      expect(await alice.chat.allMessages(nobody), isEmpty);
+    });
+
+    test('an edit is not saved before it is published', () async {
+      await alice.chat.sendText(chatId, 'first wording');
+      final target = (await history()).single;
+      final publishing = Completer<void>();
+      final release = Completer<void>();
+      alice.commit = (b) async {
+        publishing.complete();
+        await release.future;
+        await b.commit();
+      };
+      final editing = alice.chat.editMessage(chatId, target.id, 'new wording');
+      await publishing.future;
+      expect((await history()).single.body, 'first wording');
+      release.complete();
+      await editing;
+      expect((await history()).single.body, 'new wording');
+    });
   });
 }

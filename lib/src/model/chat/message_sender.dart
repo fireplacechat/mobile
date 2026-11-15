@@ -26,14 +26,16 @@ import 'package:fireplace/src/model/safety/safety_service.dart';
 /// Sends messages and controls (reactions, edits, deletes). One send, under
 /// the session lock:
 ///
-/// 1. finish any open receive journal, then prepare the content;
+/// 1. finish any open receive journal, prepare the content, and save the
+///    message itself as unconfirmed, so that closing the app during the
+///    send does not lose it (decision 0058);
 /// 2. check the chat allows it ([SendMode]);
 /// 3. encrypt for the peer's and this account's other devices
 ///    ([encryptForDevices]);
 /// 4. save the advanced ratchets ahead of publishing
 ///    ([SessionStore.saveAhead]);
 /// 5. publish one batch, paced for the server's rate rule;
-/// 6. record the message in local history.
+/// 6. record the message in local history as sent.
 ///
 /// A definite refusal puts the ratchets back and says nothing was sent. An
 /// ambiguous failure keeps them and records the message as unconfirmed; it is
@@ -78,6 +80,13 @@ class MessageSender {
   final Duration messageRetention;
 
   final _allowance = SendAllowance();
+
+  /// Messages saved ahead of a send that has not finished (decision 0058).
+  /// They are in the history as unconfirmed, which is what they are if the
+  /// app stops now; the conversation leaves them out until the send ends, so
+  /// a send in progress does not show a warning.
+  final _inFlight = <String>{};
+  bool isInFlight(String messageId) => _inFlight.contains(messageId);
 
   /// When this device last started a chat-list bump. The server timestamp can
   /// still be the old one when the next message is sent, and a second bump
@@ -124,6 +133,73 @@ class MessageSender {
     );
     quote = content.quote;
     mutation = content.mutation;
+    final ref = _db
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .doc();
+    final sentAt = DateTime.now();
+
+    // A message a person wrote is saved before anything else is done with
+    // it. Finding the other person's devices and publishing can take seconds;
+    // if the app is closed meanwhile, the message is there on the next start,
+    // marked as not confirmed, with the usual "check" and "send another
+    // copy" choices. Edits, deletes and reactions are not saved ahead: saving
+    // one applies it here, and a refused one would have to be taken back.
+    var savedAhead = false;
+    if (mutation == null) {
+      _inFlight.add(ref.id);
+      try {
+        await _messages.add(
+          LocalMessage(
+            id: ref.id,
+            chatId: chatId,
+            senderUid: uid,
+            senderDevice: device.keys.deviceId,
+            outgoing: true,
+            sentAt: sentAt,
+            body: text,
+            status: MessageStatus.unconfirmed,
+            quote: quote,
+          ),
+        );
+        savedAhead = true;
+      } catch (_) {
+        // History cannot be written just now. The send goes on as it did
+        // before; step 6 reports a save that still fails.
+        _inFlight.remove(ref.id);
+      }
+    }
+    try {
+      await _sendPrepared(chatId, text, mutation, quote, ref, sentAt);
+    } on SendNotConfirmedException {
+      // It may exist: the saved copy stays, as unconfirmed.
+      _inFlight.remove(ref.id);
+      rethrow;
+    } catch (_) {
+      // Nothing was published, so there is no message: the copy saved ahead
+      // goes. A send that failed stays on screen from the list of sends.
+      if (savedAhead) {
+        try {
+          await _messages.remove(chatId, ref.id);
+        } catch (_) {
+          // It stays as unconfirmed; "check" finds it was never published.
+        }
+      }
+      _inFlight.remove(ref.id);
+      rethrow;
+    }
+  });
+
+  /// Steps 2 to 6 of a send whose content is settled.
+  Future<void> _sendPrepared(
+    String chatId,
+    String text,
+    MessageMutation? mutation,
+    MessageQuote? quote,
+    DocumentReference<Map<String, dynamic>> ref,
+    DateTime sentAt,
+  ) async {
     final peerUid = peerOf(chatId);
     if (_safety?.isBlocked(peerUid) ?? false) {
       throw ChatException('You blocked this person. Unblock them to message.');
@@ -175,8 +251,6 @@ class MessageSender {
       );
     }
 
-    final ref = chatRef.collection('messages').doc();
-    final sentAt = DateTime.now();
     final doc = {
       'senderUid': uid,
       'senderDevice': device.keys.deviceId,
@@ -228,6 +302,8 @@ class MessageSender {
     }
 
     // 6. Published. The ratchets were saved before publishing, so record the message.
+    // Shown from here on: the write below is what puts it in the conversation.
+    _inFlight.remove(ref.id);
     var localSaveFailed = false;
     try {
       await _messages.add(
@@ -260,7 +336,7 @@ class MessageSender {
         quote: quote,
       );
     }
-  });
+  }
 
   /// The chat document's fields. A chat can become accepted but never go
   /// back, so an accepted copy from the chat-list listener is final and saves
@@ -386,6 +462,8 @@ class MessageSender {
     MessageMutation? mutation,
     MessageQuote? quote,
   ) async {
+    // Shown from here on, with its warning.
+    _inFlight.remove(messageId);
     var persisted = true;
     try {
       await _messages.add(

@@ -209,12 +209,18 @@ class ChatService {
   Stream<List<LocalMessage>> watchMessages(String chatId) => _messages
       .watch(chatId, newest: ChatTuning.historyWindow)
       .map(
-        (messages) => [for (final message in messages) message.forAccount(uid)],
+        (messages) => [
+          for (final message in messages)
+            // One being published is shown by the list of sends, not yet
+            // from history (issue 191).
+            if (!_sender.isInFlight(message.id)) message.forAccount(uid),
+        ],
       );
 
   /// The whole conversation, once: for search and first-run bookkeeping.
   Future<List<LocalMessage>> allMessages(String chatId) async => [
-    for (final message in await _messages.all(chatId)) message.forAccount(uid),
+    for (final message in await _messages.all(chatId))
+      if (!_sender.isInFlight(message.id)) message.forAccount(uid),
   ];
 
   /// One stored message, however old, or null.
