@@ -56,11 +56,3 @@ writes.
   message can be on screen before it is saved. Measured on the emulator once
   history had loaded: saved 0.2 seconds after Send was pressed, where the send
   took 8.5 seconds.
-
-## How Signal does it
-
-Signal-iOS writes the message and a send job to its database in one
-transaction when Send is pressed (`MessageSenderJobQueue.add`), and on the
-next start loads the jobs left over and goes on sending them. This note takes
-the first half. It does not take the second: here a send whose outcome is not
-known is never repeated without the person asking.

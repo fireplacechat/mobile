@@ -16,8 +16,8 @@ History is one encrypted file per chat, and a file can only be read whole.
 - "Seen" is a list of every message id ever seen, rewritten in full each time.
 - The format, its crash recovery and its search are our own code to maintain.
 
-Signal, WhatsApp and Apple's Messages keep history in SQLite; Signal encrypts
-it with SQLCipher. They load a screenful and fetch older messages on scrolling.
+The usual design for a messenger is an SQLite database, encrypted with
+SQLCipher, that loads a screenful and fetches older messages on scrolling.
 
 ## Decisions
 
