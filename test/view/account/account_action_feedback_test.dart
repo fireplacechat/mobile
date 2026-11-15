@@ -72,6 +72,41 @@ void main() {
     },
   );
   testWidgets(
+    'a lost device: the identity is replaced only after a second question, '
+    'and the device is not merely marked removed',
+    (t) async {
+      final k = ActionKeys();
+      final f = UiFixture(keys: k);
+      final r = ActionRecovery()..device = f.session.device;
+      await host(
+        t,
+        f,
+        const DevicesScreen(),
+        extra: [recoveryServiceProvider.overrideWithValue(r)],
+      );
+      Future<void> open() async {
+        await t.tap(find.byKey(const Key('revoke_example-second-device')));
+        await flush(t);
+        await t.tap(find.byKey(const Key('revokeLost')));
+        await flush(t);
+      }
+
+      await open();
+      expect(find.text('Replace your security code?'), findsOneWidget);
+      await t.tap(find.text('Cancel'));
+      await flush(t);
+      expect(r.resets, 0);
+      expect(k.removals, 0);
+
+      await open();
+      await t.tap(find.byKey(const Key('confirmReplaceIdentity')));
+      await flush(t);
+      expect(r.resets, 1);
+      expect(k.removals, 0);
+      expect(t.takeException(), isNull);
+    },
+  );
+  testWidgets(
     'password change validates, freezes inputs, retains safe error and guards repeats',
     (t) async {
       final a = ActionAuth()

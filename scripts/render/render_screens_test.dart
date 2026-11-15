@@ -739,6 +739,24 @@ void main() {
       },
     ),
     const CatalogCase('devices', DevicesScreen()),
+    CatalogCase(
+      'devices-remove',
+      const DevicesScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('revoke_example-second-device')));
+        await settleUi(t);
+      },
+    ),
+    CatalogCase(
+      'devices-lost',
+      const DevicesScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('revoke_example-second-device')));
+        await settleUi(t);
+        await t.tap(find.byKey(const Key('revokeLost')));
+        await settleUi(t);
+      },
+    ),
     const CatalogCase('recovery', RecoveryKeyScreen()),
     const CatalogCase('link-device', LinkNewDeviceScreen()),
     const CatalogCase('new-device', NewDeviceScreen(uid: 'alice')),

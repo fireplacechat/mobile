@@ -11,6 +11,8 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 
+enum _Removal { remove, lost }
+
 class DevicesScreen extends ConsumerStatefulWidget {
   const DevicesScreen({super.key});
   @override
@@ -35,23 +37,31 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
       _error = null;
     });
     try {
-      final ok = await showDialog<bool>(
+      final choice = await showDialog<_Removal>(
         context: context,
         builder: (ctx) => UiDialog(
           title: const Text('Remove this device?'),
           content: const SingleChildScrollView(
             child: Text(
-              'It will stop receiving new messages and will have to be set up again. Messages it already received stay on it.',
+              'It stops receiving new messages. Messages it already received stay on it.',
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
+              onPressed: () => Navigator.pop(ctx),
               child: const Text('Cancel'),
             ),
             TextButton(
+              key: const Key('revokeLost'),
+              onPressed: () => Navigator.pop(ctx, _Removal.lost),
+              child: Text(
+                'It was lost or stolen',
+                style: TextStyle(color: FireplaceUiTokens.of(context).danger),
+              ),
+            ),
+            TextButton(
               key: const Key('confirmRevoke'),
-              onPressed: () => Navigator.pop(ctx, true),
+              onPressed: () => Navigator.pop(ctx, _Removal.remove),
               child: Text(
                 'Remove',
                 style: TextStyle(color: FireplaceUiTokens.of(context).danger),
@@ -60,7 +70,11 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
           ],
         ),
       );
-      if (ok != true || !mounted) return;
+      if (choice == null || !mounted) return;
+      if (choice == _Removal.lost) {
+        await _replaceIdentity();
+        return;
+      }
       final s = ref.read(appSessionProvider).value;
       if (s == null) throw StateError('Account is not ready');
       await s.keys.revokeDevice(
@@ -76,6 +90,53 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
     } finally {
       if (mounted) setState(() => _revoking = null);
     }
+  }
+
+  /// A device in someone else's hands still holds this account's identity
+  /// key, so removing it is not enough: the identity is replaced, and with it
+  /// everything that key vouched for (decision 0062).
+  Future<void> _replaceIdentity() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => UiDialog(
+        icon: Icon(
+          Icons.warning_amber_rounded,
+          color: FireplaceUiTokens.of(context).danger,
+          size: 40,
+        ),
+        title: const Text('Replace your security code?'),
+        content: const SingleChildScrollView(
+          child: Text(
+            'Your contacts see that your code changed. Your other devices, '
+            'groups and recovery key are removed.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            key: const Key('confirmReplaceIdentity'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Replace',
+              style: TextStyle(color: FireplaceUiTokens.of(context).danger),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final s = ref.read(appSessionProvider).value;
+    if (s == null) throw StateError('Account is not ready');
+    final recovery = ref.read(recoveryServiceProvider);
+    // While the old identity can still speak: tell the groups.
+    await s.groups?.leaveAll();
+    await recovery.resetIdentity(s.uid);
+    // Everything in the session was built on the old identity.
+    if (mounted) ref.invalidate(appSessionProvider);
+    if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   @override

@@ -85,6 +85,14 @@ class ActionRecovery extends Fake implements RecoveryService {
     return '123456';
   }
 
+  int resets = 0;
+  @override
+  Future<LocalDevice> resetIdentity(String uid) async {
+    resets++;
+    if (error != null) throw error!;
+    return device;
+  }
+
   @override
   Future<LocalDevice> restoreWithRecoveryKey(String uid, String input) async {
     restores++;
