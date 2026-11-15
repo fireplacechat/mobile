@@ -97,6 +97,35 @@ decrypted, so the message must be on disk before the app goes on (decision
    transaction as the message. This changes the protocol's crash safety and is
    its own decision.
 
+## The switch (step 2)
+
+- **Import, chat by chat.** A history file's name is a hash of its chat id and
+  its contents are sealed to that id, so files cannot be listed and imported in
+  one go. Each chat's file is imported the first time the chat is used: read,
+  watched, written or deleted. In practice that is every chat, when the app
+  opens.
+- **Safe to interrupt.** The file goes into the database in one transaction,
+  with a row saying so; the file is removed only after that is saved. Stopped
+  before: the import starts again from an untouched file. Stopped after: only
+  the removal is left.
+- **A file that cannot be read stays** where it is, and its chat opens empty,
+  as it would have before.
+- **An open conversation is kept in memory and updated in place**, so a new
+  message does not read the conversation from the database again. The view is
+  dropped when nobody is watching, and rebuilt when another process has
+  written (the shared lock reports that).
+- **Where the file is.** On Android, in the history folder. On iPhone, in the
+  app's own documents (`history_{uid}`), not in the container shared with the
+  notification extension: the extension does not open it, and a database held
+  open in a shared container can get a suspended app killed by iOS.
+- **The Android background handler** opens its own connection to the same
+  file. SQLite's write-ahead log lets both read, and the account lock already
+  makes them write one at a time.
+- **On iPhone the reaction alert loses its quote** once a chat is imported:
+  the extension finds no history file and uses the wording it already had for
+  that case.
+- **Erasing an account** removes the database folder as well.
+
 ## Cost and size
 
 No server cost: the database is on the phone. The library adds a few megabytes

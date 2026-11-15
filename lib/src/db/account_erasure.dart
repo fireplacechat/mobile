@@ -114,15 +114,20 @@ Future<void> eraseAccountHistory({
     final lock = lockFor(history);
     try {
       await lock.run(() async {
-        final type = await FileSystemEntity.type(
-          history.path,
-          followLinks: false,
-        );
-        if (type == FileSystemEntityType.notFound) return;
-        if (type != FileSystemEntityType.directory) {
-          throw StateError('Unexpected account storage link.');
+        // The history folder, and on iPhone the folder of the history
+        // database beside it (decision 0057).
+        for (final name in ['messages_$uid', 'history_$uid']) {
+          final folder = Directory('${root.path}/$name');
+          final type = await FileSystemEntity.type(
+            folder.path,
+            followLinks: false,
+          );
+          if (type == FileSystemEntityType.notFound) continue;
+          if (type != FileSystemEntityType.directory) {
+            throw StateError('Unexpected account storage link.');
+          }
+          await folder.delete(recursive: true);
         }
-        await history.delete(recursive: true);
       });
     } finally {
       await lock.close();
