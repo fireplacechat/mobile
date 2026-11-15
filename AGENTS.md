@@ -14,7 +14,7 @@ Flutter is pinned in `pubspec.yaml` (`environment: flutter:`); use that version.
 flutter pub get
 flutter analyze                       # must be clean
 dart format --output=none --set-exit-if-changed lib test scripts
-scripts/check.sh                      # format, analyze, layers and every test, exactly as CI runs them (add `quick` to skip tests)
+scripts/check.sh                      # format, analyze, layers and the tests, exactly as CI runs them (`quick` skips tests, `full` adds the nightly ones)
 TZ=UTC flutter test --exclude-tags timing   # tests in parallel
 scripts/run_timing_tests.sh           # tests that measure real time, one at a time; they flake when the machine is busy
 TZ=UTC flutter test scripts/render/render_screens_test.dart   # screen previews; output must be byte-identical across runs
@@ -76,7 +76,8 @@ The app should look like one careful hand made it. Before building a screen, car
 
 ## Tests
 - A test that asserts on elapsed time (a stopwatch, a delay, a speed threshold) must be tagged `timing` (`tags: 'timing'` on the test, or `@Tags(['timing'])` on the file). Tagged tests run alone and one at a time; an untagged timing test will flake in the parallel run.
-- CI runs `static`, three `unit` shards and `timing` side by side, and a final job named `test` that branch protection requires. Do not rename or remove that job.
+- CI runs `static`, four `unit` shards and `timing` side by side, and a final job named `test` that branch protection requires. Do not rename or remove that job.
+- A test that only repeats another at more sizes, or against the reference Dart crypto, is tagged `nightly`: it runs once a night and with `scripts/check.sh full`, not on every pull request. Do not tag a test `nightly` if it is the only one covering a behaviour.
 - Keep each test file under about 60 seconds. One huge file cannot be shared across shards and sets the length of the whole run.
 - Add a test for every fix and every behaviour change. Prefer testing real logic: fake Firebase at its edge (`fake_cloud_firestore`, memory secret
   store), not the service as a whole. `UiFixture` (`test/support/ui_fixture.dart`) is for layout and interaction tests.

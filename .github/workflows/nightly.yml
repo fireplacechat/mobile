@@ -1,0 +1,38 @@
+# Tests that repeat what every pull request already checks: the accessibility
+# matrix at more screen sizes, and the chat simulation against the reference
+# Dart crypto (the app ships the Rust core). Once a night, and by hand.
+name: Nightly
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  TZ: UTC
+jobs:
+  nightly:
+    name: nightly tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with: { flutter-version-file: pubspec.yaml, cache: false }
+      - run: flutter pub get
+      - name: Restore the built Rust core
+        id: core
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          # Only the two libraries the tests load, not the whole build folder.
+          path: |
+            build/fireplace_crypto/host/release/libfireplace_crypto.so
+            build/fireplace_crypto/host-test-rng/release/libfireplace_crypto_tests.so
+          key: crypto-host-${{ runner.os }}-${{ hashFiles('packages/fireplace_native/rust/**', 'scripts/build_crypto_host.sh') }}
+      - name: Build the Rust core (only when it changed)
+        if: steps.core.outputs.cache-hit != 'true'
+        run: |
+          rustup toolchain install 1.98.1 --profile minimal --no-self-update
+          bash scripts/build_crypto_host.sh
+          bash scripts/build_crypto_host.sh test-rng
+      - run: scripts/run_nightly_tests.sh
