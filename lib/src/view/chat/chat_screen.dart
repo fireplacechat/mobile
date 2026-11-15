@@ -110,10 +110,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     chat?.prepareToSend(widget.chatId);
     final opened = widget.initialMessageId;
     if (opened != null) {
+      // Only the loading: the jump itself waits for the rows as it always did.
       unawaited(
-        _showMessage(opened).whenComplete(() {
-          if (mounted) setState(() => _revealed = true);
-        }),
+        (chat?.revealMessage(widget.chatId, opened) ?? Future<void>.value())
+            .catchError((Object _) {})
+            .whenComplete(() {
+              if (mounted) setState(() => _revealed = true);
+            }),
       );
     }
     // Their colour may have changed since their profile was last read.
