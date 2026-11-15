@@ -1,6 +1,11 @@
 class ChatTuning {
   static const requestLimit = 3;
 
+  /// How many of a conversation's newest messages are read from the history
+  /// database when it is opened or listed, and how many more each time the
+  /// person scrolls back to the oldest shown (decision 0057).
+  static const historyWindow = 200;
+
   /// A session we started that the peer never answered for this long is considered
   /// possibly lost (for example the peer lost the matching prekey), so the next send
   /// starts a fresh handshake as well. Old sessions stay, so late replies still work.

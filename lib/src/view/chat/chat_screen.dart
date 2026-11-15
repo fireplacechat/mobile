@@ -60,6 +60,43 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   late final RouteVisibility _routeVisibility;
 
   late final _jump = SearchJump(widget.initialMessageId);
+
+  /// Whether the search result this chat was opened on has been brought into
+  /// the loaded part of the conversation (it may be older than that).
+  late bool _revealed = widget.initialMessageId == null;
+  bool _loadingOlder = false;
+
+  /// Loads the next older messages once the person nears the oldest shown.
+  bool _onScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical ||
+        n.metrics.extentAfter > 800 ||
+        _loadingOlder) {
+      return false;
+    }
+    final chat = ref.read(appSessionProvider).value?.chat;
+    if (chat == null) return false;
+    _loadingOlder = true;
+    unawaited(
+      chat
+          .showOlderMessages(widget.chatId)
+          .catchError((Object _) {})
+          .whenComplete(() => _loadingOlder = false),
+    );
+    return false;
+  }
+
+  /// Brings [id] into the loaded part of the conversation and scrolls to it.
+  Future<void> _showMessage(String id) async {
+    final chat = ref.read(appSessionProvider).value?.chat;
+    try {
+      await chat?.revealMessage(widget.chatId, id);
+    } catch (_) {
+      // Not found: the caller says so.
+    }
+    // The rows exist only after the next frame.
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
   late final ChatDraftController _text;
   late final SendController _sendController;
   late final TimelineScroll _timeline;
@@ -71,6 +108,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     // The first message then finds the devices it encrypts to ready.
     final chat = ref.read(appSessionProvider).value?.chat;
     chat?.prepareToSend(widget.chatId);
+    final opened = widget.initialMessageId;
+    if (opened != null) {
+      // Only the loading: the jump itself waits for the rows as it always did.
+      unawaited(
+        (chat?.revealMessage(widget.chatId, opened) ?? Future<void>.value())
+            .catchError((Object _) {})
+            .whenComplete(() {
+              if (mounted) setState(() => _revealed = true);
+            }),
+      );
+    }
     // Their colour may have changed since their profile was last read.
     if (chat != null) {
       unawaited(() async {
@@ -298,7 +346,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     });
     _jump.runOnceLoaded(
       history,
-      loaded: messageState.hasValue,
+      loaded: messageState.hasValue && _revealed,
       timeline: _timeline,
       reduceMotion: MediaQuery.disableAnimationsOf(context),
       isMounted: () => mounted,
@@ -348,7 +396,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         ref.watch(pinnedMessagesProvider)[widget.chatId] ?? const <String>[];
     final pinned = [
       for (final id in pinnedIds)
-        ?history.where((message) => message.id == id).firstOrNull,
+        // A pinned message may be older than the loaded conversation.
+        ?(history.where((message) => message.id == id).firstOrNull ??
+            ref.watch(storedMessageProvider((widget.chatId, id))).value),
     ];
     ChatTitle chatTitle() => ChatTitle(
       name: name,
@@ -432,65 +482,81 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (pinned.isNotEmpty)
               PinnedBar(
                 messages: pinned,
-                onOpen: (id) {
-                  final anchor = _timeline.anchorFor(id).currentContext;
-                  if (anchor != null) {
-                    Scrollable.ensureVisible(
-                      anchor,
-                      alignment: 0.3,
-                      duration: const Duration(milliseconds: 200),
-                    );
-                    _timeline.flash(id);
-                  }
+                onOpen: (id) async {
+                  final reduceMotion = MediaQuery.disableAnimationsOf(context);
+                  await _showMessage(id);
+                  if (!mounted) return;
+                  final ids = [
+                    for (final m
+                        in ref.read(messagesProvider(widget.chatId)).value ??
+                            const <LocalMessage>[])
+                      m.id,
+                  ];
+                  final found = await _timeline.locate(
+                    id,
+                    ids,
+                    reduceMotion: reduceMotion,
+                  );
+                  if (found && mounted) _timeline.flash(id);
                 },
               ),
             Expanded(
-              child: ChatTimeline(
-                chatId: widget.chatId,
-                blocked: blocked,
-                historyFailed: messageState.hasError,
-                loading: messageState.isLoading,
-                msgs: msgs,
-                incomingRequest: incomingRequest,
-                name: name,
-                awayFromLatest: _timeline.awayFromLatest,
-                viewportKey: _timeline.viewportKey,
-                scrollController: _timeline.controller,
-                anchorFor: _timeline.anchorFor,
-                flashed: _timeline.flashed,
-                send: _sendController,
-                outgoing: outgoing,
-                onFailedSend: (send) => chooseForFailedSend(
-                  context,
-                  ref,
-                  send,
-                  onSendAgain: () => _timeline.showNewestAfterOwnSend(_latest),
-                ),
-                actionsFor: (message) => messageMenuActions(
-                  message,
-                  ref: ref,
-                  context: context,
-                  isMounted: () => mounted,
-                  notice: _snack,
-                  chatId: () => widget.chatId,
-                  contactAction: _contactController.contactAction,
-                  name: name,
-                  peerUid: peerUid,
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScroll,
+                child: ChatTimeline(
+                  chatId: widget.chatId,
                   blocked: blocked,
+                  historyFailed: messageState.hasError,
+                  loading: messageState.isLoading,
+                  msgs: msgs,
                   incomingRequest: incomingRequest,
-                  identityHeld: identityHeld,
+                  name: name,
+                  awayFromLatest: _timeline.awayFromLatest,
+                  viewportKey: _timeline.viewportKey,
+                  scrollController: _timeline.controller,
+                  anchorFor: _timeline.anchorFor,
+                  flashed: _timeline.flashed,
+                  send: _sendController,
+                  outgoing: outgoing,
+                  onFailedSend: (send) => chooseForFailedSend(
+                    context,
+                    ref,
+                    send,
+                    onSendAgain: () =>
+                        _timeline.showNewestAfterOwnSend(_latest),
+                  ),
+                  actionsFor: (message) => messageMenuActions(
+                    message,
+                    ref: ref,
+                    context: context,
+                    isMounted: () => mounted,
+                    notice: _snack,
+                    chatId: () => widget.chatId,
+                    contactAction: _contactController.contactAction,
+                    name: name,
+                    peerUid: peerUid,
+                    blocked: blocked,
+                    incomingRequest: incomingRequest,
+                    identityHeld: identityHeld,
+                  ),
+                  onRetryHistory: () =>
+                      ref.invalidate(messagesProvider(widget.chatId)),
+                  onQuote: (id) async {
+                    // The quoted message may be older than what is loaded.
+                    await _showMessage(id);
+                    if (!context.mounted) return;
+                    await locateQuotedMessage(
+                      context,
+                      _timeline,
+                      ref.read(messagesProvider(widget.chatId)).value ??
+                          history,
+                      id,
+                      notice: _snack,
+                      onFound: _timeline.flash,
+                    );
+                  },
+                  onLatest: _latest,
                 ),
-                onRetryHistory: () =>
-                    ref.invalidate(messagesProvider(widget.chatId)),
-                onQuote: (id) => locateQuotedMessage(
-                  context,
-                  _timeline,
-                  history,
-                  id,
-                  notice: _snack,
-                  onFound: _timeline.flash,
-                ),
-                onLatest: _latest,
               ),
             ),
             if (!selecting)

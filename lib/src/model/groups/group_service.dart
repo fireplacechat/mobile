@@ -11,6 +11,7 @@ import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/db/message_quote.dart';
+import 'package:fireplace/src/model/chat/chat_tuning.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_payload.dart';
 import 'package:fireplace/src/model/chat/send_allowance.dart';
@@ -119,7 +120,11 @@ class GroupService {
 
   /// A group's history on this device, newest last.
   Stream<List<LocalMessage>> watchMessages(String gid) =>
-      _messages.watch(groupChatId(gid));
+      _messages.watch(groupChatId(gid), newest: ChatTuning.historyWindow);
+
+  /// Gives [watchMessages] the next older messages as well.
+  Future<void> showOlderMessages(String gid) =>
+      _messages.showOlder(groupChatId(gid), more: ChatTuning.historyWindow);
 
   MemberColors colorsOf(String gid) =>
       Map.unmodifiable(_colors[gid] ?? const {});

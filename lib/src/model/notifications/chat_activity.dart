@@ -257,7 +257,7 @@ class ChatActivity extends Notifier<ChatActivityState> {
     if (session == null) return;
     final history = <String, Set<String>>{};
     for (final c in _chats) {
-      final messages = await session.chat.watchMessages(c.chatId).first;
+      final messages = await session.chat.allMessages(c.chatId);
       history[c.chatId] = {
         for (final m in messages)
           if (!m.outgoing) m.id,

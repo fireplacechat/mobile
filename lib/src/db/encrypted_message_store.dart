@@ -265,8 +265,17 @@ class EncryptedFileMessageStore implements LocalMessageStore {
     });
   }
 
+  // A file is read whole whatever is asked: this store has no windows.
   @override
-  Stream<List<LocalMessage>> watch(String chatId) {
+  Future<List<LocalMessage>> all(String chatId) async =>
+      _sorted(await _load(chatId));
+  @override
+  Future<void> showOlder(String chatId, {int more = 200}) async {}
+  @override
+  Future<void> reveal(String chatId, String messageId) async {}
+
+  @override
+  Stream<List<LocalMessage>> watch(String chatId, {int? newest}) {
     final c = _ctrls[chatId] ??= StreamController.broadcast();
     return Stream.multi((s) {
       var cancelled = false;

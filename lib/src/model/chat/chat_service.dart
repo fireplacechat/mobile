@@ -204,11 +204,30 @@ class ChatService {
   Future<void> refreshPeerColor(String peerUid) =>
       _directory.refreshPeerColor(peerUid);
 
+  /// The conversation's newest messages, now and after each change; older
+  /// ones come with [showOlderMessages] and [revealMessage].
   Stream<List<LocalMessage>> watchMessages(String chatId) => _messages
-      .watch(chatId)
+      .watch(chatId, newest: ChatTuning.historyWindow)
       .map(
         (messages) => [for (final message in messages) message.forAccount(uid)],
       );
+
+  /// The whole conversation, once: for search and first-run bookkeeping.
+  Future<List<LocalMessage>> allMessages(String chatId) async => [
+    for (final message in await _messages.all(chatId)) message.forAccount(uid),
+  ];
+
+  /// One stored message, however old, or null.
+  Future<LocalMessage?> message(String chatId, String messageId) async =>
+      (await _messages.get(chatId, messageId))?.forAccount(uid);
+
+  /// Gives [watchMessages] the next older messages as well.
+  Future<void> showOlderMessages(String chatId) =>
+      _messages.showOlder(chatId, more: ChatTuning.historyWindow);
+
+  /// Makes sure [watchMessages] includes this message, however old.
+  Future<void> revealMessage(String chatId, String messageId) =>
+      _messages.reveal(chatId, messageId);
 
   // ----------------------------------------------------------------- sessions
 

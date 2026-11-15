@@ -498,6 +498,14 @@ final messagesProvider = StreamProvider.autoDispose
       return s.chat.watchMessages(chatId);
     });
 
+/// One stored message that the conversation's window may not hold (a pinned
+/// message from long ago), or null. The key is the chat id and message id.
+final storedMessageProvider = FutureProvider.autoDispose
+    .family<LocalMessage?, (String, String)>((ref, key) async {
+      final s = ref.watch(appSessionProvider).value;
+      return s?.chat.message(key.$1, key.$2);
+    });
+
 final peerVerifiedProvider = FutureProvider.autoDispose.family<bool, String>((
   ref,
   peerUid,
