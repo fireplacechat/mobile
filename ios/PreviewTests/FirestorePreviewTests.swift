@@ -19,10 +19,17 @@ final class FirestorePreviewTests: XCTestCase {
     XCTAssertNil(FirestorePreview.pushKey(threadIdentifier: "", legacyKey: key))
     XCTAssertNil(FirestorePreview.pushKey(threadIdentifier: "INVALID"))
   }
-  func testQueryFetchesOnlyOneDeviceAndTenDocuments() throws {
+  func testQueryFetchesOnlyOneDeviceAndTheNewestThreeDocuments() throws {
     let body = try FirestorePreview.query(device: "fictional-device", cursor: "1700000000:123456789")
     let query = body["structuredQuery"] as! [String: Any]
-    XCTAssertEqual(query["limit"] as? Int, 10)
+    XCTAssertEqual(query["limit"] as? Int, 3)
+    // Newest first with or without a saved place, and never older than it.
+    for cursor in ["1700000000:123456789", nil] as [String?] {
+      let each = try FirestorePreview.query(device: "fictional-device", cursor: cursor)["structuredQuery"] as! [String: Any]
+      let order = (each["orderBy"] as! [[String: Any]])[0]
+      XCTAssertEqual(order["direction"] as? String, "DESCENDING")
+      XCTAssertEqual(each["where"] != nil, cursor != nil)
+    }
     let fields = (query["select"] as! [String: [[String: String]]])["fields"]!.compactMap { $0["fieldPath"] }
     XCTAssertEqual(fields, ["senderUid", "senderDevice", "ts", "envelopes.`fictional-device`"])
     XCTAssertEqual(try FirestorePreview.cursorTimestamp("1700000000:123456789"), "2023-11-14T22:13:20.123456789Z")

@@ -80,7 +80,8 @@ struct PreviewREST {
     call.httpBody = try JSONSerialization.data(withJSONObject: FirestorePreview.query(device: device, cursor: cursor))
     let data = try await BoundedTransport(limit: 512 * 1024).data(for: call)
     let rows = try FirestorePreview.documents(data)
-    return cursor == nil ? Array(rows.reversed()) : rows
+    // Asked for newest first; handled oldest first.
+    return Array(rows.reversed())
   }
 
   func device(uid: String, id: String) async throws -> [String: Any] {

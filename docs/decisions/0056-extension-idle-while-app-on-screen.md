@@ -32,15 +32,31 @@ nothing. This is the largest cost per message that exists only on iPhone.
 The extension cannot ask iOS whether the app is running; a file both can see is
 the simplest signal that needs no entitlement.
 
+## Also: the newest three messages, not the oldest ten
+
+With the app closed, the extension asked the server for up to ten messages
+*counting up* from where the app last saved its place, and decrypted each. After
+more than ten unread messages it never reached the newest one, so the preview
+showed an old message, and every push repeated the same ten.
+
+It now asks for the **newest three** since that place and handles them oldest
+first. The alert is about the newest; the one or two before it are there so that
+a reaction or a delete that follows a text is seen together with it. The ratchet
+steps over anything older without decrypting it (it derives and keeps the
+skipped keys in its throwaway copy, up to the usual thousand), so a long backlog
+costs one request and at most three decryptions per push, where it was ten.
+
 ## What it does not change
 
 - Previews with the app in the background or closed: as before.
 - What the extension is allowed to do (0043): it still writes nothing.
-- The second fetch and decryption when the app is **not** on screen: the
-  extension decrypts for the preview and the app decrypts again when opened.
-  Removing that means letting the extension save what it decrypts, as Signal's
-  does. That is the rest of issue 178 and needs its own decision and tests on a
-  real iPhone.
+- With the app closed, a message is still decrypted once by the extension
+  for its preview and once by the app when it opens. Removing that would mean
+  the extension saving what it decrypts, as Signal's does. It is deliberately
+  not done: the history database is in the app's own storage, which the
+  extension cannot reach (decision 0057), and giving the extension write
+  access to sessions and history is the largest risk decision 0043 avoided.
+  What remains is one small decryption per push.
 
 ## Privacy
 
