@@ -66,9 +66,15 @@ class FixtureChat extends Fake implements ChatService {
   String peerOf(String chatId) => chatId.split('_').last;
   @override
   void prepareToSend(String chatId) {}
+
+  /// Set to make saving read state fail.
+  Object? markReadError;
   @override
-  Future<void> markRead(String chatId, Iterable<String> messageIds) =>
-      store.markRead(chatId, messageIds);
+  Future<void> markRead(String chatId, Iterable<String> messageIds) async {
+    if (markReadError != null) throw markReadError!;
+    await store.markRead(chatId, messageIds);
+  }
+
   @override
   Future<int> unreadCount(String chatId) => store.unreadCount(chatId);
   @override
