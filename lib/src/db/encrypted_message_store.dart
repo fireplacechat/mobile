@@ -265,6 +265,28 @@ class EncryptedFileMessageStore implements LocalMessageStore {
     });
   }
 
+  // Read state belongs to the database (issue 180). This store is only read
+  // from now, for the import; what it is told here lasts until it closes.
+  final Map<String, Set<String>> _read = {};
+  @override
+  Future<void> markRead(String chatId, Iterable<String> messageIds) async {
+    (_read[chatId] ??= {}).addAll(messageIds);
+  }
+
+  @override
+  Future<int> unreadCount(String chatId, {bool onlyOk = false}) async {
+    final read = _read[chatId] ?? const <String>{};
+    return _sorted(await _load(chatId))
+        .where(
+          (m) =>
+              !m.outgoing &&
+              !m.remotelyDeleted &&
+              (!onlyOk || m.status == MessageStatus.ok) &&
+              !read.contains(m.id),
+        )
+        .length;
+  }
+
   // A file is read whole whatever is asked: this store has no windows.
   @override
   Future<List<LocalMessage>> all(String chatId) async =>

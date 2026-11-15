@@ -25,9 +25,9 @@ class _BrokenPreferences extends LocalChatPreferences {
   @override
   bool get available => !broken;
   @override
-  Future<void> reset({Map<String, Set<String>> history = const {}}) {
+  Future<void> reset({Iterable<String> baselined = const []}) {
     broken = false;
-    return super.reset(history: history);
+    return super.reset(baselined: baselined);
   }
 }
 

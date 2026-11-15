@@ -40,7 +40,7 @@ class SqliteMessageStore implements LocalMessageStore {
   final _ready = <String, Future<void>>{};
 
   static const fileName = 'history.db';
-  static const schemaVersion = 1;
+  static const schemaVersion = 2;
 
   final Database _db;
   final SharedLock _lock;
@@ -106,6 +106,29 @@ class SqliteMessageStore implements LocalMessageStore {
     if (version == schemaVersion) return;
     db.execute('BEGIN IMMEDIATE');
     try {
+      if (version == 1) {
+        // Version 2: what kind of line a message is, for counting unread
+        // ones without opening each record; and a message deleted by its
+        // author is never unread.
+        db.execute(
+          "ALTER TABLE messages ADD COLUMN status TEXT NOT NULL DEFAULT 'ok'",
+        );
+        db.execute(
+          "UPDATE messages SET status = json_extract(record, '\$.status')",
+        );
+        db.execute(
+          'UPDATE messages SET read = 1 '
+          "WHERE json_extract(record, '\$.remotelyDeleted') = 1",
+        );
+        db.execute('DROP INDEX messages_unread');
+        db.execute(
+          'CREATE INDEX messages_unread ON messages (chat_id, status) '
+          'WHERE read = 0 AND visible = 1 AND outgoing = 0',
+        );
+        db.execute('PRAGMA user_version = $schemaVersion');
+        db.execute('COMMIT');
+        return;
+      }
       db.execute('''
 CREATE TABLE messages (
   -- Arrival order on this device; breaks ties between equal send times.
@@ -121,8 +144,11 @@ CREATE TABLE messages (
   target_id TEXT,
   -- The message this one quotes.
   quote_id TEXT,
-  -- Whether the person has seen it (issue 180). Set by a later step.
+  -- Whether the person has seen it (issue 180). What this account sent,
+  -- and what its author deleted, counts as seen.
   read INTEGER NOT NULL DEFAULT 0,
+  -- LocalMessage.status: only 'ok' is a readable message.
+  status TEXT NOT NULL DEFAULT 'ok',
   -- The whole record, as LocalMessage.toJson.
   record TEXT NOT NULL,
   UNIQUE (chat_id, id)
@@ -140,7 +166,7 @@ CREATE TABLE messages (
         'ON messages (chat_id, quote_id) WHERE quote_id IS NOT NULL',
       );
       db.execute(
-        'CREATE INDEX messages_unread ON messages (chat_id) '
+        'CREATE INDEX messages_unread ON messages (chat_id, status) '
         'WHERE read = 0 AND visible = 1 AND outgoing = 0',
       );
       // Chats whose file from before the database has been imported.
@@ -197,21 +223,23 @@ CREATE TABLE messages (
       target == null || target.isEmpty ? null : target,
       m.quote?.targetId,
       jsonEncode(m.toJson()),
-      m.chatId,
-      m.id,
+      m.status.name,
     ];
+    // What this account sent, or what its author deleted, is not something
+    // the person has yet to see.
+    final seen = m.outgoing || m.remotelyDeleted ? 1 : 0;
     _db.execute(
       'UPDATE messages SET sent_at = ?, visible = ?, outgoing = ?, '
-      'target_id = ?, quote_id = ?, record = ? WHERE chat_id = ? AND id = ?',
-      values,
+      'target_id = ?, quote_id = ?, record = ?, status = ?, '
+      'read = max(read, ?) WHERE chat_id = ? AND id = ?',
+      [...values, seen, m.chatId, m.id],
     );
     if (_db.updatedRows == 0) {
       _db.execute(
         'INSERT INTO messages (sent_at, visible, outgoing, target_id, '
-        'quote_id, record, chat_id, id, read) '
-        // What this account sent is not something it has yet to see.
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [...values, m.outgoing ? 1 : 0],
+        'quote_id, record, status, read, chat_id, id) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [...values, seen, m.chatId, m.id],
       );
     }
   }
@@ -528,6 +556,46 @@ CREATE TABLE messages (
     _forget();
     _emit(chatId);
   });
+
+  @override
+  Future<void> markRead(String chatId, Iterable<String> messageIds) async {
+    await _imported(chatId);
+    final ids = messageIds.toList();
+    if (ids.isEmpty) return;
+    return _write(() {
+      _db.execute('BEGIN IMMEDIATE');
+      try {
+        // In pieces: SQLite limits how many values one statement takes.
+        for (var i = 0; i < ids.length; i += 400) {
+          final part = ids.sublist(
+            i,
+            i + 400 > ids.length ? ids.length : i + 400,
+          );
+          _db.execute(
+            'UPDATE messages SET read = 1 WHERE chat_id = ? AND read = 0 '
+            'AND id IN (${List.filled(part.length, '?').join(',')})',
+            [chatId, ...part],
+          );
+        }
+        _db.execute('COMMIT');
+      } catch (_) {
+        _db.execute('ROLLBACK');
+        rethrow;
+      }
+    });
+  }
+
+  @override
+  Future<int> unreadCount(String chatId, {bool onlyOk = false}) async {
+    await _imported(chatId);
+    return _db.select(
+          'SELECT count(*) AS n FROM messages WHERE chat_id = ? '
+          'AND read = 0 AND visible = 1 AND outgoing = 0'
+          "${onlyOk ? " AND status = 'ok'" : ''}",
+          [chatId],
+        ).first['n']
+        as int;
+  }
 
   @override
   Future<List<LocalMessage>> all(String chatId) async {

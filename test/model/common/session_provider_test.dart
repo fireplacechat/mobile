@@ -235,7 +235,9 @@ void main() {
       await store.close();
       final s = (await h.open())!;
       await eventually(() => s.chat.syncPagesOpened.containsKey(id));
-      expect(s.chatPreferences.seen[id], {'old'});
+      // What was on the device before read state began is not new.
+      await eventuallyAsync(() async => await s.chat.unreadCount(id) == 0);
+      expect(s.chatPreferences.needsBaseline(id), isFalse);
       // The real receiver stores an unsupported envelope as an incoming history entry.
       await h.db.doc('chats/$id/messages/new').set({
         'senderUid': 'bob',
@@ -245,14 +247,8 @@ void main() {
       await eventuallyAsync(
         () async => (await s.chat.watchMessages(id).first).length == 2,
       );
-      final messages = await s.chat.watchMessages(id).first;
-      expect(
-        messages
-            .where((m) => !s.chatPreferences.seen[id]!.contains(m.id))
-            .map((m) => m.id),
-        ['new'],
-      );
-      expect(s.chatPreferences.seen[id], {'old'});
+      // Only the message that arrived afterwards is unread.
+      expect(await s.chat.unreadCount(id), 1);
     },
   );
 

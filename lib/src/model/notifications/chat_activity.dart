@@ -35,6 +35,27 @@ class ChatActivityState {
 /// never emits a notification. Replacements/status repairs are not new arrivals.
 class ChatActivity extends Notifier<ChatActivityState> {
   final _history = <String, List<LocalMessage>>{};
+
+  /// Unseen messages per chat, counted by the history database (issue 180).
+  final _unread = <String, int>{};
+
+  /// Counts [id]'s unseen messages again, after its history or its read
+  /// state changed.
+  Future<void> _recount(String id) async {
+    final session = _session;
+    final generation = _generation;
+    if (session == null) return;
+    try {
+      final count = await session.chat.unreadCount(id);
+      if (_generation != generation || !identical(session, _session)) return;
+      if (_unread[id] == count) return;
+      _unread[id] = count;
+      _refresh();
+    } catch (_) {
+      // The count stays as it was.
+    }
+  }
+
   final _known = <String, Set<String>>{};
   final _failed = <String>{};
   final _listeners = <String, void Function()>{};
@@ -49,6 +70,7 @@ class ChatActivity extends Notifier<ChatActivityState> {
     _session = ref.watch(appSessionProvider).value;
     final generation = ++_generation;
     _history.clear();
+    _unread.clear();
     _known.clear();
     _failed.clear();
     _listeners.clear();
@@ -123,6 +145,7 @@ class ChatActivity extends Notifier<ChatActivityState> {
         _listeners.remove(id)!();
         _listenerTokens.remove(id);
         _history.remove(id);
+        _unread.remove(id);
         _known.remove(id);
         _failed.remove(id);
       }
@@ -162,16 +185,27 @@ class ChatActivity extends Notifier<ChatActivityState> {
             (_known[id] ??= {}).addAll(messages.map((m) => m.id));
             _history[id] = messages;
             _failed.remove(id);
-            final prefs = _session!.chatPreferences;
+            final session = _session!;
+            final prefs = session.chatPreferences;
             if (prefs.available && prefs.needsBaseline(id)) {
-              unawaited(
-                prefs
-                    .seedExisting(
-                      id,
-                      messages.where((m) => !m.outgoing).map((m) => m.id),
-                    )
-                    .catchError((Object _) {}),
-              );
+              // What is here when read state starts is not new: exactly
+              // these, so a message arriving meanwhile stays unread.
+              final existing = [
+                for (final m in messages)
+                  if (!m.outgoing) m.id,
+              ];
+              unawaited(() async {
+                try {
+                  if (await prefs.claimBaseline(id)) {
+                    await session.chat.markRead(id, existing);
+                  }
+                } catch (_) {
+                  // Settings offers a reset when preferences cannot be saved.
+                }
+                await _recount(id);
+              }());
+            } else {
+              unawaited(_recount(id));
             }
           }
           _refresh();
@@ -208,14 +242,7 @@ class ChatActivity extends Notifier<ChatActivityState> {
           if (allowed.contains(e.key) &&
               (prefs?.available ?? true) &&
               !(prefs?.needsBaseline(e.key) ?? false))
-            e.key: e.value
-                .where(
-                  (m) =>
-                      !m.outgoing &&
-                      !m.remotelyDeleted &&
-                      !(prefs?.seen[e.key]?.contains(m.id) ?? false),
-                )
-                .length,
+            e.key: _unread[e.key] ?? 0,
       },
       muted: Set.unmodifiable(prefs?.muted ?? {}),
       previewText: prefs?.previewText ?? true,
@@ -238,10 +265,15 @@ class ChatActivity extends Notifier<ChatActivityState> {
   }
 
   Future<void> seen(String id, Iterable<LocalMessage> messages) async {
-    await _session?.chatPreferences.markSeen(
-      id,
-      messages.where((m) => !m.outgoing).map((m) => m.id),
-    );
+    final session = _session;
+    // Nothing unseen: nothing to write. This runs on every frame of an open
+    // conversation.
+    if (session == null || (_unread[id] ?? 0) == 0) return;
+    await session.chat.markRead(id, [
+      for (final m in messages)
+        if (!m.outgoing) m.id,
+    ]);
+    await _recount(id);
   }
 
   Future<void> mute(String id, bool value) async {
@@ -255,16 +287,21 @@ class ChatActivity extends Notifier<ChatActivityState> {
   Future<void> resetPreferences() async {
     final session = _session;
     if (session == null) return;
-    final history = <String, Set<String>>{};
+    // What is here now is not new after a reset.
+    final chats = <String>[];
     for (final c in _chats) {
       final messages = await session.chat.allMessages(c.chatId);
-      history[c.chatId] = {
+      await session.chat.markRead(c.chatId, [
         for (final m in messages)
           if (!m.outgoing) m.id,
-      };
+      ]);
+      chats.add(c.chatId);
     }
     if (!ref.mounted || !identical(session, _session)) return;
-    await session.chatPreferences.reset(history: history);
+    await session.chatPreferences.reset(baselined: chats);
+    for (final id in chats) {
+      await _recount(id);
+    }
   }
 }
 

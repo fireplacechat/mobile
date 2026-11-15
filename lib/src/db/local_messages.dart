@@ -205,6 +205,15 @@ abstract class LocalMessageStore {
   /// however old, with a little of what came before it.
   Future<void> reveal(String chatId, String messageId);
 
+  /// Records that the person has seen these messages (issue 180). Kept with
+  /// each message, on this device only: nobody is told what was read.
+  Future<void> markRead(String chatId, Iterable<String> messageIds);
+
+  /// How many shown messages from other people have not been seen. Messages
+  /// deleted by their author do not count. With [onlyOk], neither do lines
+  /// that are not a readable message (a notice, an unreadable message).
+  Future<int> unreadCount(String chatId, {bool onlyOk = false});
+
   /// Forget a whole conversation on this device.
   Future<void> deleteChat(String chatId);
 
@@ -253,8 +262,29 @@ class MemoryMessageStore implements LocalMessageStore {
 
   @override
   Future<void> deleteChat(String chatId) async {
+    _read.remove(chatId);
     _chats.remove(chatId);
     _ctrls[chatId]?.add(const []);
+  }
+
+  final Map<String, Set<String>> _read = {};
+  @override
+  Future<void> markRead(String chatId, Iterable<String> messageIds) async {
+    (_read[chatId] ??= {}).addAll(messageIds);
+  }
+
+  @override
+  Future<int> unreadCount(String chatId, {bool onlyOk = false}) async {
+    final read = _read[chatId] ?? const <String>{};
+    return _sorted(chatId)
+        .where(
+          (m) =>
+              !m.outgoing &&
+              !m.remotelyDeleted &&
+              (!onlyOk || m.status == MessageStatus.ok) &&
+              !read.contains(m.id),
+        )
+        .length;
   }
 
   // Everything is in memory already: a window would save nothing.
