@@ -197,9 +197,10 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     if (profile == null || profile['deleting'] == true) {
       throw AccountDeletionPending(user.uid);
     }
-    // 3. Record activity and load device keys.
-    // Record that the account is in use (the 13-month inactivity sweep keys off this).
-    unawaited(ActivityService(db).markActiveIfDue(user.uid, profile));
+    // 3. Keep the public profile free of anything private, and load device
+    // keys. (Inactivity is judged on the server from the sign-in account's
+    // own times; the app records nothing for it. Decision 0055.)
+    unawaited(removePrivateProfileFields(db, user.uid, profile));
     final keys = KeyService(db, secrets);
     final device = await keys.ensureDevice(user.uid);
     scope.checkActive();
