@@ -52,6 +52,7 @@ dependencies:
   # Our own native notification code, in this repository (decision 0030).
   fireplace_native:
     path: packages/fireplace_native
+  sqlite3: ^3.9.1
 
 dev_dependencies:
   flutter_test:
@@ -125,3 +126,11 @@ flutter_launcher_icons:
   adaptive_icon_foreground: assets/icon/fireplace_foreground.png
   adaptive_icon_foreground_inset: 0
   adaptive_icon_monochrome: assets/icon/fireplace_foreground.png
+
+# The on-device history database is SQLCipher, not plain SQLite (decision 0057):
+# the whole file is encrypted. The sqlite3 package downloads the prebuilt library
+# for each platform and checks it against hashes shipped in the package.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlcipher
