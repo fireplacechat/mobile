@@ -90,6 +90,12 @@ class _NewChatSheetState extends ConsumerState<NewChatSheet> {
     }
   }
 
+  static const _toStyle = TextStyle(fontSize: 16, height: 1.25);
+  static OutlineInputBorder _pill(BorderSide side) => OutlineInputBorder(
+    borderRadius: BorderRadius.circular(999),
+    borderSide: side,
+  );
+
   @override
   Widget build(BuildContext context) {
     final t = FireplaceUiTokens.of(context);
@@ -128,19 +134,31 @@ class _NewChatSheetState extends ConsumerState<NewChatSheet> {
             child: Stack(
               alignment: Alignment.center,
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    key: const Key('cancelNewChat'),
-                    style: TextButton.styleFrom(foregroundColor: t.text),
-                    onPressed: _busy ? null : () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                ),
                 Text(
                   'New chat',
                   style: Theme.of(context).textTheme.titleMedium
                       ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                // Closing is an x in a grey circle, top right.
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: IconButton(
+                      key: const Key('cancelNewChat'),
+                      tooltip: 'Close',
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(32, 32),
+                        fixedSize: const Size(32, 32),
+                        padding: EdgeInsets.zero,
+                        backgroundColor: t.selectedRow,
+                        foregroundColor: t.secondaryText,
+                        tapTargetSize: MaterialTapTargetSize.padded,
+                      ),
+                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -154,24 +172,34 @@ class _NewChatSheetState extends ConsumerState<NewChatSheet> {
               autocorrect: false,
               enableSuggestions: false,
               textInputAction: TextInputAction.go,
-              style: Theme.of(context).textTheme.titleMedium,
+              // The same text as the search field of the chat list.
+              style: _toStyle,
               decoration: InputDecoration(
+                isDense: true,
                 // Always shown, unlike prefixText, which needs focus.
                 prefixIcon: Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(left: 18, right: 8),
                   child: Text(
                     'To:',
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(color: t.secondaryText),
+                    style: _toStyle.copyWith(color: t.secondaryText),
                   ),
                 ),
                 prefixIconConstraints: const BoxConstraints(),
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 hintText: 'Username',
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                filled: false,
+                hintStyle: _toStyle.copyWith(color: t.secondaryText),
+                // A pill, like the search field; red all round when the
+                // name is not one that can be messaged.
+                border: _pill(BorderSide.none),
+                enabledBorder: _pill(BorderSide.none),
+                focusedBorder: _pill(BorderSide(color: t.accent)),
+                errorBorder: _pill(BorderSide(color: t.danger, width: 2)),
+                focusedErrorBorder: _pill(
+                  BorderSide(color: t.danger, width: 2),
+                ),
                 errorText: _error,
                 errorMaxLines: 3,
               ),
