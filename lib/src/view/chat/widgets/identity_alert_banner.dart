@@ -23,8 +23,7 @@ class IdentityAlertBanner extends ConsumerWidget {
     return UiNotice(
       key: const Key('identityBanner'),
       warning: true,
-      text:
-          "@$name's security code changed. Messages are on hold until you review it.",
+      text: "$name's security code changed. Messages are on hold.",
       actions: [
         TextButton(
           key: const Key('reviewIdentity'),

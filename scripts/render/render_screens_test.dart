@@ -568,6 +568,28 @@ void main() {
       interaction: CatalogInteraction.sending,
     ),
     const CatalogCase('chat-list', ChatListScreen()),
+    CatalogCase(
+      'new-chat',
+      const ChatListScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('newChat')));
+        await openSheet(t);
+      },
+    ),
+    CatalogCase(
+      'new-chat-wrong-name',
+      const ChatListScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('newChat')));
+        await openSheet(t);
+        await t.enterText(
+          find.byKey(const Key('peerUsername')),
+          'no such name',
+        );
+        await t.testTextInput.receiveAction(TextInputAction.go);
+        await openSheet(t);
+      },
+    ),
     // Each person in the colour on their profile (decision 0053).
     CatalogCase(
       'chat-list-peer-colors',
