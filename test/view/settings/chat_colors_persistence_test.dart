@@ -84,7 +84,9 @@ void main() {
       ..data[ChatAppearance.storageKey] = 'forest,plum';
     final container = containerFor(store);
     expect((await loaded(container)).outgoing, ChatBubbleColor.forest);
-    await container.read(chatBubbleColorsProvider.notifier).reset();
+    await container
+        .read(chatBubbleColorsProvider.notifier)
+        .outgoing(ChatBubbleColor.ember);
     expect(await loaded(containerFor(store)), const ChatBubbleColors());
   });
 

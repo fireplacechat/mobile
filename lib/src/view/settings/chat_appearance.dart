@@ -92,17 +92,6 @@ class ChatAppearanceScreen extends ConsumerWidget {
             'people you chat with see it.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton(
-              onPressed: () => _save(
-                context,
-                ref.read(chatBubbleColorsProvider.notifier).reset(),
-              ),
-              child: const Text('Reset color'),
-            ),
-          ),
         ],
       ),
     );
@@ -137,7 +126,7 @@ class _ColorChoices extends StatelessWidget {
           final width = (box.maxWidth / columns).floorToDouble();
           return Wrap(
             children: [
-              for (final color in ChatBubbleColor.values)
+              for (final color in ChatBubbleColor.offered)
                 SizedBox(
                   width: width,
                   child: ColorBlock(

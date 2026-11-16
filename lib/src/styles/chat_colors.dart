@@ -41,6 +41,80 @@ enum ChatBubbleColor {
     Color(0xFF3B464D),
     Color(0xFF59534C),
     Color(0xFFACA9A6),
+  ),
+  // Nine more, chosen by the owner on 2026-11-16. New ones go at the end:
+  // a colour's name is what is saved and published, never its place.
+  clay(
+    'Clay',
+    Color(0xFFA65345),
+    Color(0xFFF3E4DE),
+    Color(0xFF4E3631),
+    Color(0xFFA65345),
+    Color(0xFFD9A294),
+  ),
+  rose(
+    'Rose',
+    Color(0xFF965773),
+    Color(0xFFF2E4EB),
+    Color(0xFF4B3542),
+    Color(0xFF965773),
+    Color(0xFFD4A6BB),
+  ),
+  berry(
+    'Berry',
+    Color(0xFF843F50),
+    Color(0xFFF0E0E4),
+    Color(0xFF4A2E38),
+    Color(0xFF843F50),
+    Color(0xFFD29AA8),
+  ),
+  honey(
+    'Honey',
+    Color(0xFF86631F),
+    Color(0xFFF2EAD5),
+    Color(0xFF463D28),
+    Color(0xFF86631F),
+    Color(0xFFD2B77A),
+  ),
+  olive(
+    'Olive',
+    Color(0xFF66713E),
+    Color(0xFFE9ECD9),
+    Color(0xFF3B412C),
+    Color(0xFF66713E),
+    Color(0xFFB9C294),
+  ),
+  lagoon(
+    'Lagoon',
+    Color(0xFF2C716F),
+    Color(0xFFDDEDEA),
+    Color(0xFF2A4241),
+    Color(0xFF2C716F),
+    Color(0xFF8FBDB7),
+  ),
+  smoke(
+    'Smoke',
+    Color(0xFF536B7A),
+    Color(0xFFE4EBEF),
+    Color(0xFF34414A),
+    Color(0xFF536B7A),
+    Color(0xFFA3B8C4),
+  ),
+  grape(
+    'Grape',
+    Color(0xFF75608E),
+    Color(0xFFECE6F3),
+    Color(0xFF40364E),
+    Color(0xFF75608E),
+    Color(0xFFBEB0D3),
+  ),
+  cocoa(
+    'Cocoa',
+    Color(0xFF765342),
+    Color(0xFFEEE5DD),
+    Color(0xFF44362F),
+    Color(0xFF765342),
+    Color(0xFFC8AE9A),
   );
 
   const ChatBubbleColor(
@@ -53,6 +127,18 @@ enum ChatBubbleColor {
   );
   final String label;
   final Color outgoing, lightIncoming, darkIncoming;
+
+  /// The colours as they are offered: round the colour wheel, three to a
+  /// row, from the warm ones through pinks and purples, blues and greens,
+  /// to the earthy and neutral ones. Separate from the order above, which
+  /// only ever grows at the end.
+  static const List<ChatBubbleColor> offered = [
+    ember, clay, berry, //
+    rose, plum, grape, //
+    ocean, smoke, lagoon, //
+    forest, olive, honey, //
+    cocoa, stone,
+  ];
 
   /// The colour as small text and links: the fill itself is too dim for
   /// that on a dark page, and ember is too light for it on cream.
@@ -88,7 +174,8 @@ class ChatBubbleColors {
   );
 
   /// The tint behind a message after a jump to it (a search result, a quote,
-  /// a pin). Between the two bubble colours and faded into [page], so it
+  /// a pin). Between the two bubble colours, nearer the sender's, and faded
+  /// into [page], so it
   /// stands apart from both bubbles and from the page whichever two colours
   /// are chosen, also when both are the same (test/styles/chat_colors_test).
   /// In dark mode the outgoing colour's lighter accent stands in for its
@@ -104,7 +191,7 @@ class ChatBubbleColors {
     final dark = brightness == Brightness.dark;
     final between = dark
         ? Color.lerp(theirs, outgoing.accentText(brightness), .9)!
-        : Color.lerp(theirs, outgoing.outgoing, .5)!;
+        : Color.lerp(theirs, outgoing.outgoing, .6)!;
     return Color.lerp(page, between, dark ? .7 : .5)!;
   }
 
