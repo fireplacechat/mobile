@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/providers.dart';
@@ -282,8 +283,56 @@ void main() {
       );
       await t.tap(find.byKey(const Key('scanLink')));
       await flush(t);
-      expect(find.text('123456'), findsOneWidget);
+      expect(find.byKey(const Key('linkApproved')), findsOneWidget);
+      expect(find.text('Device linked'), findsOneWidget);
+      expect(find.byKey(const Key('scanLink')), findsNothing);
       expect(r.approvals, 2);
+    },
+  );
+  testWidgets(
+    'the new device finishes by itself when the answer arrives, and a refused answer can be tried again',
+    (t) async {
+      final r = ActionRecovery();
+      final f = UiFixture();
+      r.request = LinkRequest(
+        'alice',
+        f.session.device.keys,
+        Uint8List(16),
+        'example-qr',
+      );
+      final answer = SealedIdentity(
+        ek: Uint8List(32),
+        kemCt: Uint8List(8),
+        nonce: Uint8List(12),
+        ct: Uint8List(8),
+        mac: Uint8List(16),
+      );
+      r.response = Completer<SealedIdentity>();
+      r.error = RecoveryException('Could not link this device. Start again.');
+      await host(
+        t,
+        f,
+        const LinkWaitScreen(uid: 'alice'),
+        extra: [recoveryServiceProvider.overrideWithValue(r)],
+      );
+      expect(find.text('Waiting for approval…'), findsOneWidget);
+      // Nothing to type: no field and no button besides the QR code.
+      expect(find.byType(TextField), findsNothing);
+      r.response!.complete(answer);
+      await flush(t);
+      expect(r.completions, 1);
+      expect(
+        find.text('Could not link this device. Start again.'),
+        findsOneWidget,
+      );
+      expect(find.text('Linking…'), findsNothing);
+      r.error = null;
+      r.response = Completer<SealedIdentity>()..complete(answer);
+      await t.tap(find.byKey(const Key('retryLink')));
+      await flush(t);
+      expect(r.starts, 2);
+      expect(r.completions, 2);
+      expect(t.takeException(), isNull);
     },
   );
   testWidgets(
@@ -291,7 +340,12 @@ void main() {
     (t) async {
       final r = ActionRecovery();
       final f = UiFixture();
-      r.request = LinkRequest('alice', f.session.device.keys, 'example-qr');
+      r.request = LinkRequest(
+        'alice',
+        f.session.device.keys,
+        Uint8List(16),
+        'example-qr',
+      );
       r.response = Completer<SealedIdentity>();
       await host(
         t,

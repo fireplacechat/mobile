@@ -119,10 +119,13 @@ extension NativeCryptoCalls on NativeCrypto {
     List<int> device,
     List<int> x,
     List<int> kem,
+    List<int> secret,
   ) => _scope((scope) {
     final function = library
         .lookupFunction<
           Int32 Function(
+            Pointer<Uint8>,
+            UintPtr,
             Pointer<Uint8>,
             UintPtr,
             Pointer<Uint8>,
@@ -146,9 +149,11 @@ extension NativeCryptoCalls on NativeCrypto {
             int,
             Pointer<Uint8>,
             int,
+            Pointer<Uint8>,
+            int,
             Pointer<FpBuffer>,
           )
-        >('fp_link_seal');
+        >('fp_link_seal_v2');
     final out = scope.output();
     NativeCrypto._check(
       function(
@@ -162,6 +167,8 @@ extension NativeCryptoCalls on NativeCrypto {
         x.length,
         scope.input(kem),
         kem.length,
+        scope.input(secret),
+        secret.length,
         out,
       ),
     );

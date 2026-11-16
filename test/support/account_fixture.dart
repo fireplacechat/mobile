@@ -74,7 +74,7 @@ class ActionRecovery extends Fake implements RecoveryService {
   }
 
   @override
-  Future<String> approveLink(
+  Future<void> approveLink(
     String uid,
     AccountIdentity identity,
     String raw,
@@ -82,7 +82,6 @@ class ActionRecovery extends Fake implements RecoveryService {
     approvals++;
     if (hold != null) await hold!.future;
     if (error != null) throw error!;
-    return '123456';
   }
 
   int resets = 0;
@@ -121,7 +120,6 @@ class ActionRecovery extends Fake implements RecoveryService {
   Future<LocalDevice> completeLink(
     LinkRequest req,
     SealedIdentity sealed,
-    String code,
   ) async {
     completions++;
     if (hold != null) await hold!.future;

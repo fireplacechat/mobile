@@ -45,11 +45,21 @@ class SealedIdentity {
 }
 
 /// Moves the account identity to a new device of the same account.
-/// Authenticity does not come from the server: the new device's public keys
-/// travel in a QR code (so the server can't swap them), and a short confirmation
-/// code derived from the transferred identity is compared by the user (so the
-/// server can't swap the identity).
+/// Authenticity does not come from the server. The new device's QR code holds
+/// a fingerprint of its public keys, so the server can't swap them, and a
+/// random secret that is sent nowhere and goes into the sealing key, so only
+/// a device that read the QR code can make a response the new device opens.
 class LinkCrypto {
+  /// Bytes of secret a new device puts in its QR code.
+  static const secretLength = 16;
+  static const _secretMax = 64;
+
+  static void _checkSecret(List<int> secret) {
+    if (secret.length < secretLength || secret.length > _secretMax) {
+      throw LinkException('Invalid device linking secret.');
+    }
+  }
+
   static final _x = X25519();
   static final _aead = AesGcm.with256bits();
 
@@ -67,20 +77,6 @@ class LinkCrypto {
         .replaceAll('=', '');
   }
 
-  /// 6-digit code both devices display; the user checks they match.
-  static Future<String> confirmationCode(
-    List<int> identityPub,
-    List<int> x25519Pub,
-    List<int> kemPub,
-  ) async {
-    final h = (await Sha256().hash(
-      lp([utf8Bytes('fireplace/v1/link-sas'), identityPub, x25519Pub, kemPub]),
-    )).bytes;
-    final n =
-        ByteData.sublistView(Uint8List.fromList(h)).getUint32(0) % 1000000;
-    return n.toString().padLeft(6, '0');
-  }
-
   static Uint8List _info(
     String uid,
     String deviceId,
@@ -89,7 +85,7 @@ class LinkCrypto {
     List<int> x25519Pub,
     List<int> kemPub,
   ) => lp([
-    utf8Bytes('fireplace/v1/link'),
+    utf8Bytes('fireplace/v2/link'),
     utf8Bytes(uid),
     utf8Bytes(deviceId),
     ek,
@@ -98,12 +94,19 @@ class LinkCrypto {
     kemPub,
   ]);
 
-  static Future<SecretKey> _key(List<int> dh, List<int> ss, Uint8List info) {
+  // Both shared secrets have fixed lengths, so the QR secret after them needs
+  // no length prefix.
+  static Future<SecretKey> _key(
+    List<int> dh,
+    List<int> ss,
+    List<int> secret,
+    Uint8List info,
+  ) {
     if (!isContributoryX25519Secret(dh)) {
       throw LinkException('Invalid device linking key.');
     }
     return Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(
-      secretKey: SecretKey(concat([dh, ss])),
+      secretKey: SecretKey(concat([dh, ss, secret])),
       nonce: const <int>[],
       info: info,
     );
@@ -115,7 +118,9 @@ class LinkCrypto {
     required String deviceId,
     required Uint8List x25519Pub,
     required Uint8List kemPub,
+    required List<int> secret,
   }) async {
+    _checkSecret(secret);
     final ekSeed = takeTestBytes(32);
     final ek = ekSeed == null
         ? await _x.newKeyPair()
@@ -132,7 +137,7 @@ class LinkCrypto {
     final info = _info(uid, deviceId, ekPub, kemCt, x25519Pub, kemPub);
     final box = await _aead.encrypt(
       utf8.encode(jsonEncode(identity.toJson())),
-      secretKey: await _key(dh, ss, info),
+      secretKey: await _key(dh, ss, secret, info),
       nonce: takeTestBytes(12),
       aad: info,
     );
@@ -149,8 +154,10 @@ class LinkCrypto {
     SealedIdentity s, {
     required String uid,
     required DeviceKeys keys,
+    required List<int> secret,
   }) async {
     try {
+      _checkSecret(secret);
       final kp = await _x.newKeyPairFromSeed(keys.x25519Seed);
       final dh = await (await _x.sharedSecretKey(
         keyPair: kp,
@@ -167,7 +174,7 @@ class LinkCrypto {
       );
       final plain = await _aead.decrypt(
         SecretBox(s.ct, nonce: s.nonce, mac: Mac(s.mac)),
-        secretKey: await _key(dh, ss, info),
+        secretKey: await _key(dh, ss, secret, info),
         aad: info,
       );
       return AccountIdentity.fromJson(

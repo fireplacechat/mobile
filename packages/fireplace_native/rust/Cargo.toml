@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 # so the host library exports the core's C ABI without another Rust wrapper.
 [dependencies]
 # An exact crates.io version. The groups feature (decision 0050) adds OpenMLS.
-fireplace-crypto = { version = "=0.2.0", features = ["groups"] }
+fireplace-crypto = { version = "=0.3.0", features = ["groups"] }
 
 [features]
 # Only the separate host comparison build enables this; no app build does.

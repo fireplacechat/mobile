@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/fireplace_services.dart';
@@ -168,17 +171,17 @@ void main() {
     });
 
     test(
-      'happy path: QR -> approve -> code matches -> new device installed',
+      'happy path: QR -> approve -> new device installed, nothing typed',
       () async {
         final req = await fresh.recovery.startLink('alice');
         expect(LinkQr.parse(req.qrPayload), isNotNull);
-        final code = await existing.recovery.approveLink(
+        await existing.recovery.approveLink(
           'alice',
           existingDev.identity,
           req.qrPayload,
         );
         final sealed = await fresh.recovery.awaitResponse(req);
-        final dev = await fresh.recovery.completeLink(req, sealed, code);
+        final dev = await fresh.recovery.completeLink(req, sealed);
         expect(dev.identity.publicBytes, existingDev.identity.publicBytes);
         expect(await dev.bundle.verifyCert(), isTrue);
         expect(
@@ -197,37 +200,12 @@ void main() {
     );
 
     test(
-      'wrong confirmation code is rejected and nothing is installed',
+      'a response made without the secret in the QR code does not open',
       () async {
         final req = await fresh.recovery.startLink('alice');
-        await existing.recovery.approveLink(
-          'alice',
-          existingDev.identity,
-          req.qrPayload,
-        );
-        final sealed = await fresh.recovery.awaitResponse(req);
-        await expectLater(
-          fresh.recovery.completeLink(req, sealed, '000000x'),
-          throwsA(isA<RecoveryException>()),
-        );
-        expect(await fresh.secrets.read('identity:alice'), isNull);
-        expect(
-          (await db.collection('users/alice/devices').get()).docs,
-          hasLength(1),
-        );
-      },
-    );
-
-    test(
-      'server swapping the identity in the response is caught by the code',
-      () async {
-        final req = await fresh.recovery.startLink('alice');
-        final honestCode = await existing.recovery.approveLink(
-          'alice',
-          existingDev.identity,
-          req.qrPayload,
-        );
-        // attacker replaces the response with their own identity sealed to the same device
+        // Someone who can write the response and knows every public value
+        // picks an identity of their own. The new device cannot open what
+        // was sealed without its secret.
         final evil = await AccountIdentity.generate();
         final forged = await LinkCrypto.seal(
           evil,
@@ -235,14 +213,72 @@ void main() {
           deviceId: req.keys.deviceId,
           x25519Pub: req.keys.x25519Pub,
           kemPub: req.keys.kemPub,
+          secret: Uint8List(16),
         );
         await expectLater(
-          fresh.recovery.completeLink(req, forged, honestCode),
+          fresh.recovery.completeLink(req, forged),
           throwsA(isA<RecoveryException>()),
         );
         expect(await fresh.secrets.read('identity:alice'), isNull);
+        expect(
+          (await db.collection('users/alice/devices').get()).docs,
+          hasLength(1),
+        );
+        // The request is still there, so the real answer can still arrive.
+        await existing.recovery.approveLink(
+          'alice',
+          existingDev.identity,
+          req.qrPayload,
+        );
+        final dev = await fresh.recovery.completeLink(
+          req,
+          await fresh.recovery.awaitResponse(req),
+        );
+        expect(dev.identity.publicBytes, existingDev.identity.publicBytes);
       },
     );
+
+    test('the secret is in the QR code and not on the server', () async {
+      final req = await fresh.recovery.startLink('alice');
+      final qr = LinkQr.parse(req.qrPayload)!;
+      expect(qr.secret, req.secret);
+      expect(qr.secret, hasLength(16));
+      final other = await fresh.recovery.startLink('alice');
+      expect(other.secret, isNot(req.secret));
+      final stored =
+          (await db
+                  .collection('users/alice/linkRequests')
+                  .doc(req.keys.deviceId)
+                  .get())
+              .data()!
+              .toString();
+      expect(stored.contains(req.qrPayload.split('/').last), isFalse);
+      expect(stored.contains(base64Encode(req.secret)), isFalse);
+    });
+
+    test('a QR code from an older version is refused in plain words', () async {
+      final req = await fresh.recovery.startLink('alice');
+      final qr = LinkQr.parse(req.qrPayload)!;
+      await expectLater(
+        existing.recovery.approveLink(
+          'alice',
+          existingDev.identity,
+          'fireplace://link/1/alice/${qr.deviceId}/${qr.fingerprint}',
+        ),
+        throwsA(
+          isA<RecoveryException>().having(
+            (e) => e.message,
+            'message',
+            contains('Update Fireplace on the new device'),
+          ),
+        ),
+      );
+      final snap = await db
+          .collection('users/alice/linkRequests')
+          .doc(qr.deviceId)
+          .get();
+      expect(snap.data()!.containsKey('response'), isFalse);
+    });
 
     test(
       'server swapping the new device keys is caught by the QR fingerprint',
@@ -314,7 +350,7 @@ void main() {
 
     test('linked device can chat with a contact', () async {
       final req = await fresh.recovery.startLink('alice');
-      final code = await existing.recovery.approveLink(
+      await existing.recovery.approveLink(
         'alice',
         existingDev.identity,
         req.qrPayload,
@@ -322,7 +358,6 @@ void main() {
       final dev = await fresh.recovery.completeLink(
         req,
         await fresh.recovery.awaitResponse(req),
-        code,
       );
       await db.collection('usernames').doc('alice').set({'uid': 'alice'});
       await db.collection('usernames').doc('bob').set({'uid': 'bob'});
@@ -371,16 +406,27 @@ void main() {
   });
 
   test('LinkQr parsing', () {
-    final q = LinkQr('uid1', 'abcdefgh_-12', 'A' * 22);
+    final secret = Uint8List.fromList(List.generate(16, (i) => 255 - i * 3));
+    final q = LinkQr('uid1', 'abcdefgh_-12', 'A' * 22, secret);
     final p = LinkQr.parse(q.encode())!;
     expect(
       [p.uid, p.deviceId, p.fingerprint],
       ['uid1', 'abcdefgh_-12', 'A' * 22],
     );
+    expect(p.secret, secret);
+    expect(q.encode(), startsWith('fireplace://link/2/uid1/abcdefgh_-12/'));
+    final old = 'fireplace://link/1/uid1/abcdefgh_-12/${'A' * 22}';
+    expect(LinkQr.isOld(old), isTrue);
+    expect(LinkQr.isOld(q.encode()), isFalse);
     for (final j in [
       null,
       '',
+      old,
       'fireplace://link/2/a/b/c',
+      // No secret, a short one, a long one.
+      'fireplace://link/2/uid1/abcdefgh_-12/${'A' * 22}',
+      'fireplace://link/2/uid1/abcdefgh_-12/${'A' * 22}/${'A' * 21}',
+      'fireplace://link/2/uid1/abcdefgh_-12/${'A' * 22}/${'A' * 23}',
       'fireplace://verify/1/${'1' * 60}',
     ]) {
       expect(LinkQr.parse(j), isNull);
