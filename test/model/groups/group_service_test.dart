@@ -53,6 +53,73 @@ void main() {
     return gid;
   }
 
+  test('after the identity is replaced the account has left its groups, the '
+      'old group keys are gone, and it can be invited again', () async {
+    final gid = await bookClub();
+    await bob.service.leaveAll();
+    await until(
+      () async => alice.service.groups[gid]!.members.length == 1,
+      what: 'Alice sees Bob go',
+    );
+    await bob.service.close();
+
+    // The same phone, now under a new identity and device.
+    final keys = KeyService(db, bob.secrets);
+    final device = await RecoveryService(
+      db,
+      bob.secrets,
+      keys,
+    ).resetIdentity('bob');
+    final again = GroupService(
+      db: db,
+      uid: 'bob',
+      device: device,
+      secrets: bob.secrets,
+      historyDir: Directory('${root.path}/bob'),
+      messages: bob.messages,
+      requestTimeout: const Duration(seconds: 10),
+    );
+    await again.start();
+    expect(again.groups, isEmpty);
+    expect(again.deviceId, device.keys.deviceId);
+    final packages = await db
+        .collection('users/bob/devices/${device.keys.deviceId}/mlsPackages')
+        .get();
+    expect(packages.docs, hasLength(GroupLimits.keyPackagesPerDevice));
+
+    await alice.service.invite(gid, 'bob');
+    await until(
+      () async => again.invitations.any((i) => i.gid == gid),
+      what: 'invitation',
+    );
+    await again.accept(gid);
+    await until(() async => again.groups.containsKey(gid), what: 'Bob rejoins');
+    await alice.service.send(gid, 'welcome back');
+    await until(
+      () async => (await again.watchMessages(gid).first).any(
+        (m) => m.body == 'welcome back',
+      ),
+      what: 'Bob reads under the new identity',
+    );
+    await again.close();
+  });
+
+  test('group records are kept across a restart of the same device', () async {
+    final gid = await bookClub();
+    await bob.service.close();
+    final again = GroupService(
+      db: db,
+      uid: 'bob',
+      device: await KeyService(db, bob.secrets).ensureDevice('bob'),
+      secrets: bob.secrets,
+      historyDir: Directory('${root.path}/bob'),
+      messages: bob.messages,
+    );
+    await again.start();
+    expect(again.groups.keys, [gid]);
+    await again.close();
+  });
+
   test('a device publishes ten key packages when it starts', () async {
     final devices = await db.collection('users/bob/devices').get();
     final packages = await db

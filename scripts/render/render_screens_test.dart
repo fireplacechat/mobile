@@ -769,6 +769,25 @@ void main() {
       },
     ),
     const CatalogCase('devices', DevicesScreen()),
+    CatalogCase(
+      'devices-remove',
+      const DevicesScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('revoke_example-second-device')));
+        await openSheet(t);
+      },
+    ),
+    CatalogCase(
+      'devices-lost',
+      const DevicesScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('revoke_example-second-device')));
+        await openSheet(t);
+        await t.tap(find.byKey(const Key('confirmRevoke')));
+        await openSheet(t);
+        await openSheet(t);
+      },
+    ),
     const CatalogCase('recovery', RecoveryKeyScreen()),
     const CatalogCase('link-device', LinkNewDeviceScreen()),
     const CatalogCase('new-device', NewDeviceScreen(uid: 'alice')),
