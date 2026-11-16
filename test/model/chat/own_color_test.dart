@@ -27,6 +27,49 @@ void main() {
     }
   });
 
+  test('while a chat is open the colour of the other person is followed, so a '
+      'change shows without restarting (issue 193)', () async {
+    final db = FakeFirebaseFirestore();
+    await addUser(db, 'alice', 'alice');
+    await addUser(db, 'bob', 'bob');
+    final alice = await Dev.create(db, 'alice'),
+        bob = await Dev.create(db, 'bob');
+    addTearDown(() async {
+      for (final d in [alice, bob]) {
+        await d.close();
+        await d.chat.close();
+      }
+    });
+    Future<void> settle() => Future<void>.delayed(Duration.zero);
+
+    await alice.chat.publishColor('plum');
+    // Bob has the chat with Alice open.
+    final open = bob.chat.watchPeerColor('alice');
+    await settle();
+    expect(bob.peerColors['alice'], 'plum');
+
+    // Alice changes her colour, twice, moments apart: each change arrives,
+    // though her profile was read seconds ago.
+    await alice.chat.publishColor('forest');
+    await settle();
+    expect(bob.peerColors['alice'], 'forest');
+    await alice.chat.publishColor('ocean');
+    await settle();
+    expect(bob.peerColors['alice'], 'ocean');
+
+    // The chat is closed: nothing more is followed.
+    await open.cancel();
+    await alice.chat.publishColor('plum');
+    await settle();
+    expect(bob.peerColors['alice'], 'ocean');
+
+    // Following one's own profile notes nothing.
+    final own = alice.chat.watchPeerColor('alice');
+    await settle();
+    expect(alice.peerColors.containsKey('alice'), false);
+    await own.cancel();
+  });
+
   test('a colour is published on the profile and read with the name', () async {
     final db = FakeFirebaseFirestore();
     await addUser(db, 'alice', 'alice');

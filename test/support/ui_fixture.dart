@@ -199,6 +199,17 @@ class FixtureChat extends Fake implements ChatService {
   Future<void> publishColor(String color) async => publishedColors.add(color);
   @override
   Future<void> refreshPeerColor(String peerUid) async {}
+
+  /// Peers whose colour a screen is following, and how many stopped.
+  final watchedColors = <String>[];
+  int colorWatchesEnded = 0;
+  @override
+  StreamSubscription<void> watchPeerColor(String peerUid) {
+    watchedColors.add(peerUid);
+    final source = StreamController<void>(onCancel: () => colorWatchesEnded++);
+    return source.stream.listen((_) {});
+  }
+
   @override
   Stream<List<ChatSummary>> watchChats() => Stream.value(summaries);
   @override

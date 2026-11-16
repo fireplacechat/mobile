@@ -205,6 +205,10 @@ class ChatService {
   Future<void> refreshPeerColor(String peerUid) =>
       _directory.refreshPeerColor(peerUid);
 
+  /// Follows [peerUid]'s colour until the subscription is cancelled.
+  StreamSubscription<void> watchPeerColor(String peerUid) =>
+      _directory.watchPeerColor(peerUid);
+
   /// The conversation's newest messages, now and after each change; older
   /// ones come with [showOlderMessages] and [revealMessage].
   Stream<List<LocalMessage>> watchMessages(String chatId) => _messages

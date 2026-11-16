@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/safety/safety_service.dart';
@@ -172,6 +174,19 @@ class ChatDirectory {
     _profileReadAt[peerUid] = DateTime.now();
     await _profile(peerUid);
   }
+
+  /// Follows a person's colour while their chat is open (decision 0064), so
+  /// a change shows there at once, as it does in a group. One read when the
+  /// chat opens and one for each change of their profile; the caller cancels
+  /// it when the chat closes. A failure leaves the colour last seen.
+  StreamSubscription<void> watchPeerColor(String peerUid) =>
+      _db.collection('users').doc(peerUid).snapshots().listen((snap) {
+        final data = snap.data();
+        if (data == null || peerUid == uid) return;
+        _profileReadAt[peerUid] = DateTime.now();
+        final color = data['color'];
+        onPeerColor?.call(peerUid, color is String ? color : null);
+      }, onError: (Object _) {});
 
   /// Puts this account's colour on its profile. The rules want the time of
   /// the change with it, and refuse another within a few seconds.
