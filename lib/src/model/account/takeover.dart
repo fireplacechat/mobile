@@ -80,11 +80,6 @@ class TakeoverService {
   Future<LostPhoneWait> wait(String uid) async =>
       LostPhoneWait.fromDays((await _security(uid).get()).data()?['waitDays']);
 
-  /// The choice made on the sign-up form. The server accepts it only for an
-  /// account made a moment ago; later changes need a device ([setWait]).
-  Future<void> chooseAtSignUp(String uid, LostPhoneWait wait) =>
-      _security(uid).set({'waitDays': wait.length.inDays});
-
   /// Whether the account has any device: without one there is nobody to
   /// warn, and starting fresh does not wait.
   Future<bool> hasDevices(String uid) async =>

@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/account/auth_service.dart';
-import 'package:fireplace/src/model/account/takeover.dart';
-import 'package:fireplace/src/view/account/lost_phone_wait_screen.dart';
 import 'package:fireplace/src/styles/brand/logo.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
@@ -28,7 +26,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _obscure = true;
   // Eligibility self-declaration (16+). Never pre-selected; not a verified age check.
   bool _is16OrOlder = false;
-  LostPhoneWait _wait = LostPhoneWait.standard;
   bool _showAgeError = false;
   String? _error;
 
@@ -55,21 +52,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final auth = ref.read(authServiceProvider);
     try {
       if (_signUp) {
-        final user = await auth.signUp(
+        await auth.signUp(
           username: _username.text,
           password: _password.text,
           inviteCode: _invite.text,
         );
-        if (_wait != LostPhoneWait.standard) {
-          try {
-            await ref
-                .read(takeoverServiceProvider)
-                .chooseAtSignUp(user.uid, _wait);
-          } catch (_) {
-            // The account exists with the usual wait; it can be changed in
-            // Settings.
-          }
-        }
       } else {
         await auth.signIn(username: _username.text, password: _password.text);
       }
@@ -239,12 +226,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                             style: TextStyle(color: theme.colorScheme.error),
                           ),
                         ),
-                      LostPhoneWaitTile(
-                        wait: _wait,
-                        enabled: !_busy,
-                        contentPadding: EdgeInsets.zero,
-                        onChanged: (wait) => setState(() => _wait = wait),
-                      ),
                       Padding(
                         padding: EdgeInsets.only(top: 6),
                         child: Text(

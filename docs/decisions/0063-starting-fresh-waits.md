@@ -54,8 +54,9 @@ another device: those paths keep the identity and are unchanged.
 Chosen by the person: 1, 3, 7, 14 or 30 days. Three days is the default and
 what existing accounts get.
 
-- At sign-up it is one row on the form, already set to three days.
-- Later it is in Settings, under Devices and recovery.
+It is in Settings, under Devices and recovery. A new account starts at three
+days; choosing it is planned as one of the set-up steps after sign-up (with
+the theme and the colour), which is not part of this change.
 
 Changing it needs a device of the account. A session that has only the
 password cannot change it, or it would set it to the shortest and wait that
@@ -99,8 +100,7 @@ Few words; the app's sheet for questions.
   "It's me". "It's me" puts the notice away and changes nothing. "Stop them"
   asks for the password, then for a new one.
 - **Settings.** One row, "Lost-phone wait", showing the time; it opens the
-  sheet with the five choices.
-- **Sign-up.** The same row on the form.
+  five choices.
 
 ## Costs
 

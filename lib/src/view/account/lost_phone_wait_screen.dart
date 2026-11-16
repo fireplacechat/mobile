@@ -46,8 +46,7 @@ class LostPhoneWaitScreen extends StatelessWidget {
   }
 }
 
-/// The row that shows the wait and opens the picker. Used in Settings and on
-/// the sign-up form.
+/// The row that shows the wait and opens the picker.
 class LostPhoneWaitTile extends StatelessWidget {
   const LostPhoneWaitTile({
     super.key,

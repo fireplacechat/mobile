@@ -136,7 +136,7 @@ void main() {
 
     test('the wait is three days unless the account says otherwise', () async {
       expect(await service.wait('alice'), LostPhoneWait.threeDays);
-      await service.chooseAtSignUp('alice', LostPhoneWait.twoWeeks);
+      await db.doc('users/alice/private/security').set({'waitDays': 14});
       expect(await service.wait('alice'), LostPhoneWait.twoWeeks);
       await db.doc('users/alice/private/security').set({'waitDays': 5});
       expect(await service.wait('alice'), LostPhoneWait.threeDays);
@@ -144,7 +144,7 @@ void main() {
 
     test('starting records the wait and when it ends; withdrawing removes '
         'it', () async {
-      await service.chooseAtSignUp('alice', LostPhoneWait.oneWeek);
+      await db.doc('users/alice/private/security').set({'waitDays': 7});
       expect(await service.pending('alice'), isNull);
       final seen = <PendingStart?>[];
       final sub = service.watch('alice').listen(seen.add);

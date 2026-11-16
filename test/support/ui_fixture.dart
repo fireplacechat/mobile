@@ -78,11 +78,6 @@ class FixtureTakeover extends Fake implements TakeoverService {
   @override
   Future<bool> hasDevices(String uid) async => devices;
   @override
-  Future<void> chooseAtSignUp(String uid, LostPhoneWait wait) async {
-    chosen = wait;
-  }
-
-  @override
   Future<void> setWait(
     String uid,
     LocalDevice device,
