@@ -74,6 +74,7 @@ void main() {
       db: db,
       uid: 'bob',
       device: device,
+      keys: keys,
       secrets: bob.secrets,
       historyDir: Directory('${root.path}/bob'),
       messages: bob.messages,
@@ -87,6 +88,13 @@ void main() {
         .get();
     expect(packages.docs, hasLength(GroupLimits.keyPackagesPerDevice));
 
+    // Alice knows Bob under his old identity: the invitation is not sent
+    // until she has accepted the new one (decision 0061).
+    await expectLater(
+      alice.service.invite(gid, 'bob'),
+      throwsA(isA<IdentityChangedException>()),
+    );
+    await alice.keys.acceptIdentityChange('bob', device.identity.publicBytes);
     await alice.service.invite(gid, 'bob');
     await until(
       () async => again.invitations.any((i) => i.gid == gid),
@@ -111,6 +119,7 @@ void main() {
       db: db,
       uid: 'bob',
       device: await KeyService(db, bob.secrets).ensureDevice('bob'),
+      keys: bob.keys,
       secrets: bob.secrets,
       historyDir: Directory('${root.path}/bob'),
       messages: bob.messages,
@@ -482,6 +491,7 @@ void main() {
       db: db,
       uid: 'bob',
       device: device,
+      keys: bob.keys,
       secrets: bob.secrets,
       historyDir: Directory('${root.path}/bob'),
       messages: bob.messages,
@@ -649,6 +659,7 @@ void main() {
       db: db,
       uid: 'bob',
       device: await KeyService(db, bob.secrets).ensureDevice('bob'),
+      keys: bob.keys,
       secrets: bob.secrets,
       historyDir: Directory('${root.path}/bob'),
       messages: bob.messages,

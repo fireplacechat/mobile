@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
@@ -126,6 +127,53 @@ void main() {
       () => find.text('bob: See you at 7?').evaluate().isNotEmpty,
     );
     expect(find.text('Book club'), findsOneWidget);
+    await tearDownPhones(t);
+  });
+
+  testWidgets('a group stopped by a changed security code says so, and '
+      'carries on once the key is accepted', (t) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, bob, alice);
+    late Phone erin;
+    await t.runAsync(() async {
+      erin = await Phone.create(db, 'erin', root);
+      server.watchAccount('erin');
+      // This phone knows Erin under another key.
+      await alice.keys.acceptIdentityChange(
+        'erin',
+        (await AccountIdentity.generate()).publicBytes,
+      );
+      await bob.service.invite(gid, 'erin');
+      await until(
+        () async => alice.service.heldChanges.containsKey(gid),
+        what: 'held',
+      );
+    });
+    await pump(t, GroupChatScreen(gid: gid));
+    await settle(
+      t,
+      () => find.byKey(const Key('groupHeldNotice')).evaluate().isNotEmpty,
+    );
+    expect(
+      find.textContaining('security code changed. This group is on hold.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('reviewGroupIdentity')), findsOneWidget);
+    expect(find.text('2 people'), findsOneWidget);
+
+    await t.runAsync(() async {
+      await alice.keys.acceptIdentityChange(
+        'erin',
+        alice.service.heldChanges[gid]!.newIdentityPub,
+      );
+      await alice.service.retryHeld();
+    });
+    await settle(
+      t,
+      () => find.byKey(const Key('groupHeldNotice')).evaluate().isEmpty,
+    );
+    expect(alice.service.groups[gid]!.members, hasLength(3));
+    await t.runAsync(() => erin.service.close());
     await tearDownPhones(t);
   });
 

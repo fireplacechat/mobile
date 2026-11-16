@@ -58,6 +58,8 @@ Future<void> reviewChatIdentity(
   if (trust == true) {
     await session.keys.acceptIdentityChange(peerUid, newIdentityPub);
     await session.chat.retryDeferred(); // delivers what was held back
+    // Groups that were waiting for this key carry on too.
+    await session.groups?.retryHeld();
     notice('New key trusted.');
   }
 }

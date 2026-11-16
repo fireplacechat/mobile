@@ -9,7 +9,8 @@ import 'package:fireplace/src/model/groups/group_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 class Phone {
-  Phone._(this.uid, this.service, this.messages, this.secrets);
+  Phone._(this.uid, this.service, this.messages, this.secrets, this.keys);
+  final KeyService keys;
   final String uid;
   final GroupService service;
   final MemoryMessageStore messages;
@@ -27,12 +28,14 @@ class Phone {
       'displayName': uid,
     });
     final secrets = MemorySecretStore();
-    final device = await KeyService(db, secrets).ensureDevice(uid);
+    final keys = KeyService(db, secrets);
+    final device = await keys.ensureDevice(uid);
     final messages = MemoryMessageStore();
     final service = GroupService(
       db: db,
       uid: uid,
       device: device,
+      keys: keys,
       secrets: secrets,
       historyDir: Directory('${root.path}/$uid')..createSync(recursive: true),
       messages: messages,
@@ -40,7 +43,7 @@ class Phone {
       clock: clock,
     );
     await service.start();
-    return Phone._(uid, service, messages, secrets);
+    return Phone._(uid, service, messages, secrets, keys);
   }
 }
 

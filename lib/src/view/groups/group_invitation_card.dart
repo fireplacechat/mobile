@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
+import 'package:fireplace/src/model/keys/key_service.dart';
+import 'package:fireplace/src/view/chat/review_chat_identity.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/view/groups/group_chat_screen.dart';
@@ -36,6 +38,24 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
     });
     try {
       await action(widget.invitation.gid);
+    } on IdentityChangedException catch (e) {
+      // A member's security code is not the one this phone knows. Joining
+      // waits until the person has looked at it.
+      final session = ref.read(appSessionProvider).value;
+      if (session == null || !mounted) return;
+      await reviewChatIdentity(
+        context,
+        session,
+        e.peerUid,
+        e.newIdentityPub,
+        isMounted: () => mounted,
+        notice: (_) {},
+      );
+      if (mounted) {
+        setState(
+          () => _error = 'A member’s security code changed. Join again.',
+        );
+      }
     } on GroupRefused catch (e) {
       if (mounted) setState(() => _error = e.message);
     } on GroupActionError catch (e) {
