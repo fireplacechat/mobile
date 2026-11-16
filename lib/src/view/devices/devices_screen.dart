@@ -52,11 +52,18 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
       if (ok != true || !mounted) return;
       final s = ref.read(appSessionProvider).value;
       if (s == null) throw StateError('Account is not ready');
-      await s.keys.revokeDevice(
-        s.uid,
-        d.deviceId,
-        thisDeviceId: s.device.keys.deviceId,
-      );
+      await ref
+          .read(takeoverServiceProvider)
+          .removeDevice(
+            s.uid,
+            s.device,
+            d.deviceId,
+            direct: () => s.keys.revokeDevice(
+              s.uid,
+              d.deviceId,
+              thisDeviceId: s.device.keys.deviceId,
+            ),
+          );
       if (!mounted) return;
       // The device is removed; the next question is a separate one.
       setState(() {
@@ -105,6 +112,9 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
       final recovery = ref.read(recoveryServiceProvider);
       // While the old identity can still speak: tell the groups.
       await s.groups?.leaveAll();
+      // A device replaces the identity at once: it asks the server, which
+      // otherwise makes a start wait (decision 0063).
+      await ref.read(takeoverServiceProvider).resetNow(s.uid, s.device);
       await recovery.resetIdentity(s.uid);
       // Everything in the session was built on the old identity.
       if (mounted) ref.invalidate(appSessionProvider);

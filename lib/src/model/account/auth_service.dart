@@ -196,6 +196,37 @@ class AuthService {
     }
   }
 
+  /// When this sign-in happened, in seconds, as the server sees it. A waiting
+  /// start records it, so only the sign-in that asked can withdraw it.
+  Future<int> signInTime() async {
+    final user = _auth.currentUser;
+    if (user == null) throw AuthException('Not signed in.');
+    final at = (await user.getIdTokenResult()).authTime;
+    if (at == null) throw AuthException('Not signed in.');
+    return at.millisecondsSinceEpoch ~/ 1000;
+  }
+
+  /// Asks the server to check the password again. Afterwards the sign-in
+  /// counts as fresh, which some requests need (decision 0063).
+  Future<void> confirmPassword(String password) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) {
+      throw AuthException('Not signed in.');
+    }
+    try {
+      await user.reauthenticateWithCredential(
+        EmailAuthProvider.credential(email: user.email!, password: password),
+      );
+      // The next request must carry the new sign-in time.
+      await user.getIdToken(true);
+    } on FirebaseAuthException catch (e) {
+      if (const {'wrong-password', 'invalid-credential'}.contains(e.code)) {
+        throw AuthException('Current password is wrong.');
+      }
+      throw AuthException(e.message ?? 'Could not check the password.');
+    }
+  }
+
   /// Changes the account password. Message keys are independent of the password.
   Future<void> changePassword({
     required String currentPassword,

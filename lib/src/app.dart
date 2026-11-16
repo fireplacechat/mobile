@@ -10,6 +10,7 @@ import 'package:fireplace/src/app/theme_preference.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/model/notifications/app_badge.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
+import 'package:fireplace/src/view/account/takeover_alert.dart';
 import 'package:fireplace/src/view/auth/auth_screen.dart';
 import 'package:fireplace/src/view/devices/new_device_screen.dart';
 import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
@@ -134,7 +135,10 @@ class _AuthGateState extends ConsumerState<AuthGate> {
                       !ref.watch(chatListWarmupProvider.select(_settled)) ||
                       !_minimumElapsed
                   ? _Splash()
-                  : _BackupNudge(child: ChatListScreen()),
+                  : TakeoverGuard(
+                      uid: s.uid,
+                      child: _BackupNudge(child: ChatListScreen()),
+                    ),
             );
       },
     );

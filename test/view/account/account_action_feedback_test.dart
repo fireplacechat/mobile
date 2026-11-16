@@ -114,6 +114,8 @@ void main() {
       await t.tap(find.byKey(const Key('resetAfterLoss')));
       await flush(t);
       expect(r.resets, 1);
+      // Asked of the server as a device, so it does not have to wait.
+      expect(f.takeover.immediateResets, 1);
       expect(t.takeException(), isNull);
     },
   );
