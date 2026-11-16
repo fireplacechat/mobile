@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/widgets/status.dart';
 import 'package:fireplace/src/model/chat/message_recovery_action.dart';
 
 /// The warning under an outgoing message whose delivery is not known. It never shows a
@@ -76,7 +77,8 @@ class UnconfirmedNote extends StatelessWidget {
                 style: theme.textTheme.bodySmall,
               ),
             ],
-            Wrap(
+            const SizedBox(height: 10),
+            UiNoticeActions(
               children: [
                 if (savedLocallyFailed)
                   TextButton(

@@ -34,6 +34,14 @@ class FixtureKeys extends Fake implements KeyService {
   @override
   void bindLocalDevice(String uid, LocalDevice device) {}
 
+  /// Accepted and forgotten: the fixture's device list does not change.
+  @override
+  Future<void> revokeDevice(
+    String uid,
+    String deviceId, {
+    required String thisDeviceId,
+  }) async {}
+
   @override
   Future<List<int>?> pinnedIdentity(String peerUid) async =>
       List.generate(64, (i) => 63 - i);
@@ -94,6 +102,12 @@ class FixtureTakeover extends Fake implements TakeoverService {
     String target, {
     required Future<void> Function() direct,
   }) => direct();
+
+  int immediateResets = 0;
+  @override
+  Future<void> resetNow(String uid, LocalDevice device) async {
+    immediateResets++;
+  }
 
   @override
   Future<PendingStart> start(String uid) async {

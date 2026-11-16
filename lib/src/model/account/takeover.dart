@@ -134,6 +134,14 @@ class TakeoverService {
     );
   }
 
+  /// A device of the account is about to replace the identity (a lost
+  /// device, decision 0062). The server lets a device do that at once; a
+  /// server that does not check device requests yet needs no asking.
+  Future<void> resetNow(String uid, LocalDevice device) async {
+    if (!(await _db.doc('config/deviceProof').get()).exists) return;
+    await _deviceRequest(uid, device, 'resetNow', const [], const {});
+  }
+
   /// A device of the account stops the waiting start. The password is asked
   /// for again, which a stolen phone cannot answer, and then replaced, since
   /// whoever started this knows the old one.

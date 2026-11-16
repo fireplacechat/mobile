@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:fireplace/src/widgets/app_bar.dart';
-import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
 
@@ -10,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/view/safety/safety_action_sheet.dart';
 
 class DevicesScreen extends ConsumerStatefulWidget {
   const DevicesScreen({super.key});
@@ -35,30 +35,19 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
       _error = null;
     });
     try {
-      final ok = await showDialog<bool>(
+      final ok = await showSafetyActionSheet<bool>(
         context: context,
-        builder: (ctx) => UiDialog(
-          title: const Text('Remove this device?'),
-          content: const SingleChildScrollView(
-            child: Text(
-              'It will stop receiving new messages and will have to be set up again. Messages it already received stay on it.',
-            ),
+        title: 'Remove this device?',
+        message: 'It stops receiving new messages.',
+        actions: const [
+          SafetySheetAction(
+            label: 'Remove',
+            value: true,
+            style: SafetyActionStyle.destructive,
+            buttonKey: Key('confirmRevoke'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              key: const Key('confirmRevoke'),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: Text(
-                'Remove',
-                style: TextStyle(color: FireplaceUiTokens.of(context).danger),
-              ),
-            ),
-          ],
-        ),
+          SafetySheetAction(label: 'Cancel', value: false),
+        ],
       );
       if (ok != true || !mounted) return;
       final s = ref.read(appSessionProvider).value;
@@ -75,13 +64,67 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
               thisDeviceId: s.device.keys.deviceId,
             ),
           );
-      if (mounted) setState(() => _devices = _load());
+      if (!mounted) return;
+      // The device is removed; the next question is a separate one.
+      setState(() {
+        _devices = _load();
+        _revoking = null;
+      });
+      await _askIfLost();
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Could not remove this device. Try again.');
       }
     } finally {
       if (mounted) setState(() => _revoking = null);
+    }
+  }
+
+  /// A device in someone else's hands still holds this account's identity
+  /// key, so removing it is not enough: the identity is replaced, and with it
+  /// everything that key vouched for (decision 0062). Asked once the device
+  /// is removed, so each question has one answer to give.
+  Future<void> _askIfLost() async {
+    final reset = await showSafetyActionSheet<bool>(
+      context: context,
+      title: 'Was it lost or stolen?',
+      message:
+          'Reset your security code to lock it out. Your other devices and '
+          'groups need setting up again.',
+      actions: const [
+        SafetySheetAction(
+          label: 'Reset security code',
+          value: true,
+          style: SafetyActionStyle.destructive,
+          buttonKey: Key('resetAfterLoss'),
+        ),
+        SafetySheetAction(
+          label: 'No, I have it',
+          value: false,
+          buttonKey: Key('keepIdentity'),
+        ),
+      ],
+    );
+    if (reset != true || !mounted) return;
+    try {
+      final s = ref.read(appSessionProvider).value;
+      if (s == null) throw StateError('Account is not ready');
+      final recovery = ref.read(recoveryServiceProvider);
+      // While the old identity can still speak: tell the groups.
+      await s.groups?.leaveAll();
+      // A device replaces the identity at once: it asks the server, which
+      // otherwise makes a start wait (decision 0063).
+      await ref.read(takeoverServiceProvider).resetNow(s.uid, s.device);
+      await recovery.resetIdentity(s.uid);
+      // Everything in the session was built on the old identity.
+      if (mounted) ref.invalidate(appSessionProvider);
+      if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error = 'Could not reset your security code. Try again.',
+        );
+      }
     }
   }
 

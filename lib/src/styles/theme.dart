@@ -181,6 +181,11 @@ ThemeData fireplaceTheme(
         foregroundColor: t.accentText,
       ),
     ),
+    // Every checkbox in the app is round.
+    checkboxTheme: CheckboxThemeData(
+      shape: const CircleBorder(),
+      side: BorderSide(color: t.secondaryText, width: 1.5),
+    ),
     dialogTheme: DialogThemeData(
       backgroundColor: t.page,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
