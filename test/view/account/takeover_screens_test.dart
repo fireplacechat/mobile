@@ -180,6 +180,25 @@ void main() {
     expect(recovery.resets, 1);
   });
 
+  testWidgets('against a server that does not make starts wait yet, starting '
+      'fresh works as it always did', (t) async {
+    final f = UiFixture()..takeover.server = false;
+    final recovery = ActionRecovery()..device = f.session.device;
+    await host(
+      t,
+      f,
+      const NewDeviceScreen(uid: 'alice'),
+      extra: [recoveryServiceProvider.overrideWithValue(recovery)],
+    );
+    await t.ensureVisible(find.byKey(const Key('optReset')));
+    await t.tap(find.byKey(const Key('optReset')));
+    await flush(t);
+    await t.tap(find.byKey(const Key('confirmReset')));
+    await flush(t);
+    expect(f.takeover.starts, 0);
+    expect(recovery.resets, 1);
+  });
+
   testWidgets('the wait is chosen from five lengths', (t) async {
     LostPhoneWait? picked;
     final f = UiFixture();

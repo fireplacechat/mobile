@@ -127,7 +127,8 @@ class _NewDeviceScreenState extends ConsumerState<NewDeviceScreen> {
   /// (decision 0063): the devices are told and can stop it.
   Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
     final takeover = ref.read(takeoverServiceProvider);
-    if (await takeover.hasDevices(widget.uid)) {
+    if (await takeover.enforced(widget.uid) &&
+        await takeover.hasDevices(widget.uid)) {
       final wait = await takeover.wait(widget.uid);
       if (!context.mounted) return;
       final ok = await showSafetyActionSheet<bool>(

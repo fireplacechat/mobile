@@ -70,15 +70,43 @@ class TakeoverService {
     );
   }
 
-  /// The start that is waiting on this account, if any.
-  Stream<PendingStart?> watch(String uid) =>
-      _pending(uid).snapshots().map((s) => _parse(s.data()));
+  /// Whether the server makes starting fresh wait and checks device requests.
+  /// One that does lets the account read its own wait, set or not; an older
+  /// one refuses the read. Against an older server everything here falls back
+  /// to what the app did before, so the app can ship first.
+  Future<bool> enforced(String uid) async {
+    try {
+      await _security(uid).get();
+      return true;
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') return false;
+      rethrow;
+    }
+  }
+
+  /// The start that is waiting on this account, if any. An older server has
+  /// no such record and refuses the question: nothing is waiting.
+  Stream<PendingStart?> watch(String uid) => _pending(uid)
+      .snapshots()
+      .map((s) => _parse(s.data()))
+      .handleError(
+        (Object _) {},
+        test: (e) => e is FirebaseException && e.code == 'permission-denied',
+      );
 
   Future<PendingStart?> pending(String uid) async =>
       _parse((await _pending(uid).get()).data());
 
-  Future<LostPhoneWait> wait(String uid) async =>
-      LostPhoneWait.fromDays((await _security(uid).get()).data()?['waitDays']);
+  Future<LostPhoneWait> wait(String uid) async {
+    try {
+      return LostPhoneWait.fromDays(
+        (await _security(uid).get()).data()?['waitDays'],
+      );
+    } on FirebaseException catch (e) {
+      if (e.code == 'permission-denied') return LostPhoneWait.standard;
+      rethrow;
+    }
+  }
 
   /// Whether the account has any device: without one there is nobody to
   /// warn, and starting fresh does not wait.
@@ -124,7 +152,7 @@ class TakeoverService {
     String target, {
     required Future<void> Function() direct,
   }) async {
-    if (!(await _db.doc('config/deviceProof').get()).exists) return direct();
+    if (!await enforced(uid)) return direct();
     await _deviceRequest(
       uid,
       device,
@@ -138,7 +166,7 @@ class TakeoverService {
   /// device, decision 0062). The server lets a device do that at once; a
   /// server that does not check device requests yet needs no asking.
   Future<void> resetNow(String uid, LocalDevice device) async {
-    if (!(await _db.doc('config/deviceProof').get()).exists) return;
+    if (!await enforced(uid)) return;
     await _deviceRequest(uid, device, 'resetNow', const [], const {});
   }
 
@@ -174,6 +202,24 @@ class TakeoverService {
     }
   }
 
+  /// The server's public key for device proofs. The server makes its key the
+  /// first time anyone asks, which this does when there is none yet.
+  Future<String> _serverKey(String uid) async {
+    final ref = _db.doc('config/deviceProof');
+    var key = (await ref.get()).data()?['x25519Pub'];
+    if (key is String) return key;
+    final id = b64(randomBytes(12)).replaceAll('+', '-').replaceAll('/', '_');
+    await _answered(_db.doc('users/$uid/accountOps/$id'), {
+      'kind': 'key',
+      'at': FieldValue.serverTimestamp(),
+    });
+    key = (await ref.get()).data()?['x25519Pub'];
+    if (key is! String) {
+      throw TakeoverException('Not available yet. Try again later.');
+    }
+    return key;
+  }
+
   /// A request only a device may make: it carries a proof made with the
   /// device's key, which the server checks before it acts.
   Future<void> _deviceRequest(
@@ -183,11 +229,10 @@ class TakeoverService {
     List<String> arguments,
     Map<String, Object> fields,
   ) async {
-    final server = (await _db.doc('config/deviceProof').get())
-        .data()?['x25519Pub'];
-    if (server is! String) {
+    if (!await enforced(uid)) {
       throw TakeoverException('Not available yet. Try again later.');
     }
+    final server = await _serverKey(uid);
     final id = b64(randomBytes(12)).replaceAll('+', '-').replaceAll('/', '_');
     final proof = await DeviceProof.make(
       deviceSeed: device.keys.x25519Seed,
@@ -201,14 +246,21 @@ class TakeoverService {
         arguments: arguments,
       ),
     );
-    final ref = _db.doc('users/$uid/accountOps/$id');
-    await ref.set({
+    await _answered(_db.doc('users/$uid/accountOps/$id'), {
       'kind': kind,
       'device': device.keys.deviceId,
       'proof': b64(proof),
       'at': FieldValue.serverTimestamp(),
       ...fields,
     });
+  }
+
+  /// Writes a request and waits for the server's answer.
+  Future<void> _answered(
+    DocumentReference<Map<String, dynamic>> ref,
+    Map<String, Object> request,
+  ) async {
+    await ref.set(request);
     final done = Completer<void>();
     final sub = ref.snapshots().listen(
       (snap) {

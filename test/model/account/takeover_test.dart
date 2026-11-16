@@ -177,9 +177,6 @@ void main() {
       final serverPub = (await (await X25519().newKeyPairFromSeed(
         serverSeed,
       )).extractPublicKey()).bytes;
-      await db.doc('config/deviceProof').set({
-        'x25519Pub': base64Encode(serverPub),
-      });
       final device = await KeyService(
         db,
         MemorySecretStore(),
@@ -195,6 +192,14 @@ void main() {
         for (final doc in snap.docs) {
           final data = doc.data();
           if (data['status'] != null) continue;
+          // The first request of all asks the server to make its key.
+          if (data['kind'] == 'key') {
+            await db.doc('config/deviceProof').set({
+              'x25519Pub': base64Encode(serverPub),
+            });
+            await doc.reference.update({'status': 'done'});
+            continue;
+          }
           final published =
               (await db.doc('users/alice/devices/${data['device']}').get())
                   .data()!;
@@ -220,10 +225,10 @@ void main() {
 
       await service.setWait('alice', device, LostPhoneWait.oneWeek);
       expect(checked, [true]);
-      final sent = (await db.collection('users/alice/accountOps').get())
-          .docs
-          .single
-          .data();
+      final all = (await db.collection('users/alice/accountOps').get()).docs;
+      // One asking for the key, once, and the request itself.
+      expect(all.where((d) => d.data()['kind'] == 'key'), hasLength(1));
+      final sent = all.singleWhere((d) => d.data()['kind'] == 'setWait').data();
       expect(sent['kind'], 'setWait');
       expect(sent['waitDays'], 7);
       expect(sent['device'], device.keys.deviceId);

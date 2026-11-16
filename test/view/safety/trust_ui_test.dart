@@ -112,9 +112,7 @@ void main() {
           authUserProvider.overrideWithValue(const AsyncData(null)),
           appSessionProvider.overrideWithValue(AsyncData(a1)),
           // This server does not check device requests: removal is direct.
-          takeoverServiceProvider.overrideWithValue(
-            TakeoverService(db, _NoAuth()),
-          ),
+          takeoverServiceProvider.overrideWithValue(_OlderServer(db)),
         ],
         child: MaterialApp(
           theme: fireplaceTheme(Brightness.light),
@@ -163,3 +161,10 @@ void main() {
 }
 
 class _NoAuth extends Fake implements AuthService {}
+
+/// A server from before device requests: the app removes a device directly.
+class _OlderServer extends TakeoverService {
+  _OlderServer(FakeFirebaseFirestore db) : super(db, _NoAuth());
+  @override
+  Future<bool> enforced(String uid) async => false;
+}
