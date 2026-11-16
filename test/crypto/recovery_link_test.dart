@@ -84,12 +84,14 @@ void main() => bothCryptoBackends(() {
     test('identity is sealed to the new device only', () async {
       final id = await AccountIdentity.generate();
       final newDev = await DeviceKeys.generate();
+      final secret = LinkCrypto.newSecret();
       final sealed = await LinkCrypto.seal(
         id,
         uid: 'alice',
         deviceId: newDev.deviceId,
         x25519Pub: newDev.x25519Pub,
         kemPub: newDev.kemPub,
+        secret: secret,
       );
       final json = sealed.toJson();
       expect(json.values.join().contains(b64(id.edPub)), isFalse);
@@ -97,16 +99,30 @@ void main() => bothCryptoBackends(() {
         SealedIdentity.fromJson(json),
         uid: 'alice',
         keys: newDev,
+        secret: secret,
       );
       expect(got.publicBytes, id.publicBytes);
 
+      // Everything right except the secret from the QR code.
+      for (final wrong in [
+        Uint8List.fromList(secret)..[0] ^= 1,
+        Uint8List(16),
+        Uint8List.fromList([...secret, 0]),
+        Uint8List(0),
+      ]) {
+        await expectLater(
+          LinkCrypto.open(sealed, uid: 'alice', keys: newDev, secret: wrong),
+          throwsA(isA<LinkException>()),
+        );
+      }
+
       final other = await DeviceKeys.generate();
       await expectLater(
-        LinkCrypto.open(sealed, uid: 'alice', keys: other),
+        LinkCrypto.open(sealed, uid: 'alice', keys: other, secret: secret),
         throwsA(isA<LinkException>()),
       );
       await expectLater(
-        LinkCrypto.open(sealed, uid: 'mallory', keys: newDev),
+        LinkCrypto.open(sealed, uid: 'mallory', keys: newDev, secret: secret),
         throwsA(isA<LinkException>()),
       );
       final bad = SealedIdentity(
@@ -117,38 +133,13 @@ void main() => bothCryptoBackends(() {
         mac: sealed.mac,
       );
       await expectLater(
-        LinkCrypto.open(bad, uid: 'alice', keys: newDev),
+        LinkCrypto.open(bad, uid: 'alice', keys: newDev, secret: secret),
         throwsA(isA<LinkException>()),
       );
     });
 
-    test('confirmation code depends on identity and device keys; fingerprint on keys', () async {
-      final id1 = await AccountIdentity.generate();
-      final id2 = await AccountIdentity.generate();
+    test('the fingerprint depends on the device keys', () async {
       final d = await DeviceKeys.generate();
-      final c1 = await LinkCrypto.confirmationCode(
-        id1.publicBytes,
-        d.x25519Pub,
-        d.kemPub,
-      );
-      expect(RegExp(r'^\d{6}$').hasMatch(c1), isTrue);
-      expect(
-        await LinkCrypto.confirmationCode(
-          id1.publicBytes,
-          d.x25519Pub,
-          d.kemPub,
-        ),
-        c1,
-      );
-      expect(
-        await LinkCrypto.confirmationCode(
-              id2.publicBytes,
-              d.x25519Pub,
-              d.kemPub,
-            ) ==
-            c1,
-        isFalse,
-      );
       final d2 = await DeviceKeys.generate();
       expect(
         await LinkCrypto.requestFingerprint(d.x25519Pub, d.kemPub),

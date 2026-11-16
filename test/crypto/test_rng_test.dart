@@ -101,6 +101,7 @@ void main() {
       deviceId: aliceKeys.deviceId,
       x25519Pub: aliceKeys.x25519Pub,
       kemPub: aliceKeys.kemPub,
+      secret: List.filled(16, 3),
     );
     final key = RecoveryKey.generate();
     final docs = <String, Object>{

@@ -20,8 +20,8 @@ static Symbol volatile bridges[] = {
   (Symbol)fp_session_encrypt_handle, (Symbol)fp_session_decrypt_handle,
   (Symbol)fp_recovery_generate, (Symbol)fp_recovery_display,
   (Symbol)fp_recovery_parse, (Symbol)fp_recovery_encrypt, (Symbol)fp_recovery_decrypt,
-  (Symbol)fp_link_fingerprint, (Symbol)fp_link_confirmation,
-  (Symbol)fp_link_seal, (Symbol)fp_link_open, (Symbol)fp_safety_number
+  (Symbol)fp_link_fingerprint, (Symbol)fp_link_seal_v2,
+  (Symbol)fp_link_open_v2, (Symbol)fp_safety_number
 };
 
 void fireplace_crypto_ensure_linked(void) {
