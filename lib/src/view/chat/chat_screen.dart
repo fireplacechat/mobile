@@ -102,6 +102,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   late final TimelineScroll _timeline;
 
   late final ContactController _contactController;
+  StreamSubscription<void>? _peerColor;
   @override
   void initState() {
     super.initState();
@@ -119,16 +120,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             }),
       );
     }
-    // Their colour may have changed since their profile was last read.
-    if (chat != null) {
-      unawaited(() async {
-        try {
-          await chat.refreshPeerColor(chat.peerOf(widget.chatId));
-        } catch (_) {
-          // The colour last seen stays.
-        }
-      }());
-    }
+    // Their colour is followed while this chat is open, so a change shows
+    // without leaving the conversation (issue 193).
+    _peerColor = chat?.watchPeerColor(chat.peerOf(widget.chatId));
     _text = ChatDraftController(
       drafts: ref.read(chatDraftsProvider.notifier),
       chatId: widget.chatId,
@@ -246,6 +240,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   @override
   void dispose() {
+    unawaited(_peerColor?.cancel());
     _routeVisibility.dispose();
     _text.removeListener(_onDraftChanged);
     _text.dispose();
