@@ -827,7 +827,6 @@ const expected = <String, Map<String, List<String>>>{
       '12:00 pm',
       '12:00 pm',
       '12:00 pm',
-      '@fred\'s security code changed. Messages are on hold until you review it.',
       'Are we still on for Saturday?',
       'Around two? There is no rush.',
       'F',
@@ -839,6 +838,7 @@ const expected = <String, Map<String, List<String>>>{
       'Sat, Oct 3',
       'Sun, Oct 4',
       'fred',
+      'fred\'s security code changed. Messages are on hold.',
     ],
     'semantics': [
       'label: Are we still on for Saturday?',

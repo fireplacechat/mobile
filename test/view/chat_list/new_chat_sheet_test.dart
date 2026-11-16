@@ -74,11 +74,60 @@ void main() {
     expect(f.chat.starts, ['mira_k']);
   });
 
-  testWidgets('Cancel closes the panel', (t) async {
+  testWidgets('the x in the corner closes the panel', (t) async {
     await pumpList(t);
-    await t.tap(find.byKey(const Key('cancelNewChat')));
+    // A round button with an x, at the right; no word "Cancel".
+    final close = find.byKey(const Key('cancelNewChat'));
+    expect(t.widget(close), isA<IconButton>());
+    expect(find.text('Cancel'), findsNothing);
+    expect(
+      t.getCenter(close).dx,
+      greaterThan(t.getCenter(find.text('New chat')).dx),
+    );
+    await t.tap(close);
     await t.pumpAndSettle();
     expect(find.byType(NewChatSheet), findsNothing);
+  });
+
+  testWidgets('the To field is a pill, in the search field\'s text, and '
+      'outlined in red for a name that cannot be messaged', (t) async {
+    await pumpList(t);
+    final field = find.byKey(const Key('peerUsername'));
+    InputDecoration decoration() => t.widget<TextField>(field).decoration!;
+    for (final border in [
+      decoration().enabledBorder,
+      decoration().errorBorder,
+      decoration().focusedErrorBorder,
+    ]) {
+      expect(
+        (border! as OutlineInputBorder).borderRadius,
+        BorderRadius.circular(999),
+      );
+    }
+    expect(t.widget<TextField>(field).style!.fontSize, 16);
+    // "To:" has room on its left.
+    expect(
+      t.getTopLeft(find.text('To:')).dx - t.getTopLeft(field).dx,
+      greaterThanOrEqualTo(16),
+    );
+    expect(decoration().errorText, isNull);
+    await t.enterText(field, 'no such name');
+    await t.testTextInput.receiveAction(TextInputAction.go);
+    await t.pump();
+    expect(decoration().errorText, isNotNull);
+    expect(
+      (decoration().errorBorder! as OutlineInputBorder).borderSide.width,
+      2,
+    );
+  });
+
+  testWidgets('every checkbox in the app is round', (t) async {
+    for (final brightness in Brightness.values) {
+      expect(
+        fireplaceTheme(brightness).checkboxTheme.shape,
+        isA<CircleBorder>(),
+      );
+    }
   });
 
   testWidgets('Create group shows when groups are on', (t) async {
