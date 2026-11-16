@@ -117,14 +117,31 @@ void main() {
     await t.tap(find.byKey(Key('revoke_$otherId')));
     // The guarded device action remains busy while confirmation is open.
     await t.pump(const Duration(milliseconds: 350));
+    // The sheet slides up: one frame to start it, one to finish.
+    await t.pump(const Duration(milliseconds: 350));
     await t.tap(find.byKey(const Key('confirmRevoke')));
+    // Removed first; then the one follow-up question, answered "No".
     for (var i = 0; i < 40; i++) {
       await t.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 25)),
       );
-      await t.pump();
-      if (find.text('Removed').evaluate().isNotEmpty) break;
+      await t.pump(const Duration(milliseconds: 50));
+      if (find.byKey(const Key('keepIdentity')).evaluate().isNotEmpty) break;
+    }
+    await t.pump(const Duration(milliseconds: 350));
+    expect(find.text('Was it lost or stolen?'), findsOneWidget);
+    await t.tap(find.byKey(const Key('keepIdentity')));
+    for (var i = 0; i < 40; i++) {
+      await t.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 25)),
+      );
+      await t.pump(const Duration(milliseconds: 50));
+      if (find.text('Removed').evaluate().isNotEmpty &&
+          find.text('Was it lost or stolen?').evaluate().isEmpty) {
+        break;
+      }
     }
     expect(find.text('Removed'), findsOneWidget);
+    expect(find.text('Was it lost or stolen?'), findsNothing);
   });
 }

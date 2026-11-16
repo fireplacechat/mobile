@@ -133,6 +133,21 @@ class RecoveryService {
       await d.reference.delete();
     }
     await _backup(uid).delete();
+    // Where pushes for the old devices went. Best effort: a token left
+    // behind only receives alerts without any message text.
+    try {
+      for (final t
+          in (await _db
+                  .collection('users')
+                  .doc(uid)
+                  .collection('pushTokens')
+                  .get())
+              .docs) {
+        await t.reference.delete();
+      }
+    } on FirebaseException {
+      // The identity is replaced all the same.
+    }
     for (final k in ['identity', 'device', 'bundle']) {
       await _store.delete('$k:$uid');
     }

@@ -96,9 +96,18 @@ void main() {
         final old = Phone(db, 'alice');
         final d = await old.keys.ensureDevice('alice');
         await old.recovery.createBackup('alice', d.identity);
+        await db.collection('users/alice/pushTokens').doc(d.keys.deviceId).set({
+          'token': 'example-token',
+          'platform': 'android',
+        });
         final fresh = Phone(db, 'alice');
         final reset = await fresh.recovery.resetIdentity('alice');
         expect(reset.identity.publicBytes, isNot(d.identity.publicBytes));
+        // Alerts are no longer routed to the old devices.
+        expect(
+          (await db.collection('users/alice/pushTokens').get()).docs,
+          isEmpty,
+        );
         final docs = (await db.collection('users/alice/devices').get()).docs;
         expect(docs.map((x) => x.id), [reset.keys.deviceId]);
         expect(await fresh.recovery.hasBackup('alice'), isFalse);
@@ -111,6 +120,44 @@ void main() {
           throwsA(isA<IdentityChangedException>()),
         );
       },
+    );
+  });
+
+  test('a device still running when its identity is replaced: the old '
+      'device\'s certificate no longer passes for a contact who accepts the '
+      'new identity', () async {
+    final phone = Phone(db, 'alice');
+    final before = await phone.keys.ensureDevice('alice');
+    final stolen = before.bundle;
+    final bob = Phone(db, 'bob');
+    await bob.keys.ensureDevice('bob');
+    expect(await bob.keys.fetchDevices('alice'), hasLength(1));
+
+    final after = await phone.recovery.resetIdentity('alice');
+    await expectLater(
+      bob.keys.fetchDevices('alice'),
+      throwsA(isA<IdentityChangedException>()),
+    );
+    await bob.keys.acceptIdentityChange('alice', after.identity.publicBytes);
+    expect(
+      (await bob.keys.fetchDevices('alice')).single.deviceId,
+      after.keys.deviceId,
+    );
+
+    // Whoever holds the old device (and whoever serves records) puts its
+    // record back. It is certified by the old identity, which Bob no longer
+    // trusts, so it stays out.
+    await db.collection('users/alice/devices').doc(stolen.deviceId).set({
+      ...stolen.toFirestore(),
+      'createdAt': DateTime(2026),
+    });
+    await expectLater(
+      bob.keys.fetchDevices('alice'),
+      throwsA(isA<IdentityChangedException>()),
+    );
+    await expectLater(
+      bob.keys.fetchDevice('alice', stolen.deviceId),
+      throwsA(isA<IdentityChangedException>()),
     );
   });
 

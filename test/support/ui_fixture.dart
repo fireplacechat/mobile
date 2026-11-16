@@ -33,6 +33,14 @@ class FixtureKeys extends Fake implements KeyService {
   @override
   void bindLocalDevice(String uid, LocalDevice device) {}
 
+  /// Accepted and forgotten: the fixture's device list does not change.
+  @override
+  Future<void> revokeDevice(
+    String uid,
+    String deviceId, {
+    required String thisDeviceId,
+  }) async {}
+
   @override
   Future<List<int>?> pinnedIdentity(String peerUid) async =>
       List.generate(64, (i) => 63 - i);
