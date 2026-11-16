@@ -9,7 +9,8 @@ import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
 
-/// Existing-device side of linking: scan the new device's QR, then show the code.
+/// Existing-device side of linking: scan the new device's QR code. That is
+/// the whole approval; the new device finishes on its own.
 class LinkNewDeviceScreen extends ConsumerStatefulWidget {
   const LinkNewDeviceScreen({super.key, this.scanCode});
   final Future<String?> Function(BuildContext)? scanCode;
@@ -26,7 +27,7 @@ class _LinkNewDeviceScreenState extends ConsumerState<LinkNewDeviceScreen> {
     super.dispose();
   }
 
-  String? _code;
+  bool _approved = false;
   String? _error;
   bool _busy = false;
 
@@ -50,11 +51,11 @@ class _LinkNewDeviceScreenState extends ConsumerState<LinkNewDeviceScreen> {
               ),
             );
       if (raw == null || !mounted) return;
-      final code = await ref
+      await ref
           .read(recoveryServiceProvider)
           .approveLink(s.uid, s.device.identity, raw);
       if (mounted) {
-        setState(() => _code = code);
+        setState(() => _approved = true);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _scroll.hasClients) _scroll.jumpTo(0);
         });
@@ -78,27 +79,32 @@ class _LinkNewDeviceScreenState extends ConsumerState<LinkNewDeviceScreen> {
       maxWidth: 520,
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
       children: [
-        const Center(
+        Center(
           child: Icon(
-            Icons.add_to_home_screen_rounded,
+            _approved
+                ? Icons.check_circle_outline_rounded
+                : Icons.add_to_home_screen_rounded,
             size: 56,
             color: fireplaceOrange,
           ),
         ),
         const SizedBox(height: 20),
         Text(
-          'Link a new device',
+          _approved ? 'Device linked' : 'Link a new device',
+          key: _approved ? const Key('linkApproved') : null,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineLarge,
         ),
         const SizedBox(height: 12),
         Text(
-          'Keep your identity. Add a device you trust.',
+          _approved
+              ? 'Not you? Remove it in Settings, under Your devices.'
+              : 'Keep your identity. Add a device you trust.',
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodyLarge,
         ),
         const SizedBox(height: 24),
-        if (_code == null) ...[
+        if (!_approved) ...[
           const _LinkStep(
             number: '1',
             title: 'Sign in on the new device',
@@ -111,8 +117,8 @@ class _LinkNewDeviceScreenState extends ConsumerState<LinkNewDeviceScreen> {
           ),
           const _LinkStep(
             number: '3',
-            title: 'Scan and confirm',
-            text: 'Scan that QR code here, then enter the confirmation code on the new device.',
+            title: 'Scan it here',
+            text: 'The new device finishes on its own.',
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
@@ -126,30 +132,12 @@ class _LinkNewDeviceScreenState extends ConsumerState<LinkNewDeviceScreen> {
             'Only link a device you hold in your hands. Past messages stay on the devices that received them.',
             textAlign: TextAlign.center,
           ),
-        ] else ...[
-          const Text(
-            'Type this code on the new device to finish:',
-            textAlign: TextAlign.center,
+        ] else
+          FilledButton(
+            key: const Key('linkDone'),
+            onPressed: () => Navigator.of(context).maybePop(),
+            child: const Text('Done'),
           ),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: SelectableText(
-                _code!,
-                textAlign: TextAlign.center,
-                key: const Key('approveCode'),
-                style: Theme.of(context).textTheme.headlineLarge
-                    ?.copyWith(letterSpacing: 3, fontFamily: 'monospace'),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'If the new device does not ask for a code, or you did not start this, do not continue: remove it from Settings → Your devices.',
-            textAlign: TextAlign.center,
-          ),
-        ],
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(top: 16),

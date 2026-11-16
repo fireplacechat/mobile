@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/model/keys/recovery_service.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
 
-/// New device side of linking: show the QR, wait, then confirm the 6-digit code.
+/// New device side of linking: show the QR code and wait. The answer of the
+/// device that scanned it is opened and installed without another step.
 class LinkWaitScreen extends ConsumerStatefulWidget {
   const LinkWaitScreen({super.key, required this.uid});
   final String uid;
@@ -18,11 +18,8 @@ class LinkWaitScreen extends ConsumerStatefulWidget {
 
 class _LinkWaitScreenState extends ConsumerState<LinkWaitScreen> {
   LinkRequest? _req;
-  SealedIdentity? _sealed;
-  final _code = TextEditingController();
   String? _error;
-  bool _busy = false;
-  bool _starting = false, _completed = false;
+  bool _starting = false, _linking = false, _completed = false;
   int _attempt = 0;
   late final RecoveryService _service;
 
@@ -34,13 +31,12 @@ class _LinkWaitScreenState extends ConsumerState<LinkWaitScreen> {
   }
 
   Future<void> _start() async {
-    if (_starting || _busy) return;
+    if (_starting || _linking) return;
     final attempt = ++_attempt;
     final old = _req;
     setState(() {
       _starting = true;
       _req = null;
-      _sealed = null;
       _error = null;
     });
     try {
@@ -56,7 +52,12 @@ class _LinkWaitScreenState extends ConsumerState<LinkWaitScreen> {
         _starting = false;
       });
       final sealed = await _service.awaitResponse(req);
-      if (mounted && attempt == _attempt) setState(() => _sealed = sealed);
+      if (!mounted || attempt != _attempt) return;
+      setState(() => _linking = true);
+      await _service.completeLink(req, sealed);
+      _completed = true;
+      if (mounted) ref.invalidate(appSessionProvider);
+      if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
     } on RecoveryException catch (e) {
       if (mounted && attempt == _attempt) setState(() => _error = e.message);
     } catch (_) {
@@ -64,48 +65,21 @@ class _LinkWaitScreenState extends ConsumerState<LinkWaitScreen> {
         setState(() => _error = 'Could not link this device. Try again.');
       }
     } finally {
-      if (mounted && attempt == _attempt) setState(() => _starting = false);
+      if (mounted && attempt == _attempt) {
+        setState(() {
+          _starting = false;
+          _linking = false;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
     _attempt++;
-    _code.dispose();
     final req = _req;
     if (req != null && !_completed) _service.cancelLink(req).catchError((_) {});
     super.dispose();
-  }
-
-  Future<void> _confirm() async {
-    if (_busy || _req == null || _sealed == null) return;
-    final code = _code.text.trim();
-    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
-      setState(
-        () => _error = 'Enter the 6-digit code shown on your other device.',
-      );
-      return;
-    }
-    setState(() {
-      _busy = true;
-      _error = null;
-    });
-    try {
-      await _service.completeLink(_req!, _sealed!, code);
-      _completed = true;
-      if (mounted) ref.invalidate(appSessionProvider);
-      if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
-    } on RecoveryException catch (e) {
-      if (mounted) setState(() => _error = e.message);
-    } catch (e) {
-      if (mounted) {
-        setState(
-          () => _error = 'Could not finish linking this device. Try again.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 
   @override
@@ -118,7 +92,11 @@ class _LinkWaitScreenState extends ConsumerState<LinkWaitScreen> {
         children: [
           if (req == null && _error == null)
             Center(child: CircularProgressIndicator())
-          else if (_sealed == null && req != null) ...[
+          else if (_linking) ...[
+            Center(child: CircularProgressIndicator()),
+            SizedBox(height: 12),
+            Center(child: Text('Linking…')),
+          ] else if (req != null) ...[
             Text(
               'On your other device open Settings → Link a new device and scan '
               'this code.',
@@ -137,35 +115,9 @@ class _LinkWaitScreenState extends ConsumerState<LinkWaitScreen> {
             ),
             SizedBox(height: 12),
             if (_error == null) Center(child: Text('Waiting for approval…')),
-          ] else if (_sealed != null) ...[
-            Text(
-              'Your other device is showing a 6-digit code. Type it here to '
-              'finish. This makes sure nobody swapped your keys on the way.',
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 16),
-            TextField(
-              key: Key('linkCode'),
-              controller: _code,
-              enabled: !_busy,
-              onSubmitted: (_) => _confirm(),
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 24,
-                letterSpacing: 2,
-                fontFamily: 'monospace',
-              ),
-            ),
-            FilledButton(
-              key: Key('linkConfirm'),
-              onPressed: _busy ? null : _confirm,
-              child: Text('Confirm'),
-            ),
           ],
           if (_error != null) UiActionError(message: _error!),
-          if (_error != null && _sealed == null)
+          if (_error != null)
             TextButton(
               key: const Key('retryLink'),
               onPressed: _starting ? null : _start,

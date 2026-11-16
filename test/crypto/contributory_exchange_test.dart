@@ -24,6 +24,7 @@ void main() => bothCryptoBackends(() {
           deviceId: device.deviceId,
           x25519Pub: lowOrder,
           kemPub: device.kemPub,
+          secret: Uint8List(16),
         ),
         throwsA(isA<LinkException>()),
       );
@@ -108,7 +109,7 @@ void main() => bothCryptoBackends(() {
       final ek = Uint8List(32);
       final (ct, ss) = PqcKem.kyber768.encapsulate(device.kemPub);
       final info = lp([
-        utf8Bytes('fireplace/v1/link'),
+        utf8Bytes('fireplace/v2/link'),
         utf8Bytes('alice'),
         utf8Bytes(device.deviceId),
         ek,
@@ -117,7 +118,7 @@ void main() => bothCryptoBackends(() {
         device.kemPub,
       ]);
       final key = await Hkdf(hmac: Hmac.sha256(), outputLength: 32).deriveKey(
-        secretKey: SecretKey(concat([Uint8List(32), ss])),
+        secretKey: SecretKey(concat([Uint8List(32), ss, Uint8List(16)])),
         nonce: const [],
         info: info,
       );
@@ -134,7 +135,12 @@ void main() => bothCryptoBackends(() {
         mac: Uint8List.fromList(box.mac.bytes),
       );
       await expectLater(
-        LinkCrypto.open(sealed, uid: 'alice', keys: device),
+        LinkCrypto.open(
+          sealed,
+          uid: 'alice',
+          keys: device,
+          secret: Uint8List(16),
+        ),
         throwsA(isA<LinkException>()),
       );
     },

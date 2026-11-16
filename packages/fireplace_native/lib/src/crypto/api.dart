@@ -79,14 +79,13 @@ extension NativeCryptoApi on NativeCrypto {
       );
   String linkFingerprint(List<int> x, List<int> kem) =>
       utf8.decode(_binary('fp_link_fingerprint', x, kem));
-  String linkConfirmation(List<int> identity, List<int> x, List<int> kem) =>
-      utf8.decode(_ternary('fp_link_confirmation', identity, x, kem));
   Map<String, dynamic> linkSeal(
     Map<String, dynamic> identity,
     String uid,
     String device,
     List<int> x,
     List<int> kem,
+    List<int> secret,
   ) => NativeCrypto.decodeJson(
     _seal(
       NativeCrypto.jsonBytes(identity),
@@ -94,18 +93,21 @@ extension NativeCryptoApi on NativeCrypto {
       utf8.encode(device),
       x,
       kem,
+      secret,
     ),
   );
   Map<String, dynamic> linkOpen(
     Map<String, dynamic> sealed,
     String uid,
     Map<String, dynamic> device,
+    List<int> secret,
   ) => NativeCrypto.decodeJson(
-    _ternary(
-      'fp_link_open',
+    _quaternary(
+      'fp_link_open_v2',
       NativeCrypto.jsonBytes(sealed),
       utf8.encode(uid),
       NativeCrypto.jsonBytes(device),
+      secret,
     ),
   );
   bool sessionValidate(Map<String, dynamic> state) =>

@@ -106,17 +106,29 @@ void main() {
       expect(nativeCrypto.recoveryParse(await key.display()), key.bytes);
 
       final device = await dart.DeviceKeys.generate();
+      final secret = List.generate(16, (i) => 200 - i);
       final sealedDart = await dart.LinkCrypto.seal(
         identity,
         uid: 'alice',
         deviceId: device.deviceId,
         x25519Pub: device.x25519Pub,
         kemPub: device.kemPub,
+        secret: secret,
       );
       final opened = nativeCrypto.linkOpen(
         sealedDart.toJson(),
         'alice',
         device.toJson(),
+        secret,
+      );
+      expect(
+        () => nativeCrypto.linkOpen(
+          sealedDart.toJson(),
+          'alice',
+          device.toJson(),
+          List.filled(16, 0),
+        ),
+        throwsA(isA<NativeCryptoException>()),
       );
       expect(jsonEncode(opened) == jsonEncode(identity.toJson()), isTrue);
       final sealedRust = nativeCrypto.linkSeal(
@@ -125,26 +137,16 @@ void main() {
         device.deviceId,
         device.x25519Pub,
         device.kemPub,
+        secret,
       );
       expect(
         (await dart.LinkCrypto.open(
           dart.SealedIdentity.fromJson(sealedRust),
           uid: 'alice',
           keys: device,
+          secret: secret,
         )).publicBytes,
         identity.publicBytes,
-      );
-      expect(
-        nativeCrypto.linkConfirmation(
-          identity.publicBytes,
-          device.x25519Pub,
-          device.kemPub,
-        ),
-        await dart.LinkCrypto.confirmationCode(
-          identity.publicBytes,
-          device.x25519Pub,
-          device.kemPub,
-        ),
       );
     },
   );

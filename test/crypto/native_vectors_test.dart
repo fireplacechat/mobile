@@ -132,11 +132,6 @@ void main() {
         unb64(p.bobKeys['x25519Pub']),
         unb64(p.bobKeys['kemPub']),
       ),
-      'linkCode': core.linkConfirmation(
-        core.identityPublic(p.aliceId),
-        unb64(p.bobKeys['x25519Pub']),
-        unb64(p.bobKeys['kemPub']),
-      ),
     };
     for (final entry in actual.entries) {
       final value = expected[entry.key]!;
@@ -215,6 +210,7 @@ void main() {
       device['deviceId'] as String,
       unb64(device['x25519Pub']),
       unb64(device['kemPub']),
+      dart.linkSecret,
     );
     final actual = {
       'identity': jsonEncode(identity),
