@@ -33,6 +33,12 @@ double _difference(Color a, Color b) {
 }
 
 void main() {
+  test('every colour is offered once, starting with the default', () {
+    expect(ChatBubbleColor.offered.toSet(), ChatBubbleColor.values.toSet());
+    expect(ChatBubbleColor.offered, hasLength(ChatBubbleColor.values.length));
+    expect(ChatBubbleColor.offered.first, ChatBubbleColor.ember);
+  });
+
   for (final brightness in Brightness.values) {
     test('the jump highlight stands apart in ${brightness.name} mode', () {
       final page = fireplaceTheme(brightness).scaffoldBackgroundColor;

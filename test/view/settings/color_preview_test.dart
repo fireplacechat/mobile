@@ -44,10 +44,12 @@ void main() {
         ),
         findsOneWidget,
       );
+      // Below the colours, which now fill more than one screen.
       expect(
         find.text(
           'Applies to all chats. Your color is part of your profile, so the '
           'people you chat with see it.',
+          skipOffstage: false,
         ),
         findsOneWidget,
       );

@@ -61,7 +61,7 @@ chat it now travels **inside each text message**:
 
 ## Not changed
 
-- The five colours and their shades.
+- The colours and their shades (five at first; fourteen since 0.4.2).
 - Group chats keep their `profile` message, which also answers a newcomer.
 - Your colour is still the app's accent on your own phone.
 

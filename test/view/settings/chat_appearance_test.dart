@@ -116,10 +116,23 @@ void main() {
       expect(bubble('in'), ChatBubbleColor.stone.lightIncoming);
       await tester.tap(find.text('Choose colors'));
       await tester.pumpAndSettle();
-      await tester.scrollUntilVisible(find.text('Reset color'), 120);
-      await tester.ensureVisible(find.text('Reset color'));
+      // There is no "Reset color": going back to a colour is choosing it.
+      expect(find.text('Reset color'), findsNothing);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('outgoing-ember')),
+        -120,
+      );
+      await tester.ensureVisible(find.byKey(const Key('outgoing-ember')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Reset color'));
+      await tester.tap(find.byKey(const Key('outgoing-ember')));
+      // Every colour is offered, the nine newer ones included.
+      for (final color in ChatBubbleColor.values) {
+        expect(
+          find.byKey(Key('outgoing-${color.name}'), skipOffstage: false),
+          findsOneWidget,
+        );
+      }
+      expect(ChatBubbleColor.values, hasLength(14));
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(bubble('out'), ChatBubbleColor.ember.outgoing);

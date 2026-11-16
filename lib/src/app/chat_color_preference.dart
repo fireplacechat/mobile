@@ -60,7 +60,6 @@ class ChatAppearance extends Notifier<ChatBubbleColors> {
   /// closes.
   Future<void> outgoing(ChatBubbleColor color) =>
       _choose(ChatBubbleColors(outgoing: color));
-  Future<void> reset() => _choose(const ChatBubbleColors());
 
   /// Takes the colour on this account's profile when this phone has none of
   /// its own: one chosen on another phone (decision 0053).

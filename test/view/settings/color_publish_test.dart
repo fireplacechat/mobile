@@ -33,7 +33,7 @@ void main() {
     expect(f.chat.publishedColors, isEmpty);
     await Future<void>.delayed(const Duration(milliseconds: 150));
     expect(f.chat.publishedColors, ['forest']);
-    await appearance.reset();
+    await appearance.outgoing(ChatBubbleColor.ember);
     await Future<void>.delayed(const Duration(milliseconds: 150));
     expect(f.chat.publishedColors, ['forest', 'ember']);
   }, tags: 'timing');
