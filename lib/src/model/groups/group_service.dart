@@ -32,6 +32,12 @@ import 'package:flutter/foundation.dart';
 /// administrator; a self-update adds and removes nobody; members are removed
 /// only by administrators or once the server has fenced them.
 ///
+/// Who a member is comes from the identity key in their MLS credential,
+/// compared with the key this phone trusts for that account (decision 0061):
+/// on an invitation before anything is sent, on joining, and on every Commit
+/// that adds a device. A key that contradicts a pin stops the change; the
+/// group waits here until the person has reviewed the new key.
+///
 /// An invitation does the MLS Add: the inviter's device sends the
 /// Commit and the Welcome with the request, so the invited person joins from
 /// the Welcome they already have, with no other phone involved.
@@ -40,6 +46,7 @@ class GroupService {
     required FirebaseFirestore db,
     required this.uid,
     required this._device,
+    required this._keys,
     required this._secrets,
     required this._historyDir,
     required this._messages,
@@ -55,6 +62,7 @@ class GroupService {
   final FirebaseFirestore _db;
   final String uid;
   final LocalDevice _device;
+  final KeyService _keys;
   final SecretStore _secrets;
   final Directory _historyDir;
   final LocalMessageStore _messages;
@@ -103,7 +111,78 @@ class GroupService {
   // Groups whose members have been asked for their colours since the app started.
   final _askedColours = <String>{};
 
+  // A change that was stopped because a member's identity key is not the
+  // one this phone trusts, by group.
+  final _held = <String, IdentityChangedException>{};
+  final _heldCtrl =
+      StreamController<Map<String, IdentityChangedException>>.broadcast();
+
   String get deviceId => _device.keys.deviceId;
+
+  /// Groups (and invitations) waiting for the person to review a member's
+  /// changed identity key. Nothing newer is applied to them until then.
+  Map<String, IdentityChangedException> get heldChanges =>
+      Map.unmodifiable(_held);
+  Stream<Map<String, IdentityChangedException>> watchHeldChanges() async* {
+    yield heldChanges;
+    yield* _heldCtrl.stream;
+  }
+
+  void _hold(String gid, IdentityChangedException? change) {
+    if (change == null) {
+      if (_held.remove(gid) == null) return;
+    } else {
+      _held[gid] = change;
+    }
+    if (!_heldCtrl.isClosed) _heldCtrl.add(heldChanges);
+  }
+
+  /// Applies what was stopped, after the person accepted a new key (or
+  /// declined: then it is stopped again).
+  Future<void> retryHeld() => _serial(() async {
+    for (final gid in [..._held.keys]) {
+      if (!_groups.containsKey(gid) || _closed) continue;
+      try {
+        final snap = await _db
+            .collection('groups/$gid/commits')
+            .where('e', isGreaterThanOrEqualTo: _groups[gid]!.epoch)
+            .get();
+        await _onCommits(gid, snap);
+      } on FirebaseException {
+        // Offline: the listener tries again when a Commit next arrives.
+      }
+    }
+  });
+
+  /// Compares the identity key of every one of [members] (as the core
+  /// reports them) with the key this phone trusts for that account. This
+  /// account's devices must carry this device's own identity. Someone never
+  /// seen before is remembered, but only once every member has passed, so a
+  /// change that is refused teaches this phone nothing.
+  Future<void> _checkIdentities(String gid, Iterable<Map> members) async {
+    final unseen = <String, List<int>>{};
+    for (final m in members) {
+      final who = m['uid'] as String;
+      final identity = unb64(m['identity'] as String);
+      if (who == uid) {
+        if (!bytesEqual(identity, _device.identity.publicBytes)) {
+          throw GroupCryptoException(2);
+        }
+        continue;
+      }
+      final trusted = await _keys.pinnedIdentity(who) ?? unseen[who];
+      if (trusted == null) {
+        unseen[who] = identity;
+      } else if (!bytesEqual(trusted, identity)) {
+        final change = IdentityChangedException(who, identity);
+        _hold(gid, change);
+        throw change;
+      }
+    }
+    for (final e in unseen.entries) {
+      await _keys.checkIdentity(e.key, e.value);
+    }
+  }
 
   /// The groups this device is in, as MLS authenticated them.
   Map<String, GroupInfo> get groups => Map.unmodifiable(_groups);
@@ -243,6 +322,7 @@ class GroupService {
 
   Future<void> close() async {
     _closed = true;
+    unawaited(_heldCtrl.close());
     for (final s in [..._subs, for (final l in _groupSubs.values) ...l]) {
       await s.cancel();
     }
@@ -368,19 +448,39 @@ class GroupService {
       try {
         // A Welcome for another of this account's devices, or an invitation
         // that has since ended, is refused; try the next.
+        // The core refuses a Welcome for any other group before it keeps
+        // anything. Every member it lists is checked before the join is
+        // saved.
         final result = await _change(
-          {'op': 'join', 'welcome': b64(ct.bytes)},
+          {'op': 'join', 'welcome': b64(ct.bytes), 'gid': gid},
           extra: {
             'newcomer:$gid': [1],
+          },
+          beforeSave: (r) async {
+            // The member who made the Welcome, as MLS authenticated it, must
+            // be the person the invitation names.
+            final named = _invitations
+                .where((i) => i.gid == gid)
+                .firstOrNull
+                ?.inviter;
+            final inviter = (r['inviter'] as Map?)?['uid'];
+            if (named != null && inviter != named) {
+              throw GroupCryptoException(2);
+            }
+            await _checkIdentities(gid, (r['members'] as List).cast<Map>());
           },
         );
         final info = GroupInfo.fromCore(result);
         if (info.gid != gid) continue;
+        _hold(gid, null);
         _groups[gid] = info;
         _emitGroups();
         return true;
       } on GroupCryptoException {
         continue;
+      } on IdentityChangedException {
+        // Held: joining waits for the person to review the key.
+        return false;
       }
     }
     return false;
@@ -409,6 +509,7 @@ class GroupService {
       await s.cancel();
     }
     _groups.remove(gid);
+    _hold(gid, null);
     _rosters.remove(gid);
     _departures.remove(gid);
     _removalLines.remove(gid);
@@ -527,11 +628,13 @@ class GroupService {
     final roster =
         _rosters[gid]?['members'] as Map<String, dynamic>? ?? const {};
     try {
-      final result = await _change({
-        'op': 'process',
-        'gid': gid,
-        'message': b64(ct.bytes),
-      }, check: (r) => _commitAllowed(before, r, kind, roster, doc['by']));
+      final result = await _change(
+        {'op': 'process', 'gid': gid, 'message': b64(ct.bytes)},
+        check: (r) => _commitAllowed(before, r, kind, roster, doc['by']),
+        beforeSave: (r) =>
+            _checkIdentities(gid, (r['added'] as List).cast<Map>()),
+      );
+      _hold(gid, null);
       await _afterCommit(
         gid,
         result,
@@ -542,6 +645,8 @@ class GroupService {
     } on GroupCryptoException {
       // An invalid or refused Commit changes nothing here; the group waits for
       // a valid one (proposal, "Event ordering").
+    } on IdentityChangedException {
+      // Held: this Commit is tried again once the person reviewed the key.
     }
   }
 
@@ -575,6 +680,8 @@ class GroupService {
     // allows it only for a contact of the inviter. An Add is not checked
     // against the roster: by the time a phone that was offline sees it, the
     // person may have declined, and refusing would leave this phone stuck.
+    // Who the added devices belong to is checked after this, against the
+    // identity keys this phone trusts.
     const addsOk = true;
     final removesOk = removed.every((m) {
       if (admin) return true;
@@ -748,9 +855,10 @@ class GroupService {
     Map<String, dynamic> request,
     Future<void> Function(Map<String, dynamic> result) publish, {
     bool strict = false,
+    Future<void> Function(Map<String, dynamic> result)? beforeSave,
   }) async {
     final before = _groups[gid]!;
-    final result = await _change(request);
+    final result = await _change(request, beforeSave: beforeSave);
     _pending.add(gid);
     try {
       await publish(result);
@@ -1199,7 +1307,15 @@ class GroupService {
   Future<void> invite(String gid, String memberUid) => _serial(() async {
     final info = _groups[gid];
     if (info == null) throw GroupActionError('You are not in this group.');
-    // Up to four of their devices that have a key package to use.
+    // Their devices as a 1:1 chat would use them: certified by the identity
+    // key this phone trusts for them, and not revoked. A changed key is an
+    // [IdentityChangedException], which the person reviews as in a chat.
+    final certified = {
+      for (final b in await _keys.fetchDevices(memberUid)) b.deviceId: b,
+    };
+    final trusted = await _keys.pinnedIdentity(memberUid);
+    if (trusted == null) throw GroupRefused('packages');
+    // Up to four of those devices that have a key package to use.
     final listed = await _db.collection('users/$memberUid/devices').get();
     final devices = <String>[];
     final packages = <Map<String, Object>>[];
@@ -1207,6 +1323,7 @@ class GroupService {
     for (final d in listed.docs) {
       if (devices.length == 4) break;
       if (d.data()['revokedAt'] != null) continue;
+      if (!certified.containsKey(d.id)) continue;
       final p = await d.reference.collection('mlsPackages').limit(1).get();
       final kp = p.docs.firstOrNull?.data()['kp'];
       if (kp is! Blob) continue;
@@ -1215,9 +1332,35 @@ class GroupService {
       bytes.add(b64(kp.bytes));
     }
     if (devices.isEmpty) throw GroupRefused('packages');
+    final certHashes = {
+      for (final id in devices)
+        id: b64((await Sha256().hash(certified[id]!.cert)).bytes),
+    };
     await _ownCommit(
       gid,
-      {'op': 'commit_add', 'gid': gid, 'keyPackages': bytes},
+      {
+        'op': 'commit_add',
+        'gid': gid,
+        'keyPackages': bytes,
+        'uid': memberUid,
+        'identity': b64(trusted),
+      },
+      // Before anything is saved or sent: each key package must be the one
+      // of the device it was listed under, issued by the identity trusted
+      // for this person and tied to that device's certificate.
+      beforeSave: (r) async {
+        final added = (r['added'] as List).cast<Map>();
+        if (added.length != devices.length) throw GroupRefused('packages');
+        for (var i = 0; i < added.length; i++) {
+          final a = added[i];
+          if (a['uid'] != memberUid ||
+              a['device'] != devices[i] ||
+              a['certHash'] != certHashes[devices[i]] ||
+              !bytesEqual(unb64(a['identity'] as String), trusted)) {
+            throw GroupRefused('packages');
+          }
+        }
+      },
       (r) => _requests.group(gid, 'invite', {
         'uid': memberUid,
         'epoch': info.epoch,
@@ -1242,6 +1385,8 @@ class GroupService {
     });
     if (!joined) {
       _joining.remove(gid);
+      final held = _held[gid];
+      if (held != null) throw held;
       throw GroupActionError(
         'This invitation is for your other phone. Open Fireplace there to join.',
       );

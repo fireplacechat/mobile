@@ -395,6 +395,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
           db: db,
           uid: user.uid,
           device: device,
+          keys: keys,
           secrets: secrets,
           historyDir: historyDir,
           messages: store,

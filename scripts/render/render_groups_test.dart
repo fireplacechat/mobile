@@ -12,6 +12,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
@@ -243,9 +244,27 @@ void main() {
         const ChatScreen(chatId: 'alice_dana'),
       );
 
+      // Last of all, since it stops the group on this phone: Bob adds Erin,
+      // whom this phone knows under another security code (decision 0061).
+      late Phone erin;
+      await t.runAsync(() async {
+        erin = await Phone.create(db, 'erin', root);
+        server.watchAccount('erin');
+        await alice.keys.acceptIdentityChange(
+          'erin',
+          (await AccountIdentity.generate()).publicBytes,
+        );
+        await bob.service.invite(mine, 'erin');
+        await until(
+          () async => alice.service.heldChanges.containsKey(mine),
+          what: 'the group is held',
+        );
+      });
+      await render('conversation-held', GroupChatScreen(gid: mine));
+
       await t.pumpWidget(const SizedBox());
       await t.runAsync(() async {
-        for (final p in [alice, bob, carol, dana]) {
+        for (final p in [alice, bob, carol, dana, erin]) {
           await p.service.close();
         }
         await server.close();
