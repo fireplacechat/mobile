@@ -62,6 +62,14 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../test/support/ui_fixture.dart';
 import '../../test/support/account_fixture.dart';
 
+/// Lets a bottom sheet slide all the way up (or away).
+Future<void> openSheet(WidgetTester t) async {
+  await settleUi(t);
+  await t.pump(const Duration(milliseconds: 400));
+  await t.pump(const Duration(milliseconds: 400));
+  await settleUi(t);
+}
+
 Future<void> loadFonts() async {
   final emojiPath = Platform.environment['RENDER_EMOJI_FONT'];
   if (emojiPath != null) {
@@ -560,6 +568,28 @@ void main() {
       interaction: CatalogInteraction.sending,
     ),
     const CatalogCase('chat-list', ChatListScreen()),
+    CatalogCase(
+      'new-chat',
+      const ChatListScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('newChat')));
+        await openSheet(t);
+      },
+    ),
+    CatalogCase(
+      'new-chat-wrong-name',
+      const ChatListScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('newChat')));
+        await openSheet(t);
+        await t.enterText(
+          find.byKey(const Key('peerUsername')),
+          'no such name',
+        );
+        await t.testTextInput.receiveAction(TextInputAction.go);
+        await openSheet(t);
+      },
+    ),
     // Each person in the colour on their profile (decision 0053).
     CatalogCase(
       'chat-list-peer-colors',
@@ -739,6 +769,25 @@ void main() {
       },
     ),
     const CatalogCase('devices', DevicesScreen()),
+    CatalogCase(
+      'devices-remove',
+      const DevicesScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('revoke_example-second-device')));
+        await openSheet(t);
+      },
+    ),
+    CatalogCase(
+      'devices-lost',
+      const DevicesScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('revoke_example-second-device')));
+        await openSheet(t);
+        await t.tap(find.byKey(const Key('confirmRevoke')));
+        await openSheet(t);
+        await openSheet(t);
+      },
+    ),
     const CatalogCase('recovery', RecoveryKeyScreen()),
     const CatalogCase('link-device', LinkNewDeviceScreen()),
     const CatalogCase('new-device', NewDeviceScreen(uid: 'alice')),

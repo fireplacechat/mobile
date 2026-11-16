@@ -243,17 +243,45 @@ class GroupService {
       secrets: _secrets,
       uid: uid,
     );
+    // The credential in these records names one device under one identity.
+    // After the identity was replaced (decision 0062) they belong to nobody:
+    // the groups were left, and this device starts again with a credential
+    // of its own.
+    final owner = (await Sha256().hash(
+      lp([utf8Bytes(deviceId), _device.identity.publicBytes]),
+    )).bytes;
+    final recorded = _file.app('owner');
+    if (recorded != null && !bytesEqual(recorded, owner)) {
+      await GroupRecordFile.erase(
+        historyDir: _historyDir,
+        secrets: _secrets,
+        uid: uid,
+      );
+      await _secrets.delete('groupcolors:$uid');
+      _file = await GroupRecordFile.open(
+        historyDir: _historyDir,
+        secrets: _secrets,
+        uid: uid,
+      );
+    }
     _crypto = GroupCrypto.open(_file.blob());
     if (_file.isEmpty) {
       final hash = await Sha256().hash(_device.bundle.cert);
-      await _change({
-        'op': 'device',
-        'identity': jsonEncode(_device.identity.toJson()),
-        'uid': uid,
-        'device': deviceId,
-        'deviceCertHash': b64(hash.bytes),
-        'generation': 1,
-      });
+      await _change(
+        {
+          'op': 'device',
+          'identity': jsonEncode(_device.identity.toJson()),
+          'uid': uid,
+          'device': deviceId,
+          'deviceCertHash': b64(hash.bytes),
+          'generation': 1,
+        },
+        extra: {'owner': owner},
+      );
+    } else if (recorded == null) {
+      // Records from before the owner was written down.
+      _file.setApp({'owner': owner});
+      await _file.save();
     }
     await _loadColors();
     for (final gid
@@ -1384,6 +1412,20 @@ class GroupService {
     await _sendNotice(gid, {'kind': 'left'});
     await _requests.group(gid, 'leave', {});
     await _serial(() => _drop(gid));
+  }
+
+  /// Before this account's identity is replaced: leaves every group, so the
+  /// other members see it and can invite the account again under its new
+  /// identity. A group that cannot be left now is dropped here all the same
+  /// when the service next starts.
+  Future<void> leaveAll() async {
+    for (final gid in [..._groups.keys]) {
+      try {
+        await leave(gid);
+      } catch (_) {
+        // Offline or refused: the group's keys are still discarded.
+      }
+    }
   }
 
   /// Removes a member, or someone invited who has not answered.

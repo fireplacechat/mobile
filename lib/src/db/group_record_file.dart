@@ -24,6 +24,20 @@ class GroupRecordFile {
 
   static String keyName(String uid) => 'groupkey:$uid';
 
+  /// Removes the records and their key. For records that belong to an
+  /// identity this account no longer has.
+  static Future<void> erase({
+    required Directory historyDir,
+    required SecretStore secrets,
+    required String uid,
+  }) async {
+    for (final name in ['groups.bin', 'groups.bin.tmp']) {
+      final file = File('${historyDir.path}/$name');
+      if (await file.exists()) await file.delete();
+    }
+    await secrets.delete(keyName(uid));
+  }
+
   static Future<GroupRecordFile> open({
     required Directory historyDir,
     required SecretStore secrets,

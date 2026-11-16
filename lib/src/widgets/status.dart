@@ -67,11 +67,45 @@ class UiNotice extends StatelessWidget {
               ),
             if (actions.isNotEmpty) ...[
               const SizedBox(height: 12),
-              Wrap(spacing: 8, runSpacing: 4, children: actions),
+              UiNoticeActions(warning: warning, children: actions),
             ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The actions of a notice or note, as buttons one can see: a pill each, not
+/// bare coloured words. Any [TextButton] placed inside takes the shape.
+class UiNoticeActions extends StatelessWidget {
+  const UiNoticeActions({
+    super.key,
+    required this.children,
+    this.warning = false,
+  });
+  final List<Widget> children;
+  final bool warning;
+  @override
+  Widget build(BuildContext context) {
+    final t = FireplaceUiTokens.of(context);
+    final ink = warning ? t.warningText : t.text;
+    return TextButtonTheme(
+      data: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          minimumSize: const Size(64, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          shape: const StadiumBorder(),
+          backgroundColor: warning
+              ? t.warningText.withValues(alpha: .14)
+              : t.selectedRow,
+          foregroundColor: ink,
+          disabledForegroundColor: ink.withValues(alpha: .45),
+          textStyle: Theme.of(context).textTheme.labelLarge
+              ?.copyWith(fontWeight: FontWeight.w600),
+        ),
+      ),
+      child: Wrap(spacing: 8, runSpacing: 8, children: children),
     );
   }
 }
