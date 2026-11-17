@@ -19,6 +19,7 @@ import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';
+import 'package:fireplace/src/widgets/page_return_observer.dart';
 import 'package:fireplace/src/view/chat_list/new_chat_sheet.dart';
 import 'package:fireplace/src/view/chat_list/widgets/chat_search_field.dart';
 import 'package:fireplace/src/view/chat_list/widgets/chat_tile.dart';
@@ -35,9 +36,33 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
   String _query = '';
   final _search = TextEditingController();
   bool _opening = false;
+  ModalRoute<void>? _route;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != _route) {
+      if (_route != null) pageReturnObserver.unsubscribe(_route!);
+      _route = route;
+      if (route != null) pageReturnObserver.subscribe(route, _backToTop);
+    }
+  }
+
+  /// Coming back from a chat or another page starts at the top of the list,
+  /// the newest conversations (issue 207). Closing a menu or a sheet keeps
+  /// the place, since the list stayed in view behind it.
+  ///
+  /// The lists scroll with the page's primary controller, which on iOS also
+  /// takes a tap on the status bar.
+  void _backToTop() {
+    final scroll = PrimaryScrollController.maybeOf(context);
+    if (scroll != null && scroll.hasClients) scroll.jumpTo(0);
+  }
 
   @override
   void dispose() {
+    if (_route != null) pageReturnObserver.unsubscribe(_route!);
     _search.dispose();
     super.dispose();
   }
@@ -243,6 +268,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                     return ThinScrollbar(
                       child: ListView(
                         key: const Key('globalSearchResults'),
+                        primary: true,
                         padding: const EdgeInsets.only(bottom: 96),
                         children: [
                           if (requestCount > 0)
@@ -328,6 +354,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                   return ThinScrollbar(
                     child: ListView.separated(
                       key: const Key('conversationList'),
+                      primary: true,
                       padding: const EdgeInsets.only(bottom: 96),
                       itemCount:
                           entries.length +

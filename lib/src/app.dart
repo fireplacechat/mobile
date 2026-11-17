@@ -20,6 +20,7 @@ import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
+import 'package:fireplace/src/widgets/page_return_observer.dart';
 
 class FireplaceApp extends ConsumerStatefulWidget {
   const FireplaceApp({super.key});
@@ -40,7 +41,7 @@ class _FireplaceAppState extends ConsumerState<FireplaceApp> {
     return MaterialApp(
       title: 'fireplace.',
       navigatorKey: _navigatorKey,
-      navigatorObservers: [chatRouteObserver],
+      navigatorObservers: [chatRouteObserver, pageReturnObserver],
       builder: (context, child) => Actions(
         actions: {
           // Mobile touch events otherwise keep text fields focused on outside taps.
