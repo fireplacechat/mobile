@@ -183,6 +183,12 @@ class FixtureChat extends Fake implements ChatService {
       store.get(chatId, messageId);
   @override
   Future<List<LocalMessage>> allMessages(String chatId) => store.all(chatId);
+  @override
+  Future<List<LocalMessage>> findMessages(
+    Set<String> chatIds,
+    bool Function(String body) matches, {
+    int limit = 100,
+  }) => store.search(chatIds, matches, limit: limit);
   final cleared = <String>{};
   final _clearedChanges = StreamController<void>.broadcast();
   @override

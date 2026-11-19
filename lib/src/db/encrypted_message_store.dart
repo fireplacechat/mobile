@@ -291,6 +291,13 @@ class EncryptedFileMessageStore implements LocalMessageStore {
   @override
   Future<List<LocalMessage>> all(String chatId) async =>
       _sorted(await _load(chatId));
+
+  @override
+  Future<List<LocalMessage>> search(
+    Set<String> chatIds,
+    bool Function(String body) matches, {
+    int limit = 100,
+  }) => searchWholeConversations(this, chatIds, matches, limit: limit);
   @override
   Future<void> showOlder(String chatId, {int more = 200}) async {}
   @override

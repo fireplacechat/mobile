@@ -156,6 +156,12 @@ class GuardedMessages implements LocalMessageStore {
   @override
   Future<List<LocalMessage>> all(String chatId) => inner.all(chatId);
   @override
+  Future<List<LocalMessage>> search(
+    Set<String> chatIds,
+    bool Function(String body) matches, {
+    int limit = 100,
+  }) => inner.search(chatIds, matches, limit: limit);
+  @override
   Future<void> markRead(String chatId, Iterable<String> messageIds) =>
       inner.markRead(chatId, messageIds);
   @override

@@ -227,6 +227,34 @@ void main() {
         if (step % 11 == 0 || step == 219) {
           await compare(reference, database, ids, 'seed $seed step $step');
         }
+        // Search finds the same, in the same order (step 4). Twice a run:
+        // each search opens a connection on an isolate of its own.
+        if (step == 110 || step == 219) {
+          for (final query in ['1', 'edited', 'text of m', 'm2']) {
+            final matches = _containing(query);
+            for (final limit in [3, 100]) {
+              expect(
+                [
+                  for (final m in await database.search(
+                    chats.toSet(),
+                    matches,
+                    limit: limit,
+                  ))
+                    m.id,
+                ],
+                [
+                  for (final m in await reference.search(
+                    chats.toSet(),
+                    matches,
+                    limit: limit,
+                  ))
+                    m.id,
+                ],
+                reason: 'seed $seed step $step: search "$query" ($limit)',
+              );
+            }
+          }
+        }
       }
       for (final l in listeners) {
         await l.cancel();
@@ -484,3 +512,8 @@ void main() {
     },
   );
 }
+
+/// A matcher that captures only [query], so a store may run it on another
+/// isolate. A closure inside a test would capture the whole test.
+bool Function(String body) _containing(String query) =>
+    (body) => body.contains(query);

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart';
 
@@ -30,7 +31,13 @@ import 'package:fireplace/src/db/shared_lock.dart';
 /// erases content the write-ahead log is emptied, and `secure_delete`
 /// overwrites the freed space, so deleted text does not stay in the file.
 class SqliteMessageStore implements LocalMessageStore {
-  SqliteMessageStore._(this._db, this._lock, this._legacy) {
+  SqliteMessageStore._(
+    this._db,
+    this._lock,
+    this._legacy,
+    this._path,
+    this._key,
+  ) {
     _lock.onInvalidate(_reload);
   }
 
@@ -44,6 +51,10 @@ class SqliteMessageStore implements LocalMessageStore {
 
   final Database _db;
   final SharedLock _lock;
+
+  /// The file and its key, for [search]'s own short-lived connection.
+  final String _path;
+  final List<int> _key;
   final _ctrls = <String, StreamController<List<LocalMessage>>>{};
   Future<void> _writes = Future.value();
   bool _closed = false;
@@ -68,28 +79,35 @@ class SqliteMessageStore implements LocalMessageStore {
       await secrets.write(keyName, raw);
     }
     await dir.create(recursive: true);
-    final db = sqlite3.open('${dir.path}/$fileName');
+    final path = '${dir.path}/$fileName';
+    final key = unb64(raw);
+    final db = sqlite3.open(path);
     try {
-      _configure(db, unb64(raw));
+      _configure(db, key);
       _migrate(db);
     } catch (_) {
       db.close();
       rethrow;
     }
-    return SqliteMessageStore._(db, lock ?? SharedLock(), legacy);
+    return SqliteMessageStore._(db, lock ?? SharedLock(), legacy, path, key);
   }
 
-  static void _configure(Database db, List<int> key) {
+  /// Unlocks [db] with the history key. Fails here, with a clear error, when
+  /// the key is wrong or the library is not SQLCipher (a plain SQLite would
+  /// create an unencrypted file).
+  static void _unlock(Database db, List<int> key) {
     if (key.length != 32) throw StateError('Bad history key.');
     final hex = key.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     // A raw key: no passphrase stretching, the key is already random.
     db.execute('PRAGMA key = "x\'$hex\'"');
-    // Fails here, with a clear error, when the key is wrong or the library is
-    // not SQLCipher (a plain SQLite would create an unencrypted file).
     if (db.select('PRAGMA cipher_version').isEmpty) {
       throw StateError('The history database needs SQLCipher.');
     }
     db.select('SELECT count(*) FROM sqlite_master');
+  }
+
+  static void _configure(Database db, List<int> key) {
+    _unlock(db, key);
     db.execute('PRAGMA secure_delete = ON');
     db.execute('PRAGMA journal_mode = WAL');
     // Durable before the caller goes on: the ratchet key is spent by then.
@@ -601,6 +619,78 @@ CREATE TABLE messages (
   Future<List<LocalMessage>> all(String chatId) async {
     await _imported(chatId);
     return _visible(chatId);
+  }
+
+  /// Runs on an isolate of its own, over a read-only connection of its own,
+  /// so a search of a long history neither holds the UI nor reads whole
+  /// conversations into memory: SQLite hands each message's text to
+  /// [matches] and keeps only the newest [limit] it accepts.
+  @override
+  Future<List<LocalMessage>> search(
+    Set<String> chatIds,
+    bool Function(String body) matches, {
+    int limit = 100,
+  }) async {
+    if (chatIds.isEmpty || limit <= 0) return const [];
+    // A chat still in its file from before the database is imported first;
+    // one whose file cannot be read is not searched.
+    final ids = <String>[];
+    for (final id in chatIds) {
+      try {
+        await _imported(id);
+        ids.add(id);
+      } catch (_) {}
+    }
+    if (_closed || ids.isEmpty) return const [];
+    final path = _path, key = _key;
+    final records = await Isolate.run(
+      () => _searchFile(path, key, ids, matches, limit),
+    );
+    return [
+      for (final record in records)
+        LocalMessage.fromJson(
+          Map<String, dynamic>.from(jsonDecode(record) as Map),
+        ),
+    ];
+  }
+
+  static List<String> _searchFile(
+    String path,
+    List<int> key,
+    List<String> chatIds,
+    bool Function(String body) matches,
+    int limit,
+  ) {
+    final db = sqlite3.open(path, mode: OpenMode.readOnly);
+    try {
+      _unlock(db, key);
+      db.execute('PRAGMA busy_timeout = 5000');
+      db.createFunction(
+        functionName: 'fp_matches',
+        argumentCount: const AllowedArgumentCount(1),
+        deterministic: true,
+        function: (args) {
+          final body = args[0];
+          return body is String && matches(body) ? 1 : 0;
+        },
+      );
+      final marks = List.filled(chatIds.length, '?').join(', ');
+      // Readable messages only: not an edit, a reaction or a delete, not a
+      // line about a group, and not one its author deleted.
+      return [
+        for (final row in db.select(
+          'SELECT record FROM messages '
+          "WHERE visible = 1 AND status = 'ok' AND chat_id IN ($marks) "
+          r"AND coalesce(json_extract(record, '$.remotelyDeleted'), 0) = 0 "
+          r"AND fp_matches(json_extract(record, '$.body')) "
+          'ORDER BY sent_at DESC, chat_id, id LIMIT ?',
+          [...chatIds, limit],
+        ))
+          row['record'] as String,
+      ];
+    } finally {
+      db.close();
+    }
   }
 
   @override
