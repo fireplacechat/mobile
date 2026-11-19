@@ -33,12 +33,19 @@ import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/model/settings/account_preferences.dart';
 import 'package:fireplace/src/db/account_erasure.dart';
 import 'package:fireplace/src/db/ios_shared_storage.dart';
+import 'package:fireplace/src/app/passphrase_lock_providers.dart';
+import 'package:fireplace/src/db/wrapping_secret_store.dart';
 
 final authProvider = Provider<FirebaseAuth>((_) => FirebaseAuth.instance);
 final firestoreProvider = Provider<FirebaseFirestore>(
   (_) => FirebaseFirestore.instance,
 );
-final secretStoreProvider = Provider<SecretStore>((_) => SecureSecretStore());
+
+/// The secure store, with the optional passphrase lock in front of it
+/// (decision 0033): without the lock, it passes everything through.
+final secretStoreProvider = Provider<SecretStore>(
+  (_) => WrappingSecretStore(SecureSecretStore()),
+);
 final accountPreferencesProvider = Provider<AccountPreferences>(
   (ref) => AccountPreferences(ref.watch(secretStoreProvider)),
 );
@@ -143,6 +150,7 @@ class AppSession {
     required StreamSubscription<void> chatsSub,
     required this.dispose,
     this.destroyLocalData,
+    this.lock,
   }) : _chatsSub = chatsSub,
        chatPreferences = chatPreferences ?? LocalChatPreferences();
 
@@ -166,6 +174,10 @@ class AppSession {
 
   /// Erases the encrypted message history and its key (account deletion).
   final Future<void> Function()? destroyLocalData;
+
+  /// The account lock this session's stores share with the background push
+  /// handler. The passphrase lock holds it while it rewrites items.
+  final SharedLock? lock;
   Future<void>? _closing;
   Future<void> close() => _closing ??= () async {
     await _chatsSub.cancel();
@@ -181,6 +193,11 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
     final user = await ref.watch(authUserProvider.future);
     scope.checkActive();
     if (user == null) return null;
+    // A locked account opens nothing until its passphrase is given (0033).
+    if (await ref.watch(passphraseLockProvider.selectAsync((s) => s.locked))) {
+      throw const PassphraseLocked();
+    }
+    scope.checkActive();
     final db = ref.watch(firestoreProvider);
     final secrets = ref.watch(secretStoreProvider);
     // 2. Wait for the account profile.
@@ -436,6 +453,7 @@ final appSessionProvider = FutureProvider<AppSession?>((ref) async {
         );
       },
       dispose: scope.cleanup,
+      lock: lock,
     );
     scope.succeeded();
     return session;
