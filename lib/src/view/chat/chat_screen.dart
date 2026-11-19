@@ -48,7 +48,13 @@ import 'package:fireplace/src/model/chat/chat_drafts.dart';
 import 'package:fireplace/src/view/chat/composer/chat_draft_controller.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
-  const ChatScreen({super.key, required this.chatId, this.initialMessageId});
+  const ChatScreen({
+    super.key,
+    required this.chatId,
+    this.initialMessageId,
+    this.onRequestAccepted,
+  });
+  final VoidCallback? onRequestAccepted;
   final String chatId;
   final String? initialMessageId;
   @override
@@ -459,9 +465,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               keyboardInset: keyboardInset,
               onReviewIdentity: (pub) =>
                   _contactController.reviewIdentity(peerUid!, pub),
-              onAccept: () => _contactController.contactAction(
-                () => session!.chat.acceptRequest(widget.chatId),
-              ),
+              onAccept: () => _contactController.contactAction(() async {
+                await session!.chat.acceptRequest(widget.chatId);
+                if (mounted) widget.onRequestAccepted?.call();
+              }),
               onBlock: () => _contactController.contactAction(
                 () => blockAfterConfirming(context, session!, peerUid!, name),
               ),

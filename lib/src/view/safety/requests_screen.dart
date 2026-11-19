@@ -6,6 +6,7 @@ import 'package:fireplace/src/view/groups/group_invitation_card.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
+import 'package:fireplace/src/view/safety/request_conversation_route.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/widgets/page.dart';
@@ -14,6 +15,7 @@ import 'package:fireplace/src/widgets/status.dart';
 /// People who started a chat with you and are waiting for you to accept.
 class RequestsScreen extends ConsumerWidget {
   const RequestsScreen({super.key});
+  static const routeName = '/requests';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -90,7 +92,10 @@ class RequestsScreen extends ConsumerWidget {
                 for (final i in invitations)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: GroupInvitationCard(invitation: i),
+                    child: GroupInvitationCard(
+                      invitation: i,
+                      replaceRequests: true,
+                    ),
                   ),
                 if (requests.isNotEmpty)
                   Padding(
@@ -153,11 +158,26 @@ class _RequestTileState extends ConsumerState<_RequestTile> {
               InkWell(
                 onTap: _busy
                     ? null
-                    : () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ChatScreen(chatId: chat.chatId),
-                        ),
-                      ),
+                    : () {
+                        final navigator = Navigator.of(context);
+                        final requests = ModalRoute.of(context);
+                        navigator.push(
+                          requestConversationRoute(
+                            context,
+                            ChatScreen(
+                              chatId: chat.chatId,
+                              onRequestAccepted: () {
+                                if (requests != null &&
+                                    requests.settings.name ==
+                                        RequestsScreen.routeName &&
+                                    requests.isActive) {
+                                  navigator.removeRoute(requests);
+                                }
+                              },
+                            ),
+                          ),
+                        );
+                      },
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -190,8 +210,19 @@ class _RequestTileState extends ConsumerState<_RequestTile> {
                     onPressed: _busy
                         ? null
                         : () => _run(() async {
+                            final navigator = Navigator.of(context);
+                            final requests = ModalRoute.of(context);
+                            final conversation = requestConversationRoute(
+                              context,
+                              ChatScreen(chatId: chat.chatId),
+                            );
                             await session.chat.acceptRequest(chat.chatId);
-                            ref.invalidate(hiddenChatsProvider);
+                            if (mounted) ref.invalidate(hiddenChatsProvider);
+                            // The tile can disappear when the accepted chat stops being a request.
+                            if (navigator.mounted &&
+                                requests?.isCurrent == true) {
+                              navigator.pushReplacement(conversation);
+                            }
                           }),
                     child: const Text('Accept'),
                   ),
