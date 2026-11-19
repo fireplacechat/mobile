@@ -68,7 +68,8 @@ class SafetyService {
 
   Future<void> dispose() async {
     await _sub?.cancel();
-    await _blockedCtrl.close();
+    // Not awaited, as in GroupService.close: a paused listener would hold it.
+    unawaited(_blockedCtrl.close());
   }
 
   bool isBlocked(String peerUid) => _blocked.contains(peerUid);
