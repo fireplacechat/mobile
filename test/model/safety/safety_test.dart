@@ -207,6 +207,13 @@ void main() {
       },
     );
 
+    test('reporting the same person twice keeps one report', () async {
+      await alice.safety.reportSpam('bob');
+      await alice.safety.reportSpam('bob');
+      final reports = await db.collection('reports').get();
+      expect(reports.docs.map((d) => d.id), ['alice_bob']);
+    });
+
     test('messages from a blocked person are ignored, later ones work again after unblocking', () async {
       await alice.chat.startChat('bob');
       await bob.chat.acceptRequest(chatId);
