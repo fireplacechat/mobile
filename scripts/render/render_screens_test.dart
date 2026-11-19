@@ -51,6 +51,7 @@ import 'package:fireplace/src/model/account/takeover.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/view/safety/blocked_users_screen.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
+import 'package:fireplace/src/view/settings/security_code_screen.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
 import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
@@ -719,6 +720,20 @@ void main() {
       },
     ),
     CatalogCase(
+      'settings-privacy',
+      const SettingsScreen(),
+      act: (t, f) async {
+        await t.scrollUntilVisible(
+          find.text('Privacy and security'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await t.ensureVisible(find.text('Privacy and security'));
+        await t.pumpAndSettle();
+      },
+    ),
+    const CatalogCase('security-code', SecurityCodeScreen()),
+    CatalogCase(
       'settings-account-actions',
       const SettingsScreen(),
       act: (t, f) async {
@@ -807,6 +822,14 @@ void main() {
       },
     ),
     const CatalogCase('devices', DevicesScreen()),
+    CatalogCase(
+      'device-details',
+      const DevicesScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('device_example-second-device')));
+        await openSheet(t);
+      },
+    ),
     CatalogCase(
       'devices-remove',
       const DevicesScreen(),

@@ -125,9 +125,9 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 25)),
       );
       await t.pump();
-      if (find.text('This device').evaluate().isNotEmpty) break;
+      if (find.text('This phone').evaluate().isNotEmpty) break;
     }
-    expect(find.text('This device'), findsOneWidget);
+    expect(find.text('This phone'), findsOneWidget);
     await t.tap(find.byKey(Key('revoke_$otherId')));
     // The guarded device action remains busy while confirmation is open.
     await t.pump(const Duration(milliseconds: 350));
