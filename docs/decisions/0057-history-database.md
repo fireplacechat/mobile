@@ -95,7 +95,7 @@ decrypted, so the message must be on disk before the app goes on (decision
 4. **Search** in the database.
 5. **Sessions, receive journal and cursors** move in, written in the same
    transaction as the message. This changes the protocol's crash safety and is
-   its own decision.
+   its own decision: 0065 proposes not doing it.
 
 ## The switch (step 2)
 
