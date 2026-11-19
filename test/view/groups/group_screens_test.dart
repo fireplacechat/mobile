@@ -159,7 +159,6 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const Key('reviewGroupIdentity')), findsOneWidget);
-    expect(find.text('2 people'), findsOneWidget);
 
     await t.runAsync(() async {
       await alice.keys.acceptIdentityChange(
@@ -219,7 +218,15 @@ void main() {
     await pump(t, GroupChatScreen(gid: gid));
     await settle(t, () => find.text('from Alice').evaluate().isNotEmpty);
     expect(find.text('bob'), findsOneWidget); // the name above Bob's run
-    expect(find.text('2 people'), findsOneWidget);
+    // The title is the name alone, at the size of a 1:1 chat's (issue 210).
+    expect(find.text('2 people'), findsNothing);
+    final title = t.widget<Text>(
+      find.descendant(
+        of: find.byKey(const Key('groupHeader')),
+        matching: find.text('Book club'),
+      ),
+    );
+    expect(title.style?.fontSize, 16);
 
     // The same held-message menu as a 1:1 chat.
     await t.longPress(find.text('from Bob'));

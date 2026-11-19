@@ -12,11 +12,13 @@ import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/view/chat/chat_app_bar_parts.dart';
 import 'package:fireplace/src/view/chat/chat_composer.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/view/chat/message_menu_parts.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
 import 'package:fireplace/src/view/chat/message_widgets.dart';
+import 'package:fireplace/src/view/groups/group_avatar.dart';
 import 'package:fireplace/src/view/groups/group_held_notice.dart';
 import 'package:fireplace/src/view/groups/group_info_screen.dart';
 import 'package:fireplace/src/view/groups/group_message_row.dart';
@@ -323,8 +325,6 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         if (m.visible && !m.remotelyDeleted) m,
     ];
     final colors = ref.watch(groupColorsProvider(widget.gid)).value ?? const {};
-    final invited =
-        ref.watch(groupInvitedProvider(widget.gid)).value ?? const {};
     if (group == null || service == null) {
       return Scaffold(
         appBar: UiAppBar(context: context, title: const Text('Group')),
@@ -335,10 +335,6 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         ),
       );
     }
-    // People who were invited and have not joined are not counted yet.
-    final count = group.members
-        .where((m) => !invited.containsKey(m.uid))
-        .length;
     final joinedLater = service.joinedLater(widget.gid);
     final editing = _editing != null;
     // The message being replied to, as it is now: it may have been edited or
@@ -355,23 +351,28 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     return Scaffold(
       appBar: UiAppBar(
         context: context,
-        title: InkWell(
-          key: const Key('groupHeader'),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => GroupInfoScreen(gid: widget.gid),
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text(
-                '$count ${count == 1 ? 'person' : 'people'}',
-                style: Theme.of(context).textTheme.bodySmall,
+        toolbarHeight: 64,
+        // Laid out as a 1:1 chat's title (issue 210): the avatar, then the
+        // name at the size of a name in the chat list.
+        title: Row(
+          children: [
+            GroupAvatar(name: group.name, size: 36),
+            const SizedBox(width: 10),
+            Expanded(
+              child: InkWell(
+                key: const Key('groupHeader'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => GroupInfoScreen(gid: widget.gid),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: ChatTitleName(group.name),
+                ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       body: Column(
