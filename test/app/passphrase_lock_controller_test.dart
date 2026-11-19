@@ -41,7 +41,8 @@ void main() {
 
   PassphraseLockController controller() =>
       container.read(passphraseLockProvider.notifier);
-  Future<LockState> state() => container.read(passphraseLockProvider.future);
+  Future<PassphraseLockState> state() =>
+      container.read(passphraseLockProvider.future);
 
   test('off until turned on; then on and open', () async {
     expect((await state()).on, isFalse);

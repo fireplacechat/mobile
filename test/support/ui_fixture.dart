@@ -401,6 +401,11 @@ class UiFixture {
   final MemorySecretStore secrets;
   List<Override> get overrides => [
     appSessionProvider.overrideWithValue(AsyncData(session)),
+    ...overridesWithoutSession,
+  ];
+
+  /// [overrides] without the session, for a test that provides its own.
+  List<Override> get overridesWithoutSession => [
     messageControlNowProvider.overrideWithValue(() => now),
     secretStoreProvider.overrideWithValue(secrets),
     peerUsernameProvider.overrideWith(

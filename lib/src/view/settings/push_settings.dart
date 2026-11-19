@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/model/notifications/system_notifications.dart';
 import 'package:fireplace/src/model/push/push_notification_service.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
+import 'package:fireplace/src/app/passphrase_lock_providers.dart';
 
 /// Settings → Notifications: alerts while Fireplace is closed, whether they
 /// show the sender's name and the message and play the pop, and a shortcut to
@@ -124,6 +125,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
   Widget build(BuildContext context) {
     final on = _status == PushStatus.on;
     final previews = ref.watch(notificationPreviewAvailableProvider);
+    final locked = ref.watch(passphraseLockProvider).value?.on == true;
     return UiSettingsSection(
       title: 'Notifications',
       children: [
@@ -149,8 +151,13 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
             key: const Key('pushPreview'),
             secondary: const Icon(Icons.chat_outlined),
             title: const Text('Show message preview'),
-            value: _preview,
-            onChanged: on && !_busy
+            // The passphrase lock keeps previews off (decision 0033) and puts
+            // this choice back when it is turned off.
+            subtitle: locked
+                ? const Text('Off while the passphrase lock is on')
+                : null,
+            value: _preview && !locked,
+            onChanged: on && !_busy && !locked
                 ? (value) => _change(() => widget.service.setShowPreview(value))
                 : null,
           ),
