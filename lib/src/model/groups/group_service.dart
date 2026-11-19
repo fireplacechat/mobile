@@ -213,6 +213,16 @@ class GroupService {
   Future<void> showOlderMessages(String gid) =>
       _messages.showOlder(groupChatId(gid), more: ChatTuning.historyWindow);
 
+  /// One message of the group on this device, shown in the history or not
+  /// (a pinned message can be older than what is loaded).
+  Future<LocalMessage?> message(String gid, String messageId) =>
+      _messages.get(groupChatId(gid), messageId);
+
+  /// Gives [watchMessages] everything from [messageId] on, so a jump to it
+  /// finds its row.
+  Future<void> revealMessage(String gid, String messageId) =>
+      _messages.reveal(groupChatId(gid), messageId);
+
   MemberColors colorsOf(String gid) =>
       Map.unmodifiable(_colors[gid] ?? const {});
   Stream<String> get colorChanges => _colorsCtrl.stream;

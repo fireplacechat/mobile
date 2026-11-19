@@ -231,18 +231,28 @@ void main() {
     // The same held-message menu as a 1:1 chat.
     await t.longPress(find.text('from Bob'));
     await t.pumpAndSettle();
-    expect(action('deleteForEveryone'), findsNothing);
     expect(action('edit'), findsNothing);
-    expect(action('deleteForMe'), findsOneWidget);
     expect(action('react-👍'), findsOneWidget);
-    await t.tapAt(const Offset(10, 10));
+    // One Delete, then the 1:1 sheet (issue 209): someone else's message
+    // goes from this phone only.
+    await t.ensureVisible(action('delete'));
     await t.pumpAndSettle();
+    await t.tap(action('delete'));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('confirmDeleteForMe')), findsOneWidget);
+    expect(find.byKey(const Key('confirmRemoteDelete')), findsNothing);
+    await t.tap(find.byKey(const Key('cancelMessageDelete')));
+    await t.pumpAndSettle();
+    expect(find.text('from Bob'), findsOneWidget);
 
     await t.longPress(find.text('from Alice'));
     await t.pumpAndSettle();
     expect(action('edit'), findsOneWidget);
-    await t.tap(action('deleteForEveryone'));
+    await t.ensureVisible(action('delete'));
     await t.pumpAndSettle();
+    await t.tap(action('delete'));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('confirmDeleteForMe')), findsOneWidget);
     await t.tap(find.byKey(const Key('confirmRemoteDelete')));
     await settle(t, () => find.text('from Alice').evaluate().isEmpty);
     await t.runAsync(
