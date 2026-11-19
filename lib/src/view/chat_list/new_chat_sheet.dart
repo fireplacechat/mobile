@@ -308,7 +308,7 @@ class _ContactRow extends ConsumerWidget {
     return ListTile(
       key: Key('contact_${chat.peerUid}'),
       leading: PersonAvatar(name: name),
-      title: Text('@$name', maxLines: 1, overflow: TextOverflow.ellipsis),
+      title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: chat.accepted
           ? null
           : Text(

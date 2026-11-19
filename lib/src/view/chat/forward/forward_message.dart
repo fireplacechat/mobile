@@ -39,7 +39,7 @@ Future<void> forwardMessages(
           // A group's messages can come from several people.
           name.isEmpty
               ? 'You are sharing text other people wrote. It will be sent as a new message from you.'
-              : 'You are sharing text @$name wrote to you. It will be sent as a new message from you.',
+              : 'You are sharing text $name wrote to you. It will be sent as a new message from you.',
         ),
         actions: [
           TextButton(

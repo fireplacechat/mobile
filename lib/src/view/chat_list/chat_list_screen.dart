@@ -78,17 +78,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     }
   }
 
-  /// The invite page slides in from the left, the side its button is on.
-  Future<void> _openInvites() async {
-    if (_opening) return;
-    _opening = true;
-    try {
-      await Navigator.of(context).push(InviteScreen.route());
-    } finally {
-      _opening = false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final chats = ref.watch(chatsProvider);
@@ -103,7 +92,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           child: IconButton(
             key: const Key('inviteFriends'),
             tooltip: 'Invite friends',
-            onPressed: () => _openInvites(),
+            onPressed: () => _open(const InviteScreen()),
             style: IconButton.styleFrom(
               backgroundColor: FireplaceUiTokens.of(context).accent,
               foregroundColor: Colors.white,

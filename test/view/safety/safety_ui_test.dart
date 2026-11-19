@@ -82,7 +82,7 @@ void main() {
       await t.pumpWidget(host(bob, const ChatScreen(chatId: 'alice_bob')));
       await settle(t);
       expect(find.byKey(const Key('requestBanner')), findsOneWidget);
-      expect(find.textContaining('@alice wants to chat'), findsOneWidget);
+      expect(find.textContaining('alice wants to chat'), findsOneWidget);
       expect(find.byKey(const Key('composer')), findsNothing);
       expect(find.byKey(const Key('acceptToReplyNote')), findsOneWidget);
       expect(find.text('psst'), findsNothing); // content hidden until accepted

@@ -648,6 +648,14 @@ void main() {
     const CatalogCase('message-request', ChatScreen(chatId: 'alice_theo')),
     const CatalogCase('requests', RequestsScreen()),
     CatalogCase(
+      'new-chat',
+      const ChatListScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('newChat')));
+        await t.pumpAndSettle();
+      },
+    ),
+    CatalogCase(
       'chat-details',
       ChatDetailsScreen(
         peerUid: 'fred',

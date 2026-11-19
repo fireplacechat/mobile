@@ -446,7 +446,7 @@ const expected = <String, Map<String, List<String>>>{
       'F',
       'Unblock',
       'Unblock this contact in Settings to see your history again.',
-      'You blocked @fred.',
+      'You blocked fred.',
       'fred',
     ],
     'semantics': [
@@ -503,7 +503,6 @@ const expected = <String, Map<String, List<String>>>{
       '[_DeprecatedRawViewKey TestFlutterView#identity]',
     ],
     'texts': [
-      '@fred wants to chat. You will not see their messages until you accept. They will not be told whether you looked.',
       'A new message request',
       'Accept',
       'Accept this request to reply.',
@@ -511,6 +510,7 @@ const expected = <String, Map<String, List<String>>>{
       'F',
       'Messages stay hidden until you accept.',
       'fred',
+      'fred wants to chat. You will not see their messages until you accept. They will not be told whether you looked.',
     ],
     'semantics': [
       'label: Back',
@@ -607,7 +607,7 @@ const expected = <String, Map<String, List<String>>>{
       'Perfect. See you in the garden ☕',
       'Sat, Oct 3',
       'Sun, Oct 4',
-      'Waiting for @fred to accept your request.',
+      'Waiting for fred to accept your request.',
       'fred',
     ],
     'semantics': [
@@ -718,7 +718,7 @@ const expected = <String, Map<String, List<String>>>{
       'F',
       'Looking forward to it. What time works for you?',
       'Message',
-      'Message request sent. @fred sees it once they accept (2 left).',
+      'Message request sent. fred sees it once they accept (2 left).',
       'Of course. I can bring dessert.',
       'Perfect. See you in the garden ☕',
       'Sat, Oct 3',
