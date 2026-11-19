@@ -223,7 +223,6 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
               enabled: !_busy,
               leading: const Icon(Icons.person_add_alt_outlined),
               title: const Text('Add people'),
-              subtitle: const Text('They choose whether to join'),
               onTap: () => _addPeople(group),
             ),
           ListTile(
@@ -234,11 +233,6 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
                   : Icons.notifications_outlined,
             ),
             title: Text(muted ? 'Unmute' : 'Mute'),
-            subtitle: Text(
-              muted
-                  ? 'Its unread messages are not counted on the app icon.'
-                  : 'Only on this phone. Nobody in the group is told.',
-            ),
             onTap: () => _run(() => setGroupMuted(ref, widget.gid, !muted)),
           ),
           if (admin)
@@ -277,10 +271,6 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
               key: Key('invitedHeader'),
               dense: true,
               title: Text('Invited'),
-              subtitle: Text(
-                'They have not joined yet. Their phones can already receive '
-                'new messages, so they are listed here.',
-              ),
             ),
             for (final m in waiting)
               _MemberRow(
@@ -314,17 +304,14 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
               'Leave group',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
-            subtitle: Text(
-              members.length == 1
-                  ? 'You are the last member, so the group ends.'
-                  : 'Your copy of past messages stays on this phone.',
-            ),
             onTap: () async {
               final navigator = Navigator.of(context);
               if (!await _confirm(
                 'Leave ${group.name}?',
-                'You will stop receiving its messages. Someone can invite '
-                    'you again later.',
+                members.length == 1
+                    ? 'You are the last member, so the group ends.'
+                    : 'You will stop receiving its messages. Someone can '
+                          'invite you again later.',
                 'Leave',
               )) {
                 return;

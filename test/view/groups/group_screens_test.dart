@@ -631,6 +631,50 @@ void main() {
     await tearDownPhones(t);
   });
 
+  testWidgets('Group info rows are titles alone; leaving as the last member '
+      'says the group ends', (t) async {
+    await setUpPhones(t);
+    final gid = (await t.runAsync(() async {
+      final gid = await alice.service.create('Book club', ['bob']);
+      await until(
+        () async => alice.service.invitedTo(gid).containsKey('bob'),
+        what: 'invited',
+      );
+      return gid;
+    }))!;
+    await pump(t, GroupInfoScreen(gid: gid));
+    await settle(
+      t,
+      () => find.byKey(const Key('invitedHeader')).evaluate().isNotEmpty,
+    );
+    // Issue 211: no explanation under the rows.
+    for (final key in [
+      'addPeople',
+      'muteGroup',
+      'invitedHeader',
+      'leaveGroup',
+    ]) {
+      await t.scrollUntilVisible(find.byKey(Key(key)), 200);
+      expect(
+        t.widget<ListTile>(find.byKey(Key(key))).subtitle,
+        isNull,
+        reason: key,
+      );
+    }
+    // Bob has not joined, so Alice is the last member: the dialog says so.
+    await t.ensureVisible(find.byKey(const Key('leaveGroup')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('leaveGroup')));
+    await t.pumpAndSettle();
+    expect(
+      find.text('You are the last member, so the group ends.'),
+      findsOneWidget,
+    );
+    await t.tap(find.text('Cancel'));
+    await t.pumpAndSettle();
+    await tearDownPhones(t);
+  });
+
   testWidgets('someone invited is listed as invited until they join', (
     t,
   ) async {

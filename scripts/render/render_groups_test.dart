@@ -230,6 +230,17 @@ void main() {
       );
       await render('joined-later', GroupChatScreen(gid: theirs));
       await render('info', GroupInfoScreen(gid: mine));
+      await render(
+        'info-end',
+        GroupInfoScreen(gid: mine),
+        act: () async {
+          await t.scrollUntilVisible(
+            find.byKey(const Key('leaveGroup')),
+            200,
+            scrollable: find.byType(Scrollable).first,
+          );
+        },
+      );
       // Last, so the open invitation is in none of the pictures above: Dana
       // invites Alice, and the card shows in their 1:1 chat.
       await t.runAsync(() async {
