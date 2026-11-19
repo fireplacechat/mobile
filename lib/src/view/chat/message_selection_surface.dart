@@ -12,6 +12,7 @@ import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
 import 'package:fireplace/src/view/chat/message_delete_sheet.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 class MessageSelectionSurface extends ConsumerWidget {
   const MessageSelectionSurface({
@@ -218,7 +219,7 @@ class MessageSelectionSurface extends ConsumerWidget {
                           onPressed: selection.deleting || count == 0
                               ? null
                               : () => _deleteSelected(context, ref),
-                          icon: const Icon(CupertinoIcons.trash),
+                          icon: const Icon(ActionIcons.delete),
                         ),
                         // Balance the new right-hand action so the selected
                         // count keeps its existing centered position.
@@ -237,7 +238,7 @@ class MessageSelectionSurface extends ConsumerWidget {
                           onPressed: selection.deleting || count == 0
                               ? null
                               : () => _copy(context, ref),
-                          icon: const Icon(CupertinoIcons.doc_on_doc),
+                          icon: const Icon(ActionIcons.copy),
                         ),
                         IconButton(
                           key: const Key('forwardSelectedMessages'),

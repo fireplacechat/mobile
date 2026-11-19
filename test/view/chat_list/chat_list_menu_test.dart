@@ -1,6 +1,7 @@
 // Holding a conversation in the chat list (issue 123): mute, mark read,
 // block, and delete on this phone.
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -46,6 +47,14 @@ void main() {
         matching: find.byType(Icon),
       ),
       findsNWidgets(4),
+    );
+    // The bin of the held-message menu, as everywhere (issue 212).
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('chatRowMenu')),
+        matching: find.byIcon(ActionIcons.delete),
+      ),
+      findsOneWidget,
     );
     // Nothing that tells the other person anything.
     expect(find.textContaining('receipt'), findsNothing);

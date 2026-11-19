@@ -10,6 +10,7 @@ import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/safety/safety_action_sheet.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 class DevicesScreen extends ConsumerStatefulWidget {
   const DevicesScreen({super.key});
@@ -192,7 +193,7 @@ class _DevicesScreenState extends ConsumerState<DevicesScreen> {
                         key: Key('revoke_${d.deviceId}'),
                         tooltip: 'Remove device',
                         icon: Icon(
-                          Icons.delete_outline,
+                          ActionIcons.delete,
                           color: FireplaceUiTokens.of(context).danger,
                         ),
                         onPressed: _revoking == null ? () => _revoke(d) : null,

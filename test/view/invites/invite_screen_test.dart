@@ -3,6 +3,7 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:fireplace/src/app/invite_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/invites/invite_service.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/invites/invite_screen.dart';
 import 'package:fireplace/src/view/invites/invite_ticket.dart';
@@ -139,6 +140,14 @@ void main() {
     final code = t.widget<Text>(find.byKey(const Key('inviteCode0'))).data!;
     expect(code, matches(RegExp(r'^[A-Z2-7]{4}(-[A-Z2-7]{4}){3}$')));
     expect(find.text('Unused'), findsOneWidget);
+    // The copy icon of the held-message menu, as everywhere (issue 212).
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('copyInvite0')),
+        matching: find.byIcon(ActionIcons.copy),
+      ),
+      findsOneWidget,
+    );
 
     await t.tap(find.byKey(const Key('copyInvite0')));
     await t.pump();

@@ -28,6 +28,7 @@ import 'package:fireplace/src/model/settings/send_sound_preference.dart';
 import 'package:fireplace/src/view/settings/theme_mode_tile.dart';
 import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
 import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -311,7 +312,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ListTile(
                       key: Key('deleteAccountTile'),
                       leading: Icon(
-                        Icons.delete_forever,
+                        ActionIcons.delete,
                         color: FireplaceUiTokens.of(context).danger,
                       ),
                       title: Text(

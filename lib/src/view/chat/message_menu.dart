@@ -18,6 +18,7 @@ import 'package:fireplace/src/model/chat/message_selection.dart';
 import 'package:fireplace/src/model/chat/message_controls.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 /// Shared touch, keyboard and screen-reader actions for one message.
 List<MessageAction> messageMenuActions(
@@ -140,7 +141,7 @@ List<MessageAction> messageMenuActions(
       MessageAction(
         id: 'copy',
         label: 'Copy',
-        icon: CupertinoIcons.doc_on_doc,
+        icon: ActionIcons.copy,
         onSelected: () => run(
           () => _copyMessage(message, isMounted: isMounted, notice: notice),
         ),
@@ -183,7 +184,7 @@ List<MessageAction> messageMenuActions(
       MessageAction(
         id: 'delete',
         label: 'Delete',
-        icon: CupertinoIcons.trash,
+        icon: ActionIcons.delete,
         destructive: true,
         onSelected: () => run(
           () => _deleteMessage(

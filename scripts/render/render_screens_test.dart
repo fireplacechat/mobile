@@ -696,6 +696,18 @@ void main() {
     ),
     const CatalogCase('settings', SettingsScreen()),
     CatalogCase(
+      'settings-account-actions',
+      const SettingsScreen(),
+      act: (t, f) async {
+        await t.scrollUntilVisible(
+          find.byKey(const Key('signOut')),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await t.pumpAndSettle();
+      },
+    ),
+    CatalogCase(
       'preview-diagnostics',
       const PreviewDiagnosticsScreen(),
       overrides: [

@@ -24,6 +24,7 @@ import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 /// A group conversation (decision 0050). It looks like a 1:1 chat: the same
 /// bubbles, day separators, held-message menu, reactions and composer, with
@@ -236,7 +237,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
       MessageAction(
         id: 'copy',
         label: 'Copy',
-        icon: Icons.copy_outlined,
+        icon: ActionIcons.copy,
         onSelected: () =>
             unawaited(Clipboard.setData(ClipboardData(text: message.body))),
       ),
@@ -244,14 +245,14 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         MessageAction(
           id: 'deleteForEveryone',
           label: 'Delete for everyone',
-          icon: Icons.delete_outline,
+          icon: ActionIcons.delete,
           destructive: true,
           onSelected: () => unawaited(_deleteForEveryone(message)),
         ),
       MessageAction(
         id: 'deleteForMe',
         label: 'Delete for me',
-        icon: Icons.delete_sweep_outlined,
+        icon: ActionIcons.delete,
         destructive: true,
         onSelected: () => unawaited(
           _run(() => service.deleteLocally(widget.gid, message.id)),

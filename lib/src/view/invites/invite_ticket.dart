@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/model/invites/invite_rows.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 /// `6d 23:14:08`, or `23:14:08` under a day.
 String inviteCountdown(Duration d) {
@@ -219,7 +220,7 @@ class _CodeActions extends StatelessWidget {
               child: FilledButton.icon(
                 key: Key('copyInvite$index'),
                 onPressed: row.slot.pending ? null : onCopy,
-                icon: const Icon(Icons.copy_rounded, size: 18),
+                icon: const Icon(ActionIcons.copy, size: 18),
                 label: const Text('Copy code'),
               ),
             ),
