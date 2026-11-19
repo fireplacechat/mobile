@@ -58,7 +58,7 @@ class ChatComposer extends StatelessWidget {
     if (blocked) {
       return ComposerNote(
         key: Key('blockedNote'),
-        text: 'You blocked @$name.',
+        text: 'You blocked $name.',
         action: TextButton(
           onPressed: !hasSession || contactBusy ? null : onUnblock,
           child: Text('Unblock'),
@@ -72,7 +72,7 @@ class ChatComposer extends StatelessWidget {
     } else if (waiting) {
       return ComposerNote(
         key: Key('waitingNote'),
-        text: 'Waiting for @$name to accept your request.',
+        text: 'Waiting for $name to accept your request.',
       );
     } else if (identityHeld) {
       return ComposerNote(

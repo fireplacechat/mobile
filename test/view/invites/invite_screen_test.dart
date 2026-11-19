@@ -265,9 +265,8 @@ void main() {
     expect(find.byKey(const Key('createInvite3')), findsOneWidget);
   });
 
-  testWidgets('the + on the chat list opens invites; the arrow goes back', (
-    t,
-  ) async {
+  testWidgets('the + on the chat list opens invites; the back arrow at the '
+      'top left closes them (issue 203)', (t) async {
     final p = _Page(t);
     await p.open(home: const ChatListScreen());
     final plus = find.byKey(const Key('inviteFriends'));
@@ -282,9 +281,12 @@ void main() {
     await t.tap(plus);
     await t.pumpAndSettle();
     expect(find.byType(InviteScreen), findsOneWidget);
-    // Slides in from the left: no back arrow on the left, one on the right.
-    expect(find.byType(BackButton), findsNothing);
-    await t.tap(find.byKey(const Key('inviteBack')));
+    // Closed as the pages beside it are: the back arrow at the top left.
+    final back = find.byType(BackButton);
+    expect(back, findsOneWidget);
+    expect(t.getCenter(back).dx, lessThan(100));
+    expect(find.byIcon(Icons.arrow_forward), findsNothing);
+    await t.tap(back);
     await t.pumpAndSettle();
     expect(find.byType(InviteScreen), findsNothing);
     expect(find.byType(ChatListScreen), findsOneWidget);
