@@ -17,7 +17,7 @@ class RequestBanner extends StatelessWidget {
     key: const Key('requestBanner'),
     warning: true,
     text:
-        '@$name wants to chat. You will not see their messages until you accept. They will not be told whether you looked.',
+        '$name wants to chat. You will not see their messages until you accept. They will not be told whether you looked.',
     actions: [
       FilledButton(
         key: const Key('acceptRequest'),

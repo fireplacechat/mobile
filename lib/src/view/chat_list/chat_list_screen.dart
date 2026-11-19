@@ -26,7 +26,10 @@ import 'package:fireplace/src/view/chat_list/widgets/chat_tile.dart';
 import 'package:fireplace/src/view/chat_list/widgets/new_chat_icon.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
-  const ChatListScreen({super.key});
+  const ChatListScreen({super.key, this.header});
+
+  /// Above the search field, such as the recovery key notice.
+  final Widget? header;
 
   @override
   ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
@@ -78,17 +81,6 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     }
   }
 
-  /// The invite page slides in from the left, the side its button is on.
-  Future<void> _openInvites() async {
-    if (_opening) return;
-    _opening = true;
-    try {
-      await Navigator.of(context).push(InviteScreen.route());
-    } finally {
-      _opening = false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final chats = ref.watch(chatsProvider);
@@ -103,7 +95,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           child: IconButton(
             key: const Key('inviteFriends'),
             tooltip: 'Invite friends',
-            onPressed: () => _openInvites(),
+            onPressed: () => _open(const InviteScreen()),
             style: IconButton.styleFrom(
               backgroundColor: FireplaceUiTokens.of(context).accent,
               foregroundColor: Colors.white,
@@ -144,6 +136,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       body: UiBodyViewport(
         child: Column(
           children: [
+            ?widget.header,
             Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: ChatSearchField(
@@ -434,12 +427,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       case OpenChat(:final chatId):
         await _open(ChatScreen(chatId: chatId));
       case CreateGroup():
-        final gid = await Navigator.of(context).push<String>(
-          MaterialPageRoute(builder: (_) => const NewGroupScreen()),
-        );
-        if (gid != null && context.mounted) {
-          await _open(GroupChatScreen(gid: gid));
-        }
+        // Once made, the group takes New group's place.
+        await _open(const NewGroupScreen());
     }
   }
 }

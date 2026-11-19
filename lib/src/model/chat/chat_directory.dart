@@ -44,7 +44,7 @@ class ChatDirectory {
     if (peerUid == uid) throw ChatException('You cannot chat with yourself.');
     if (_safety?.isBlocked(peerUid) ?? false) {
       throw ChatException(
-        'You blocked @$name. Unblock them in Settings to chat again.',
+        'You blocked $name. Unblock them in Settings to chat again.',
       );
     }
     final chatId = chatIdFor(uid, peerUid);
@@ -67,7 +67,7 @@ class ChatDirectory {
       } on FirebaseException catch (e) {
         if (e.code == 'permission-denied' || e.code == 'not-found') {
           throw ChatException(
-            'You cannot start a chat with @$name. If you have started many '
+            'You cannot start a chat with $name. If you have started many '
             'new chats today, try again tomorrow.',
           );
         }

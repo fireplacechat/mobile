@@ -33,7 +33,7 @@ class ContactPicker extends ConsumerWidget {
                 value: ticked,
                 checkboxShape: const CircleBorder(),
                 secondary: PersonAvatar(name: name, size: 36),
-                title: Text('@$name'),
+                title: Text(name),
                 onChanged: !ticked && selected.length >= limit
                     ? null
                     : (on) => onChanged(
