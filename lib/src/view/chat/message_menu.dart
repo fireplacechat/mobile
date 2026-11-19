@@ -20,6 +20,10 @@ import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
 import 'package:fireplace/src/styles/action_icons.dart';
 
+// Group conversations forward with the same flow.
+export 'package:fireplace/src/view/chat/forward/forward_message.dart'
+    show forwardMessage, forwardMessages;
+
 /// Shared touch, keyboard and screen-reader actions for one message.
 List<MessageAction> messageMenuActions(
   LocalMessage message, {
@@ -143,7 +147,7 @@ List<MessageAction> messageMenuActions(
         label: 'Copy',
         icon: ActionIcons.copy,
         onSelected: () => run(
-          () => _copyMessage(message, isMounted: isMounted, notice: notice),
+          () => copyMessage(message, isMounted: isMounted, notice: notice),
         ),
       ),
     if (!incomingRequest && !identityHeld && !blocked) ...[
@@ -228,7 +232,8 @@ Future<void> _deleteMessage(
       .remove(message.chatId, message.id);
 }
 
-Future<void> _copyMessage(
+/// Copies one message's text as it reads on screen, and says so.
+Future<void> copyMessage(
   LocalMessage message, {
   required bool Function() isMounted,
   required void Function(String) notice,

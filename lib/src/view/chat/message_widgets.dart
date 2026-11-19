@@ -3,5 +3,6 @@
 library;
 
 export 'package:fireplace/src/view/chat/widgets/day_separator.dart';
+export 'package:fireplace/src/view/chat/widgets/message_flash.dart';
 export 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
 export 'package:fireplace/src/view/chat/widgets/reply_panel.dart';

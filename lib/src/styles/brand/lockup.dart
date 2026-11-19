@@ -209,10 +209,15 @@ class FireplaceSplash extends StatelessWidget {
     this.message,
     this.actions = const [],
     this.title = 'Opening Fireplace',
+    this.status,
   });
   final String? message;
   final String title;
   final List<Widget> actions;
+
+  /// Shown under the lockup while loading, such as a progress bar and what
+  /// is happening. The lockup stays where it is.
+  final Widget? status;
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +250,15 @@ class FireplaceSplash extends StatelessWidget {
               ),
             ),
           ),
+          if (status != null && actions.isEmpty)
+            Center(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  top: FireplaceLockup.heightFor(lockupLogicalWidth) + 112,
+                ),
+                child: status,
+              ),
+            ),
           if (actions.isNotEmpty)
             SafeArea(
               child: LayoutBuilder(

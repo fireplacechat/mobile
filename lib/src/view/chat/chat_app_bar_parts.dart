@@ -57,20 +57,9 @@ class ChatTitle extends ConsumerWidget {
                 : () => onOpenDetails(context),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Text(
+              child: ChatTitleName(
                 name,
-                overflow: TextOverflow.ellipsis,
-                // Same size as the name on a conversation in the chat list.
-                // The app bar's own title style is larger and must not apply.
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.2,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0,
-                  color:
-                      theirs?.accentText(Theme.of(context).brightness) ??
-                      FireplaceUiTokens.of(context).text,
-                ),
+                color: theirs?.accentText(Theme.of(context).brightness),
               ),
             ),
           ),
@@ -78,6 +67,28 @@ class ChatTitle extends ConsumerWidget {
       ],
     );
   }
+}
+
+/// The name at the top of a conversation, 1:1 or group: the size of a name in
+/// the chat list. The app bar's own title style is larger and must not apply.
+class ChatTitleName extends StatelessWidget {
+  const ChatTitleName(this.name, {super.key, this.color});
+  final String name;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    name,
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: TextStyle(
+      fontSize: 16,
+      height: 1.2,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0,
+      color: color ?? FireplaceUiTokens.of(context).text,
+    ),
+  );
 }
 
 class ChatVerifyButton extends StatelessWidget {
