@@ -112,6 +112,23 @@ void main() {
     await again.close();
   });
 
+  test('a group can be returned as soon as it exists, its invitations '
+      'going out after (issue 204)', () async {
+    final gid = await alice.service.create('Book club', [
+      'bob',
+    ], awaitInvites: false);
+    expect(alice.service.groups[gid]?.name, 'Book club');
+    expect(alice.service.invitedTo(gid), isEmpty);
+    await until(
+      () async => alice.service.invitedTo(gid).containsKey('bob'),
+      what: 'invited after',
+    );
+    await until(
+      () async => bob.service.invitations.any((i) => i.gid == gid),
+      what: 'invitation',
+    );
+  });
+
   test('group records are kept across a restart of the same device', () async {
     final gid = await bookClub();
     await bob.service.close();

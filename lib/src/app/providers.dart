@@ -562,9 +562,11 @@ final pendingStartProvider = StreamProvider.autoDispose
       (ref, uid) => ref.watch(takeoverServiceProvider).watch(uid),
     );
 
+/// The lost-phone wait to show in Settings, or null where the server cannot
+/// honour one.
 final lostPhoneWaitProvider = FutureProvider.autoDispose
-    .family<LostPhoneWait, String>(
-      (ref, uid) => ref.watch(takeoverServiceProvider).wait(uid),
+    .family<LostPhoneWait?, String>(
+      (ref, uid) => ref.watch(takeoverServiceProvider).chosenWait(uid),
     );
 
 final hasBackupProvider = FutureProvider.autoDispose<bool>((ref) async {

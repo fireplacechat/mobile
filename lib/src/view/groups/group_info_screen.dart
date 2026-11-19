@@ -103,7 +103,7 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(title: Text('@$name')),
+            ListTile(title: Text(name)),
             if (isAdmin)
               ListTile(
                 key: const Key('removeAdmin'),
@@ -253,7 +253,7 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
               canRemove: admin && m.uid != me && !_busy,
               onRemove: (name) async {
                 if (await _confirm(
-                  'Remove @$name?',
+                  'Remove $name?',
                   'They will no longer receive messages in this group.',
                   'Remove',
                 )) {
@@ -282,7 +282,7 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
                 canRemove: admin && !_busy,
                 onRemove: (name) async {
                   if (await _confirm(
-                    'Withdraw the invitation to @$name?',
+                    'Withdraw the invitation to $name?',
                     'They will not be able to join unless someone invites '
                         'them again.',
                     'Withdraw',
@@ -363,7 +363,7 @@ class _MemberRow extends ConsumerWidget {
                 member.uid,
               ).accentText(Theme.of(context).brightness),
       ),
-      title: Text(me ? 'You' : '@$name'),
+      title: Text(me ? 'You' : name),
       subtitle: invited
           ? const Text('Invited')
           : isAdmin

@@ -373,7 +373,7 @@ void main() {
     await t.pumpAndSettle();
     await t.tap(find.text('Forward'));
     await t.pumpAndSettle();
-    expect(find.textContaining('You are sharing text @fred'), findsOneWidget);
+    expect(find.textContaining('You are sharing text fred'), findsOneWidget);
     expect(find.byType(ForwardMessageScreen), findsNothing);
     await t.tap(find.text('Cancel'));
     await t.pumpAndSettle();

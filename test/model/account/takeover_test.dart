@@ -142,6 +142,18 @@ void main() {
       expect(await service.wait('alice'), LostPhoneWait.threeDays);
     });
 
+    test(
+      'a server without the wait refuses the read: nothing to choose',
+      () async {
+        final refusing = TakeoverService(_RefusingDb(), _NoAuth());
+        expect(await refusing.chosenWait('alice'), isNull);
+        expect(await refusing.enforced('alice'), isFalse);
+        // Where something does need a length, it is the standard one.
+        expect(await refusing.wait('alice'), LostPhoneWait.standard);
+        expect(await service.chosenWait('alice'), LostPhoneWait.threeDays);
+      },
+    );
+
     test('starting records the wait and when it ends; withdrawing removes '
         'it', () async {
       await db.doc('users/alice/private/security').set({'waitDays': 7});
@@ -262,4 +274,21 @@ void main() {
 class _NoAuth extends Fake implements AuthService {
   @override
   Future<int> signInTime() async => 1700000000;
+}
+
+/// An older server: it refuses to let the account read its wait.
+class _RefusingDb extends Fake implements FirebaseFirestore {
+  @override
+  DocumentReference<Map<String, dynamic>> doc(String path) => _RefusedDoc();
+}
+
+// A test stand-in, as in push_notification_service_test.dart.
+// ignore: subtype_of_sealed_class
+class _RefusedDoc extends Fake
+    implements DocumentReference<Map<String, dynamic>> {
+  @override
+  Future<DocumentSnapshot<Map<String, dynamic>>> get([GetOptions? options]) =>
+      Future.error(
+        FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied'),
+      );
 }

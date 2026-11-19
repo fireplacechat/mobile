@@ -87,6 +87,8 @@ class FixtureTakeover extends Fake implements TakeoverService {
   @override
   Future<bool> enforced(String uid) async => server;
   @override
+  Future<LostPhoneWait?> chosenWait(String uid) async => server ? chosen : null;
+  @override
   Future<bool> hasDevices(String uid) async => devices;
   @override
   Future<void> setWait(
