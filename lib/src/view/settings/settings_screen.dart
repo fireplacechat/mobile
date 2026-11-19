@@ -288,13 +288,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ? null
                           : () => _open(const RecoveryKeyScreen()),
                     ),
-                    LostPhoneWaitTile(
-                      wait:
-                          ref.watch(lostPhoneWaitProvider(s.uid)).value ??
-                          LostPhoneWait.standard,
-                      enabled: !_busy,
-                      onChanged: (wait) => _setWait(s, wait),
-                    ),
+                    // Offered only where the server keeps a new phone waiting.
+                    if (ref.watch(lostPhoneWaitProvider(s.uid)).value
+                        case final wait?)
+                      LostPhoneWaitTile(
+                        wait: wait,
+                        enabled: !_busy,
+                        onChanged: (wait) => _setWait(s, wait),
+                      ),
                     ListTile(
                       key: Key('linkDevice'),
                       leading: Icon(Icons.add_to_home_screen),

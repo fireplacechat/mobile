@@ -97,13 +97,18 @@ class TakeoverService {
   Future<PendingStart?> pending(String uid) async =>
       _parse((await _pending(uid).get()).data());
 
-  Future<LostPhoneWait> wait(String uid) async {
+  Future<LostPhoneWait> wait(String uid) async =>
+      await chosenWait(uid) ?? LostPhoneWait.standard;
+
+  /// The account's wait, or null where the server has no waiting period yet:
+  /// there is nothing to choose then (issue 205). One read, like [enforced].
+  Future<LostPhoneWait?> chosenWait(String uid) async {
     try {
       return LostPhoneWait.fromDays(
         (await _security(uid).get()).data()?['waitDays'],
       );
     } on FirebaseException catch (e) {
-      if (e.code == 'permission-denied') return LostPhoneWait.standard;
+      if (e.code == 'permission-denied') return null;
       rethrow;
     }
   }

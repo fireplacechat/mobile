@@ -695,6 +695,20 @@ void main() {
       VerifyScreen(peerUid: 'fred', peerName: 'fred'),
     ),
     const CatalogCase('settings', SettingsScreen()),
+    // Against a server without the lost-phone wait, the row is not offered.
+    CatalogCase(
+      'settings-older-server',
+      const SettingsScreen(),
+      prepare: (f) => f.takeover.server = false,
+      act: (t, f) async {
+        await t.scrollUntilVisible(
+          find.byKey(const Key('linkDevice')),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await t.pumpAndSettle();
+      },
+    ),
     CatalogCase(
       'settings-account-actions',
       const SettingsScreen(),
