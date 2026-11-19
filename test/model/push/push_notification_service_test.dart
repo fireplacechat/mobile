@@ -485,6 +485,26 @@ void _raceTests() {
       },
     );
 
+    test(
+      'a registration the server removed is made again on the next tap',
+      () async {
+        // Issue 235: the push function deletes a token FCM calls invalid,
+        // and starting fresh removes them all. The switch then reads off,
+        // and tapping it reused the finished start, so it said "Could not
+        // change" until the app restarted.
+        final h = _RaceHarness();
+        await h.service.start();
+        expect(await h.service.status(), PushStatus.on);
+        await h.db.delegate.doc('users/fred/pushTokens/fred-device').delete();
+        expect(await h.service.status(), PushStatus.off);
+
+        await h.service.start();
+        expect(await h.registered(), isTrue);
+        expect(await h.service.status(), PushStatus.on);
+        expect(h.messaging.activeSubscriptions, 1);
+      },
+    );
+
     test('a registered start is shared, not repeated', () async {
       final h = _RaceHarness();
       await h.service.start();

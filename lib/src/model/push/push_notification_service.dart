@@ -186,13 +186,42 @@ class PushNotificationService {
   /// switch), asking the system for permission if it still allows a prompt.
   /// Tapping it again after an attempt that did not register tries again.
   Future<void> start() {
-    if (_startFuture != null && _run == null && !_registered) {
-      final subscription = _tokenSubscription;
-      _tokenSubscription = null;
-      unawaited(subscription?.cancel());
-      _startFuture = null;
+    if (_startFuture != null && _run == null) {
+      // A finished start. Claim the run now, so a quick second tap shares it.
+      final run = Object();
+      _run = run;
+      _startFuture = _startAgain(run);
     }
     return _startFuture ??= _tracked(explicit: true);
+  }
+
+  /// Keeps a registration that is still on the server, and otherwise starts
+  /// again. A registration can go without this phone knowing: the push
+  /// function deletes a token FCM calls invalid, and starting fresh removes
+  /// every token. Trusting the last write alone left the switch off, saying
+  /// "Could not change", until the app restarted (issue 235).
+  Future<void> _startAgain(Object run) async {
+    try {
+      if (_registered && await _stillRegistered()) return;
+      _registered = false;
+      final subscription = _tokenSubscription;
+      _tokenSubscription = null;
+      await subscription?.cancel();
+      await _start(explicit: true);
+    } finally {
+      if (identical(_run, run)) _run = null;
+    }
+  }
+
+  /// Whether the server still has this device's token. When it cannot be
+  /// asked (offline), the last write stands.
+  Future<bool> _stillRegistered() async {
+    try {
+      final doc = await _tokenRef.get(const GetOptions(source: Source.server));
+      return doc.exists;
+    } catch (_) {
+      return true;
+    }
   }
 
   Future<void> _tracked({required bool explicit}) async {
