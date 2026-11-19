@@ -36,6 +36,9 @@ deletes a document that is already gone, and the message and username rules
 (which read `resource.data`) refuse it. Gone means the first send worked; still
 there is a real refusal and stops the deletion (issue 119). No rule changes.
 
+Decision 0066 moves the server-side part to a function; the steps above stay
+as the app's fallback when the server does not take the request.
+
 ## One local account at a time
 
 Enumerate the existing secure store, select exact UID keys and the owner element
