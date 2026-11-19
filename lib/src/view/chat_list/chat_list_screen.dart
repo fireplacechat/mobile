@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fireplace/src/widgets/swipe_back_route.dart';
 import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
@@ -70,12 +71,18 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     super.dispose();
   }
 
-  Future<void> _open(Widget screen) async {
+  /// [swipeBack]: on Android the page can be dragged back to this list from
+  /// anywhere on it, as iOS already allows (issue 236).
+  Future<void> _open(Widget screen, {bool swipeBack = false}) async {
     if (_opening) return;
     _opening = true;
     try {
-      await Navigator.of(context)
-          .push(MaterialPageRoute<void>(builder: (_) => screen));
+      final android = Theme.of(context).platform == TargetPlatform.android;
+      await Navigator.of(context).push(
+        swipeBack && android
+            ? SwipeBackPageRoute<void>(builder: (_) => screen)
+            : MaterialPageRoute<void>(builder: (_) => screen),
+      );
     } finally {
       _opening = false;
     }
@@ -95,7 +102,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
           child: IconButton(
             key: const Key('inviteFriends'),
             tooltip: 'Invite friends',
-            onPressed: () => _open(const InviteScreen()),
+            onPressed: () => _open(const InviteScreen(), swipeBack: true),
             style: IconButton.styleFrom(
               backgroundColor: FireplaceUiTokens.of(context).accent,
               foregroundColor: Colors.white,
@@ -119,7 +126,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
             key: Key('settings'),
             tooltip: 'Settings',
             icon: Icon(Icons.settings_outlined),
-            onPressed: () => _open(const SettingsScreen()),
+            onPressed: () => _open(const SettingsScreen(), swipeBack: true),
           ),
         ],
       ),
