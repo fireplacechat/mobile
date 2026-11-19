@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/db/account_erasure.dart';
 import 'package:fireplace/src/db/wrapping_secret_store.dart';
 import 'package:fireplace/src/model/lock/passphrase_lock.dart';
 
@@ -24,13 +25,13 @@ class PassphraseLocked implements Exception {
 }
 
 /// The passphrase lock of the signed-in account (decision 0033).
-class LockState {
-  const LockState({
+class PassphraseLockState {
+  const PassphraseLockState({
     required this.on,
     required this.open,
     this.autoLock = AutoLock.standard,
   });
-  static const off = LockState(on: false, open: false);
+  static const off = PassphraseLockState(on: false, open: false);
 
   /// The lock is set for this account.
   final bool on;
@@ -42,22 +43,22 @@ class LockState {
   bool get locked => on && !open;
 }
 
-class PassphraseLockController extends AsyncNotifier<LockState> {
+class PassphraseLockController extends AsyncNotifier<PassphraseLockState> {
   String? get _uid => ref.read(preferencesUidProvider);
   PassphraseLock? get _lock => ref.read(passphraseLockServiceProvider);
 
   @override
-  Future<LockState> build() async {
+  Future<PassphraseLockState> build() async {
     final uid = ref.watch(preferencesUidProvider);
     final lock = ref.watch(passphraseLockServiceProvider);
-    if (uid == null || lock == null) return LockState.off;
+    if (uid == null || lock == null) return PassphraseLockState.off;
     return _read(lock, uid);
   }
 
-  Future<LockState> _read(PassphraseLock lock, String uid) async {
+  Future<PassphraseLockState> _read(PassphraseLock lock, String uid) async {
     final record = await lock.record(uid);
-    if (record == null) return LockState.off;
-    return LockState(
+    if (record == null) return PassphraseLockState.off;
+    return PassphraseLockState(
       on: true,
       open: lock.isOpen(uid),
       autoLock: record.autoLock,
@@ -128,6 +129,30 @@ class PassphraseLockController extends AsyncNotifier<LockState> {
     await _refresh();
   }
 
+  /// Whether [passphrase] is this account's.
+  Future<bool> verify(String passphrase) async {
+    final uid = _uid, lock = _lock;
+    if (uid == null || lock == null) return false;
+    return lock.verify(uid, passphrase);
+  }
+
+  /// For a forgotten passphrase: erases this account's data on this phone,
+  /// which nothing can open any more, and signs out. The account stays; on
+  /// signing in, this phone is set up again (restore, link or start fresh).
+  Future<void> eraseAndSignOut() async {
+    final uid = _uid;
+    if (uid == null) return;
+    await ref.read(appSessionProvider).value?.close();
+    _lock?.lock();
+    await eraseAccountHistory(
+      uid: uid,
+      roots: await ref.read(accountErasureDirectoriesProvider)(),
+      lockFor: (history) => accountLock(uid, history, generation: false),
+    );
+    await eraseAccountSecrets(ref.read(secretStoreProvider), uid);
+    await ref.read(authServiceProvider).signOut();
+  }
+
   /// Closes the account's session, so what it was writing is saved, then
   /// forgets the data key. The app shows the unlock screen.
   Future<void> lockNow() async {
@@ -139,7 +164,12 @@ class PassphraseLockController extends AsyncNotifier<LockState> {
   }
 }
 
+/// The clock auto-lock measures time away with; tests move it.
+final autoLockClockProvider = Provider<DateTime Function()>(
+  (_) => DateTime.now,
+);
+
 final passphraseLockProvider =
-    AsyncNotifierProvider<PassphraseLockController, LockState>(
+    AsyncNotifierProvider<PassphraseLockController, PassphraseLockState>(
       PassphraseLockController.new,
     );

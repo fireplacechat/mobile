@@ -369,6 +369,27 @@ class PassphraseLock {
     return true;
   }
 
+  /// Whether [passphrase] is this account's, without changing anything.
+  Future<bool> verify(String uid, String passphrase) async {
+    final r = await record(uid);
+    if (r == null) return false;
+    try {
+      await WrappingSecretStore.unseal(
+        await derive(
+          passphrase,
+          r.salt,
+          r.parameters,
+          await _deviceSecret(uid),
+        ),
+        r.sealedKey,
+        _label(uid),
+      );
+      return true;
+    } on SecretBoxAuthenticationError {
+      return false;
+    }
+  }
+
   Future<void> setAutoLock(String uid, AutoLock autoLock) async {
     final r = await record(uid);
     if (r != null) await _save(uid, r.copyWith(autoLock: autoLock));
