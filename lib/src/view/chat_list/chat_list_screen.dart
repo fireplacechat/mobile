@@ -434,12 +434,8 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       case OpenChat(:final chatId):
         await _open(ChatScreen(chatId: chatId));
       case CreateGroup():
-        final gid = await Navigator.of(context).push<String>(
-          MaterialPageRoute(builder: (_) => const NewGroupScreen()),
-        );
-        if (gid != null && context.mounted) {
-          await _open(GroupChatScreen(gid: gid));
-        }
+        // Once made, the group takes New group's place.
+        await _open(const NewGroupScreen());
     }
   }
 }

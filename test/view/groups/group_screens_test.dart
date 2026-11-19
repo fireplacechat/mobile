@@ -197,9 +197,24 @@ void main() {
     await t.pump();
     expect((create() as TextButton).onPressed, isNotNull);
     await t.tap(find.byKey(const Key('createGroup')));
+    await t.pump();
+    // The Creating splash while the group is made (issue 204).
+    expect(find.byKey(const Key('creatingGroup')), findsOneWidget);
+    expect(find.byKey(const Key('groupName')), findsNothing);
     await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
     expect(alice.service.groups.values.single.name, 'Book club');
     await settle(t, () => bob.service.invitations.isNotEmpty);
+    // The group took New group's place: Back is the chat list.
+    for (var i = 0; i < 10; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(NewGroupScreen), findsNothing);
+    await t.tap(find.byType(BackButton));
+    for (var i = 0; i < 10; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(ChatListScreen), findsOneWidget);
+    expect(find.byType(GroupChatScreen), findsNothing);
     await tearDownPhones(t);
   });
 

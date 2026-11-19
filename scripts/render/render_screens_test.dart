@@ -30,6 +30,7 @@ import 'package:fireplace/src/view/auth/auth_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
+import 'package:fireplace/src/view/groups/creating_group_splash.dart';
 import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
@@ -882,6 +883,8 @@ void main() {
       'loading',
       FireplaceSplash(message: 'Preparing your account…'),
     ),
+    // New group while the group is made (issue 204).
+    const CatalogCase('creating-group', CreatingGroupSplash()),
     CatalogCase(
       'auth-error',
       const AuthGate(),
