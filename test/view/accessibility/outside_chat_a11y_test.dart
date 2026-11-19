@@ -125,7 +125,7 @@ void main() {
     await check(t, 'devices', const DevicesScreen());
     final remove = find.byTooltip('Remove device', skipOffstage: false);
     await reveal(t, remove);
-    expect(find.text('This device', skipOffstage: false), findsOneWidget);
+    expect(find.text('This phone', skipOffstage: false), findsOneWidget);
     expect(t.getSize(remove).shortestSide, greaterThanOrEqualTo(48));
   });
 

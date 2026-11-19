@@ -58,7 +58,7 @@ class ChatComposer extends StatelessWidget {
     if (blocked) {
       return ComposerNote(
         key: Key('blockedNote'),
-        text: 'You blocked @$name.',
+        text: 'You blocked $name.',
         action: TextButton(
           onPressed: !hasSession || contactBusy ? null : onUnblock,
           child: Text('Unblock'),
@@ -72,7 +72,7 @@ class ChatComposer extends StatelessWidget {
     } else if (waiting) {
       return ComposerNote(
         key: Key('waitingNote'),
-        text: 'Waiting for @$name to accept your request.',
+        text: 'Waiting for $name to accept your request.',
       );
     } else if (identityHeld) {
       return ComposerNote(
@@ -172,41 +172,47 @@ class ChatComposer extends StatelessWidget {
                       SizedBox(width: 4),
                       // Sending is part of editing; keep the keyboard ready to reply.
                       TextFieldTapRegion(
-                        child: IconButton.filled(
-                          key: Key('send'),
-                          style: IconButton.styleFrom(
-                            minimumSize: const Size(40, 40),
-                            fixedSize: const Size(40, 40),
-                            shape: const CircleBorder(),
-                            backgroundColor: FireplaceUiTokens.of(context)
-                                .accent,
-                            foregroundColor: Theme.of(context)
-                                .colorScheme
-                                .onPrimary,
-                          ),
-                          onPressed:
-                              !canSubmit ||
-                                  (editing && editingBusy) ||
-                                  text.text.trim().isEmpty ||
-                                  !hasSession
-                              ? null
-                              : submit ?? send!.send,
-                          tooltip: editing ? 'Save edit' : 'Send message',
-                          icon: editing && editingBusy
-                              ? SizedBox.square(
-                                  dimension: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onPrimary,
+                        // The 40 px circle is centred in a 48 px tap area,
+                        // and the row lines up bottoms: without this shift
+                        // the circle sits 4 px above the field (issue 206).
+                        child: Transform.translate(
+                          offset: const Offset(0, (48 - 40) / 2),
+                          child: IconButton.filled(
+                            key: Key('send'),
+                            style: IconButton.styleFrom(
+                              minimumSize: const Size(40, 40),
+                              fixedSize: const Size(40, 40),
+                              shape: const CircleBorder(),
+                              backgroundColor: FireplaceUiTokens.of(context)
+                                  .accent,
+                              foregroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .onPrimary,
+                            ),
+                            onPressed:
+                                !canSubmit ||
+                                    (editing && editingBusy) ||
+                                    text.text.trim().isEmpty ||
+                                    !hasSession
+                                ? null
+                                : submit ?? send!.send,
+                            tooltip: editing ? 'Save edit' : 'Send message',
+                            icon: editing && editingBusy
+                                ? SizedBox.square(
+                                    dimension: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onPrimary,
+                                    ),
+                                  )
+                                : Icon(
+                                    editing
+                                        ? Icons.check_rounded
+                                        : Icons.arrow_upward_rounded,
                                   ),
-                                )
-                              : Icon(
-                                  editing
-                                      ? Icons.check_rounded
-                                      : Icons.arrow_upward_rounded,
-                                ),
+                          ),
                         ),
                       ),
                     ],

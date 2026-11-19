@@ -16,6 +16,7 @@ import 'package:fireplace/src/view/chat_list/chat_row_menu.dart';
 import 'package:fireplace/src/view/chat/chat_safety_actions.dart';
 import 'package:fireplace/src/view/safety/safety_action_sheet.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 /// One conversation row: avatar, name and date on the first line, then a
 /// two-line preview with the unread count beside its second line.
@@ -139,7 +140,7 @@ class ChatTile extends ConsumerWidget {
         const ChatRowAction(
           id: 'delete',
           label: 'Delete',
-          icon: Icons.delete_outline,
+          icon: ActionIcons.delete,
           destructive: true,
         ),
       ],

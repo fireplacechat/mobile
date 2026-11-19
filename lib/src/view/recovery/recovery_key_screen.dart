@@ -6,6 +6,7 @@ import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 /// Create or replace the recovery key. The key is shown once and never stored.
 class RecoveryKeyScreen extends ConsumerStatefulWidget {
@@ -221,7 +222,7 @@ class _RecoveryKeyScreenState extends ConsumerState<RecoveryKeyScreen> {
               TextButton.icon(
                 key: const Key('copyRecoveryKey'),
                 onPressed: _copying ? null : _copyKey,
-                icon: Icon(Icons.copy),
+                icon: Icon(ActionIcons.copy),
                 label: Text(_copying ? 'Copying…' : 'Copy'),
               ),
               if (_copyError != null) UiActionError(message: _copyError!),

@@ -4,9 +4,9 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
+import 'package:fireplace/src/view/settings/security_code_screen.dart';
 import 'package:fireplace/src/view/settings/browser_error_dialog.dart';
 import 'package:fireplace/src/model/common/external_browser.dart';
-import 'package:fireplace/fireplace_crypto.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/account/lost_phone_wait_screen.dart';
 import 'package:fireplace/src/model/account/takeover.dart';
@@ -28,6 +28,7 @@ import 'package:fireplace/src/model/settings/send_sound_preference.dart';
 import 'package:fireplace/src/view/settings/theme_mode_tile.dart';
 import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
 import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -38,8 +39,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _busy = false;
-  String? _error, _fingerprintFor;
-  Future<String>? _fingerprint;
+  String? _error;
   Future<void> _run(Future<void> Function() action) async {
     if (_busy) return;
     setState(() {
@@ -87,10 +87,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final s = session.value;
     final activity = ref.watch(chatActivityProvider);
     final bubbleColors = ref.watch(chatBubbleColorsProvider);
-    if (s != null && _fingerprintFor != '${s.uid}/${s.device.keys.deviceId}') {
-      _fingerprintFor = '${s.uid}/${s.device.keys.deviceId}';
-      _fingerprint = identityFingerprint(s.device.identity.publicBytes);
-    }
     return Scaffold(
       appBar: UiAppBar(context: context, title: Text('Settings')),
       body: s == null
@@ -238,24 +234,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 UiSettingsSection(
                   title: 'Privacy and security',
                   children: [
-                    FutureBuilder<String>(
-                      future: _fingerprint,
-                      builder: (_, snap) => ListTile(
-                        leading: Icon(Icons.fingerprint),
-                        title: Text(
-                          snap.data ?? '…',
-                          style: TextStyle(fontFamily: 'monospace'),
-                        ),
-                        subtitle: Text('Your identity fingerprint'),
-                      ),
-                    ),
+                    // Codes are behind a row that says what they are for,
+                    // not shown here as hex (issue 202).
                     ListTile(
-                      leading: Icon(Icons.phone_android),
-                      title: Text(
-                        s.device.keys.deviceId,
-                        style: TextStyle(fontFamily: 'monospace', fontSize: 13),
-                      ),
-                      subtitle: Text('This device'),
+                      key: const Key('securityCode'),
+                      leading: const Icon(Icons.fingerprint),
+                      title: const Text('Security code'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _busy
+                          ? null
+                          : () => _open(const SecurityCodeScreen()),
                     ),
                     ListTile(
                       key: Key('blockedPeople'),
@@ -287,13 +275,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ? null
                           : () => _open(const RecoveryKeyScreen()),
                     ),
-                    LostPhoneWaitTile(
-                      wait:
-                          ref.watch(lostPhoneWaitProvider(s.uid)).value ??
-                          LostPhoneWait.standard,
-                      enabled: !_busy,
-                      onChanged: (wait) => _setWait(s, wait),
-                    ),
+                    // Offered only where the server keeps a new phone waiting.
+                    if (ref.watch(lostPhoneWaitProvider(s.uid)).value
+                        case final wait?)
+                      LostPhoneWaitTile(
+                        wait: wait,
+                        enabled: !_busy,
+                        onChanged: (wait) => _setWait(s, wait),
+                      ),
                     ListTile(
                       key: Key('linkDevice'),
                       leading: Icon(Icons.add_to_home_screen),
@@ -311,7 +300,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ListTile(
                       key: Key('deleteAccountTile'),
                       leading: Icon(
-                        Icons.delete_forever,
+                        ActionIcons.delete,
                         color: FireplaceUiTokens.of(context).danger,
                       ),
                       title: Text(

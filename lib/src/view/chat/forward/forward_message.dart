@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
+import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
@@ -34,7 +36,10 @@ Future<void> forwardMessages(
       builder: (ctx) => UiDialog(
         title: const Text('Share this message?'),
         content: Text(
-          'You are sharing text @$name wrote to you. It will be sent as a new message from you.',
+          // A group's messages can come from several people.
+          name.isEmpty
+              ? 'You are sharing text other people wrote. It will be sent as a new message from you.'
+              : 'You are sharing text $name wrote to you. It will be sent as a new message from you.',
         ),
         actions: [
           TextButton(
@@ -110,6 +115,24 @@ class _ForwardMessageScreenState extends ConsumerState<ForwardMessageScreen> {
       ref.read(chatActivityProvider.notifier).eligible(c) &&
       (c.accepted || c.requestCount < ChatService.requestLimit) &&
       !_finished.containsKey(c.chatId);
+
+  /// Whether the conversation forwarded from is still open: a 1:1 chat not
+  /// on hold, or a group this phone is still in.
+  bool _sourceOpen({bool watch = false}) {
+    final chatId = widget.message.chatId;
+    if (isGroupChatId(chatId)) {
+      final groups = watch
+          ? ref.watch(groupsProvider)
+          : ref.read(groupsProvider);
+      return groups.value?.containsKey(gidOfChat(chatId)) == true;
+    }
+    final source = watch
+        ? ref.watch(chatSummaryProvider(chatId))
+        : ref.read(chatSummaryProvider(chatId));
+    return source != null &&
+        ref.read(chatActivityProvider.notifier).eligible(source);
+  }
+
   Future<void> _send() async {
     if (_busy || _selected.isEmpty || _tooLong) {
       return;
@@ -133,9 +156,7 @@ class _ForwardMessageScreenState extends ConsumerState<ForwardMessageScreen> {
         continue;
       }
       // Also fence the source if its peer is put on hold while selecting recipients.
-      final source = ref.read(chatSummaryProvider(widget.message.chatId));
-      if (source == null ||
-          !ref.read(chatActivityProvider.notifier).eligible(source)) {
+      if (!_sourceOpen()) {
         setState(
           () => _error = 'This conversation is on hold or unavailable. Nothing more was forwarded.',
         );
@@ -207,9 +228,7 @@ class _ForwardMessageScreenState extends ConsumerState<ForwardMessageScreen> {
     ref.watch(blockedUidsProvider);
     ref.watch(hiddenChatsProvider);
     ref.watch(identityAlertsProvider);
-    final source = ref.watch(chatSummaryProvider(widget.message.chatId));
-    if (source == null ||
-        !ref.read(chatActivityProvider.notifier).eligible(source)) {
+    if (!_sourceOpen(watch: true)) {
       return Scaffold(
         appBar: UiAppBar(
           context: context,

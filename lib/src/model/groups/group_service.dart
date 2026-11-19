@@ -213,6 +213,16 @@ class GroupService {
   Future<void> showOlderMessages(String gid) =>
       _messages.showOlder(groupChatId(gid), more: ChatTuning.historyWindow);
 
+  /// One message of the group on this device, shown in the history or not
+  /// (a pinned message can be older than what is loaded).
+  Future<LocalMessage?> message(String gid, String messageId) =>
+      _messages.get(groupChatId(gid), messageId);
+
+  /// Gives [watchMessages] everything from [messageId] on, so a jump to it
+  /// finds its row.
+  Future<void> revealMessage(String gid, String messageId) =>
+      _messages.reveal(groupChatId(gid), messageId);
+
   MemberColors colorsOf(String gid) =>
       Map.unmodifiable(_colors[gid] ?? const {});
   Stream<String> get colorChanges => _colorsCtrl.stream;
@@ -1271,7 +1281,14 @@ class GroupService {
   // ---------------------------------------------------------------- membership
 
   /// Creates a group and invites [members] (uids of accepted 1:1 contacts).
-  Future<String> create(String name, List<String> members) async {
+  /// With [awaitInvites] off it returns as soon as the group exists and the
+  /// invitations go out after, one by one (issue 204): New group opens the
+  /// group at once, and each invitation shows in it as it is sent.
+  Future<String> create(
+    String name,
+    List<String> members, {
+    bool awaitInvites = true,
+  }) async {
     final gid = b64(randomBytes(16))
         .replaceAll('+', '-')
         .replaceAll('/', '_')
@@ -1295,10 +1312,22 @@ class GroupService {
     // here; start watching it now either way.
     if (!_groupSubs.containsKey(gid)) _watch(gid);
     unawaited(_sendProfile(gid));
-    for (final m in members) {
-      await invite(gid, m).catchError((Object _) {});
+    final invites = _inviteAll(gid, members);
+    if (awaitInvites) {
+      await invites;
+    } else {
+      unawaited(invites);
     }
     return gid;
+  }
+
+  /// One that cannot be invited now is skipped; Add people can try again.
+  /// Signing out meanwhile stops the rest.
+  Future<void> _inviteAll(String gid, List<String> members) async {
+    for (final m in members) {
+      if (_closed) return;
+      await invite(gid, m).catchError((Object _) {});
+    }
   }
 
   /// Invites [memberUid] and adds their devices to the MLS group in the same

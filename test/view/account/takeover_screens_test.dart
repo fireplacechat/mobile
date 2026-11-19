@@ -223,6 +223,22 @@ void main() {
     expect(picked, LostPhoneWait.twoWeeks);
   });
 
+  testWidgets('Settings offers no wait where the server has none (issue 205)', (
+    t,
+  ) async {
+    final f = UiFixture()..takeover.server = false;
+    await host(t, f, const SettingsScreen());
+    await t.scrollUntilVisible(
+      find.byKey(const Key('linkDevice')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await flush(t);
+    expect(find.byKey(const Key('lostPhoneWait')), findsNothing);
+    // The rest of the section is still there.
+    expect(find.byKey(const Key('recoveryKey')), findsOneWidget);
+  });
+
   testWidgets('Settings shows the wait and saves a new one through this '
       'device', (t) async {
     final f = UiFixture()..takeover.chosen = LostPhoneWait.oneWeek;

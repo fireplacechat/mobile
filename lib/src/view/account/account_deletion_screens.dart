@@ -11,6 +11,7 @@ import 'package:fireplace/src/model/account/auth_service.dart';
 import 'package:fireplace/src/styles/brand/logo.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
+import 'package:fireplace/src/styles/action_icons.dart';
 
 const _whatIsDeleted = <String>[
   'Your username, profile and sign-in account',
@@ -143,7 +144,7 @@ class _DeleteAccountScreenState extends ConsumerState<DeleteAccountScreen> {
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.delete_outline, size: 20),
+                leading: Icon(ActionIcons.delete, size: 20),
                 title: Text(t),
               ),
             SizedBox(height: 8),
