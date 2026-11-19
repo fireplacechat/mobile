@@ -26,7 +26,10 @@ import 'package:fireplace/src/view/chat_list/widgets/chat_tile.dart';
 import 'package:fireplace/src/view/chat_list/widgets/new_chat_icon.dart';
 
 class ChatListScreen extends ConsumerStatefulWidget {
-  const ChatListScreen({super.key});
+  const ChatListScreen({super.key, this.header});
+
+  /// Above the search field, such as the recovery key notice.
+  final Widget? header;
 
   @override
   ConsumerState<ChatListScreen> createState() => _ChatListScreenState();
@@ -133,6 +136,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
       body: UiBodyViewport(
         child: Column(
           children: [
+            ?widget.header,
             Padding(
               padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: ChatSearchField(
