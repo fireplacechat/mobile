@@ -179,7 +179,9 @@ class AccountService {
     if (username != null) {
       final nameRef = _db.collection('usernames').doc(username);
       final name = await nameRef.get(const GetOptions(source: Source.server));
-      if (name.exists && name.data()?['uid'] == uid) await nameRef.delete();
+      if (name.exists && name.data()?['uid'] == uid) {
+        await _deleteOrGone(nameRef, stillThere: (d) => d['uid'] == uid);
+      }
     }
     await profileRef.delete();
 
@@ -225,17 +227,52 @@ class AccountService {
     }
   }
 
+  // Firestore sends a pending write again when the connection drops before
+  // the server answers. If the first send had worked, the second deletes
+  // documents that are gone, and the rules for messages and usernames refuse
+  // that (they read `resource.data`, which is null then). So a refused delete
+  // is checked against the server: gone means an earlier send did it (issue
+  // 119). Still there means a real refusal, which stops the deletion.
+
+  /// Deletes [q]'s documents a page at a time.
   Future<void> _deleteQuery(Query<Map<String, dynamic>> q) async {
+    FirebaseException? refusal;
+    var refusedPaths = const <String>{};
     while (true) {
       final snap = await q
           .limit(400)
           .get(const GetOptions(source: Source.server));
       if (snap.docs.isEmpty) return;
+      final paths = {for (final d in snap.docs) d.reference.path};
+      if (refusal != null && paths.any(refusedPaths.contains)) throw refusal;
       final batch = _db.batch();
       for (final d in snap.docs) {
         batch.delete(d.reference);
       }
-      await batch.commit();
+      try {
+        await batch.commit();
+        refusal = null;
+      } on FirebaseException catch (e) {
+        if (e.code != 'permission-denied') rethrow;
+        // A batch is all or nothing: the next page shows which it was.
+        (refusal, refusedPaths) = (e, paths);
+      }
+    }
+  }
+
+  /// Deletes [ref]; a refusal counts only if [stillThere] says the document
+  /// on the server is still the one being deleted.
+  Future<void> _deleteOrGone(
+    DocumentReference<Map<String, dynamic>> ref, {
+    required bool Function(Map<String, dynamic> data) stillThere,
+  }) async {
+    try {
+      await ref.delete();
+    } on FirebaseException catch (e) {
+      if (e.code != 'permission-denied') rethrow;
+      final now = await ref.get(const GetOptions(source: Source.server));
+      final data = now.data();
+      if (data != null && stillThere(data)) rethrow;
     }
   }
 }
