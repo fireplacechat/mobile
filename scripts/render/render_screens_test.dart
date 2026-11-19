@@ -15,6 +15,7 @@ import 'legal_cases.dart';
 import 'selection_copy_cases.dart';
 import 'startup_cases.dart';
 import 'account_deletion_cases.dart';
+import 'passphrase_lock_cases.dart';
 
 import 'dart:convert';
 import 'dart:io';
@@ -162,6 +163,7 @@ void main() {
     ...replyEditCases,
     ...referenceCases,
     ...accentCases,
+    ...passphraseLockCases(),
     for (final mine in [false, true])
       CatalogCase(
         mine ? 'message-actions-outgoing' : 'message-actions-incoming',

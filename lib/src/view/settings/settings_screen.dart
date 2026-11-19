@@ -4,6 +4,8 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
+import 'package:fireplace/src/app/passphrase_lock_providers.dart';
+import 'package:fireplace/src/view/lock/passphrase_lock_screen.dart';
 import 'package:fireplace/src/view/settings/security_code_screen.dart';
 import 'package:fireplace/src/view/settings/browser_error_dialog.dart';
 import 'package:fireplace/src/model/common/external_browser.dart';
@@ -245,6 +247,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ? null
                           : () => _open(const SecurityCodeScreen()),
                     ),
+                    if (ref.watch(passphraseLockServiceProvider) != null)
+                      ListTile(
+                        key: const Key('passphraseLock'),
+                        leading: const Icon(Icons.lock_outline),
+                        title: const Text('Passphrase lock'),
+                        subtitle: Text(
+                          ref.watch(passphraseLockProvider).value?.on == true
+                              ? 'On'
+                              : 'Off',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: _busy
+                            ? null
+                            : () => _open(const PassphraseLockScreen()),
+                      ),
                     ListTile(
                       key: Key('blockedPeople'),
                       leading: Icon(Icons.block),

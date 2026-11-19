@@ -9,13 +9,19 @@ import 'package:fireplace/src/db/shared_lock.dart';
 Future<void> eraseAccountSecrets(SecretStore store, String uid) async {
   final snapshot = await store.readAll();
   final devices = <String>{};
-  for (final kind in ['device', 'bundle']) {
+  // `device:` is unreadable while the passphrase lock wraps it (decision
+  // 0033); `bundle:` and the lock record name the device too.
+  for (final (kind, field) in [
+    ('device', 'deviceId'),
+    ('bundle', 'deviceId'),
+    ('passlock', 'device'),
+  ]) {
     final raw = snapshot['$kind:$uid'];
     if (raw == null) continue;
     try {
       final value = jsonDecode(raw);
-      if (value is Map && value['deviceId'] is String) {
-        devices.add(value['deviceId'] as String);
+      if (value is Map && value[field] is String) {
+        devices.add(value[field] as String);
       }
     } on FormatException {
       // Prekey names can still identify devices if a JSON record is damaged.
@@ -42,6 +48,8 @@ Future<void> eraseAccountSecrets(SecretStore store, String uid) async {
     'pushhidename',
     'pushsilent',
     'pushchats',
+    'passlock',
+    'passlockpepper',
   ];
   final exact = {for (final kind in accountKinds) '$kind:$uid'};
   exact.addAll([
