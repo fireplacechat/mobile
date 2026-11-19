@@ -1,14 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/view/groups/contact_picker.dart';
+import 'package:fireplace/src/view/groups/creating_group_splash.dart';
+import 'package:fireplace/src/view/groups/group_chat_screen.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
 
 /// Names a new group and picks who to invite. People are invited, not added:
-/// each one joins only after accepting. Pops with the new group's id.
+/// each one joins only after accepting. Create shows the Creating splash until
+/// the group exists, then the group takes this page's place; the invitations
+/// go out from there (issue 204).
 class NewGroupScreen extends ConsumerStatefulWidget {
   const NewGroupScreen({super.key});
   @override
@@ -38,8 +44,19 @@ class _NewGroupScreenState extends ConsumerState<NewGroupScreen> {
       _error = null;
     });
     try {
-      final gid = await service.create(_name.text.trim(), _picked.toList());
-      if (mounted) Navigator.of(context).pop(gid);
+      final gid = await service.create(
+        _name.text.trim(),
+        _picked.toList(),
+        awaitInvites: false,
+      );
+      if (!mounted) return;
+      // The splash stays until the group has slid in over it.
+      unawaited(
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (_) => GroupChatScreen(gid: gid)),
+        ),
+      );
+      return;
     } on GroupRefused catch (e) {
       if (mounted) setState(() => _error = e.message);
     } on GroupActionError catch (e) {
@@ -48,13 +65,14 @@ class _NewGroupScreenState extends ConsumerState<NewGroupScreen> {
       if (mounted) {
         setState(() => _error = 'Could not create the group. Try again.');
       }
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
+    // Not made: back to the page, with the reason above.
+    if (mounted) setState(() => _busy = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_busy) return const CreatingGroupSplash();
     final contacts = ref.watch(groupContactsProvider);
     return Scaffold(
       appBar: UiAppBar(

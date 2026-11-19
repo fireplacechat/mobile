@@ -30,6 +30,7 @@ import 'package:fireplace/src/view/auth/auth_screen.dart';
 import 'package:fireplace/src/view/chat/chat_details_screen.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
+import 'package:fireplace/src/view/groups/creating_group_splash.dart';
 import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/search/message_search_results.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
@@ -50,6 +51,7 @@ import 'package:fireplace/src/model/account/takeover.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/view/safety/blocked_users_screen.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
+import 'package:fireplace/src/view/settings/security_code_screen.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
 import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
@@ -647,6 +649,14 @@ void main() {
     const CatalogCase('message-request', ChatScreen(chatId: 'alice_theo')),
     const CatalogCase('requests', RequestsScreen()),
     CatalogCase(
+      'new-chat',
+      const ChatListScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('newChat')));
+        await t.pumpAndSettle();
+      },
+    ),
+    CatalogCase(
       'chat-details',
       ChatDetailsScreen(
         peerUid: 'fred',
@@ -709,6 +719,20 @@ void main() {
         await t.pumpAndSettle();
       },
     ),
+    CatalogCase(
+      'settings-privacy',
+      const SettingsScreen(),
+      act: (t, f) async {
+        await t.scrollUntilVisible(
+          find.text('Privacy and security'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await t.ensureVisible(find.text('Privacy and security'));
+        await t.pumpAndSettle();
+      },
+    ),
+    const CatalogCase('security-code', SecurityCodeScreen()),
     CatalogCase(
       'settings-account-actions',
       const SettingsScreen(),
@@ -799,6 +823,14 @@ void main() {
     ),
     const CatalogCase('devices', DevicesScreen()),
     CatalogCase(
+      'device-details',
+      const DevicesScreen(),
+      act: (t, f) async {
+        await t.tap(find.byKey(const Key('device_example-second-device')));
+        await openSheet(t);
+      },
+    ),
+    CatalogCase(
       'devices-remove',
       const DevicesScreen(),
       act: (t, f) async {
@@ -882,6 +914,8 @@ void main() {
       'loading',
       FireplaceSplash(message: 'Preparing your account…'),
     ),
+    // New group while the group is made (issue 204).
+    const CatalogCase('creating-group', CreatingGroupSplash()),
     CatalogCase(
       'auth-error',
       const AuthGate(),

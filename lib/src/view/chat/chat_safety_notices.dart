@@ -83,7 +83,7 @@ class ChatSafetyNotices extends StatelessWidget {
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Text(
-                'Message request sent. @$name sees it once they accept '
+                'Message request sent. $name sees it once they accept '
                 '($requestsLeft left).',
                 key: Key('requestSentNote'),
                 style: Theme.of(context).textTheme.bodySmall,

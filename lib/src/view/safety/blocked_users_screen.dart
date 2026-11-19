@@ -73,7 +73,7 @@ class _BlockedTileState extends ConsumerState<_BlockedTile> {
         ListTile(
           key: Key('blocked_${widget.uid}'),
           leading: const Icon(Icons.block),
-          title: Text('@$name'),
+          title: Text(name),
           subtitle: _busy ? const Text('Unblocking…') : null,
           trailing: TextButton(
             key: Key('unblock_${widget.uid}'),
