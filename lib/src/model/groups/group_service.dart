@@ -338,10 +338,18 @@ class GroupService {
     }
     await _tail.catchError((Object _) {});
     _crypto.close();
-    await _groupsCtrl.close();
-    await _invitesCtrl.close();
-    await _colorsCtrl.close();
-    await _rosterCtrl.close();
+    // Not awaited: a broadcast stream's close waits until every listener has
+    // taken the done event, and one that is paused (a provider out of view,
+    // which Riverpod pauses) never does. Waiting here hung account deletion
+    // on the Delete account page (issue 119).
+    for (final controller in [
+      _groupsCtrl,
+      _invitesCtrl,
+      _colorsCtrl,
+      _rosterCtrl,
+    ]) {
+      unawaited(controller.close());
+    }
   }
 
   // ---------------------------------------------------------------- the core

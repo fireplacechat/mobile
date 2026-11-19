@@ -8,6 +8,9 @@ import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/model/invites/invite_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// No deletion server in these tests: the app deletes the rest itself.
+const noServer = Duration(milliseconds: 50);
+
 class Phone {
   Phone(this.db, this.uid) : secrets = MemorySecretStore();
   final FakeFirebaseFirestore db;
@@ -98,6 +101,7 @@ void main() {
     Future<void> Function(User, String)? reauth,
     List<String>? log,
   }) => AccountService(
+    serverPickup: noServer,
     auth: auth,
     db: db,
     secrets: p.secrets,
@@ -361,6 +365,7 @@ void main() {
     );
     final auth = signedInAs('alice');
     await AccountService(
+      serverPickup: noServer,
       auth: auth,
       db: guarded,
       secrets: MemorySecretStore(),
@@ -391,6 +396,7 @@ void main() {
       ..removeWhere((key, value) => alice.secrets.data.containsKey(key));
     final auth = signedInAs('alice');
     await AccountService(
+      serverPickup: noServer,
       auth: auth,
       db: db,
       secrets: shared,
@@ -420,6 +426,7 @@ void main() {
       final auth = signedInAs('example');
       var fail = true;
       final service = AccountService(
+        serverPickup: noServer,
         auth: auth,
         db: isolated,
         secrets: store,

@@ -92,10 +92,10 @@ decrypted, so the message must be on disk before the app goes on (decision
 3. **Read flags, summaries and pages** (issues 180 and 181): unread becomes an
    indexed count, the chat list reads one row per chat, a conversation loads its
    newest messages and fetches older ones on scrolling up.
-4. **Search** in the database.
+4. **Search** in the database. Done; see *Search (step 4)*.
 5. **Sessions, receive journal and cursors** move in, written in the same
    transaction as the message. This changes the protocol's crash safety and is
-   its own decision.
+   its own decision: 0065 proposes not doing it.
 
 ## The switch (step 2)
 
@@ -152,6 +152,34 @@ decrypted, so the message must be on disk before the app goes on (decision
   first, so a message arriving meanwhile stays unread.
 - Schema version 2 adds a status column, so a count can leave out lines that
   are not readable messages (group notices) without opening each record.
+
+## Search (step 4)
+
+Search used to read every message of every chat into memory and scan them on
+an isolate. Now the database finds the matches.
+
+- SQLite's `lower()` and `LIKE` fold ASCII only, and the text in a record still
+  has its formatting marks. So the query cannot be plain SQL without changing
+  what matches. Instead the search registers an application function,
+  `fp_matches`, that runs the app's own matcher (`messageMatcher`, the same
+  folding as before) on each message's text.
+- It runs on an isolate of its own, over a read-only connection of its own,
+  opened with the same key and closed when the search ends. The UI is not held
+  while a long history is scanned, and only the newest 100 matches are read
+  back and decoded.
+- Readable messages only: `visible = 1`, `status = 'ok'`, and not deleted by
+  their author. An edited message is found by its current text.
+- A chat still in its file from before the database is imported first. One
+  whose file cannot be read is skipped, as before.
+- There is no index: every search still visits each message once, inside
+  SQLite. An index would mean a second, folded copy of the text in the file,
+  with its own deletion guarantees (see *Deletion*). Not needed at today's
+  sizes.
+- The key is copied to the search isolate for as long as the search runs, as
+  the background push handler's own connection already holds it.
+
+Cost: no Firestore reads or writes. One extra local connection while a search
+runs.
 
 ## Cost and size
 

@@ -183,6 +183,12 @@ class FixtureChat extends Fake implements ChatService {
       store.get(chatId, messageId);
   @override
   Future<List<LocalMessage>> allMessages(String chatId) => store.all(chatId);
+  @override
+  Future<List<LocalMessage>> findMessages(
+    Set<String> chatIds,
+    bool Function(String body) matches, {
+    int limit = 100,
+  }) => store.search(chatIds, matches, limit: limit);
   final cleared = <String>{};
   final _clearedChanges = StreamController<void>.broadcast();
   @override
@@ -401,6 +407,11 @@ class UiFixture {
   final MemorySecretStore secrets;
   List<Override> get overrides => [
     appSessionProvider.overrideWithValue(AsyncData(session)),
+    ...overridesWithoutSession,
+  ];
+
+  /// [overrides] without the session, for a test that provides its own.
+  List<Override> get overridesWithoutSession => [
     messageControlNowProvider.overrideWithValue(() => now),
     secretStoreProvider.overrideWithValue(secrets),
     peerUsernameProvider.overrideWith(

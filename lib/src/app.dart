@@ -20,6 +20,9 @@ import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
 import 'package:fireplace/src/widgets/page_return_observer.dart';
+import 'package:fireplace/src/app/passphrase_lock_providers.dart';
+import 'package:fireplace/src/view/lock/auto_lock.dart';
+import 'package:fireplace/src/view/lock/unlock_screen.dart';
 
 class FireplaceApp extends ConsumerStatefulWidget {
   const FireplaceApp({super.key});
@@ -113,6 +116,13 @@ class _AuthGateState extends ConsumerState<AuthGate> {
         setState(_startMinimum);
       }
     });
+    // Locking closes every page opened over the chat list: the unlock screen
+    // replaces it, and nothing of the account may stay on screen above it.
+    ref.listen(passphraseLockProvider, (before, now) {
+      if (now.value?.locked == true && before?.value?.locked != true) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    });
     return user.when(
       loading: () => _Splash(),
       error: (e, _) => const _AuthError(),
@@ -123,7 +133,9 @@ class _AuthGateState extends ConsumerState<AuthGate> {
             .when(
               skipLoadingOnRefresh: false,
               loading: () => _Splash(message: 'Preparing your account…'),
-              error: (e, _) => e is AccountDeletionPending
+              error: (e, _) => e is PassphraseLocked
+                  ? const UnlockScreen()
+                  : e is AccountDeletionPending
                   ? DeleteAccountScreen(resume: true)
                   : e is NeedsRecoveryException
                   ? NewDeviceScreen(uid: u.uid)
@@ -135,9 +147,11 @@ class _AuthGateState extends ConsumerState<AuthGate> {
                       !ref.watch(chatListWarmupProvider.select(_settled)) ||
                       !_minimumElapsed
                   ? _Splash()
-                  : TakeoverGuard(
-                      uid: s.uid,
-                      child: ChatListScreen(header: BackupNotice()),
+                  : AutoLockGuard(
+                      child: TakeoverGuard(
+                        uid: s.uid,
+                        child: ChatListScreen(header: BackupNotice()),
+                      ),
                     ),
             );
       },

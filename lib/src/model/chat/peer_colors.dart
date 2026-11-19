@@ -57,5 +57,7 @@ class PeerColors {
     }
   }
 
-  Future<void> close() => _changes.close();
+  /// Not waiting for listeners: a paused one would hold the session's close
+  /// (issue 119).
+  Future<void> close() async => unawaited(_changes.close());
 }

@@ -30,6 +30,15 @@ the Auth account last and explicitly sign out; a different newly selected accoun
 must not be signed out/deleted. Partial failure stays fenced and can be resumed
 with the password; no recovery key or successful crypto startup is needed.
 
+A refused delete is read back from the server before it counts. Firestore sends
+a write again when the connection drops before the reply; the second send then
+deletes a document that is already gone, and the message and username rules
+(which read `resource.data`) refuse it. Gone means the first send worked; still
+there is a real refusal and stops the deletion (issue 119). No rule changes.
+
+Decision 0066 moves the server-side part to a function; the steps above stay
+as the app's fallback when the server does not take the request.
+
 ## One local account at a time
 
 Enumerate the existing secure store, select exact UID keys and the owner element
