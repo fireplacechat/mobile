@@ -26,6 +26,10 @@ class CreateGroup extends NewChatChoice {
 /// The panel behind the New chat button: a "To:" field, *Create group*, and
 /// the people you already chat with. Typing filters the list; a username that
 /// is not in it can be messaged directly.
+///
+/// It can be dragged down to close (issue 239): it follows the finger and
+/// shows the chat list behind it, a short drag settles back, and a list
+/// scrolled down first scrolls back to the top.
 class NewChatSheet extends ConsumerStatefulWidget {
   const NewChatSheet({super.key});
 
@@ -35,9 +39,9 @@ class NewChatSheet extends ConsumerStatefulWidget {
         isScrollControlled: true,
         useSafeArea: true,
         showDragHandle: false,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-        ),
+        // The panel paints itself, so its background moves with the drag.
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         builder: (_) => const NewChatSheet(),
       );
 
@@ -125,8 +129,57 @@ class _NewChatSheetState extends ConsumerState<NewChatSheet> {
         .firstOrNull;
     final typed = _to.text.trim();
     final canMessage = exact == null && AuthService.isValidUsername(typed);
+    final sheet = Theme.of(context).bottomSheetTheme;
+    final background =
+        sheet.modalBackgroundColor ??
+        sheet.backgroundColor ??
+        Theme.of(context).colorScheme.surfaceContainerLow;
+    return LayoutBuilder(
+      builder: (context, outer) => DraggableScrollableSheet(
+        initialChildSize: 1,
+        // Not while a chat is starting: the panel waits for the answer.
+        minChildSize: _busy ? 1 : 0,
+        snap: true,
+        builder: (context, scroll) => Material(
+          color: background,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: ClipRect(
+            child: OverflowBox(
+              alignment: Alignment.topCenter,
+              minHeight: outer.maxHeight,
+              maxHeight: outer.maxHeight,
+              child: _content(
+                context,
+                t,
+                chats,
+                shown,
+                canMessage,
+                typed,
+                groupsOn,
+                scroll,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _content(
+    BuildContext context,
+    FireplaceUiTokens t,
+    List<ChatSummary> chats,
+    List<ChatSummary> shown,
+    bool canMessage,
+    String typed,
+    bool groupsOn,
+    ScrollController scroll,
+  ) {
     return SizedBox(
-      height: MediaQuery.sizeOf(context).height,
+      height: double.infinity,
       child: Column(
         children: [
           SizedBox(
@@ -229,6 +282,7 @@ class _NewChatSheetState extends ConsumerState<NewChatSheet> {
           Expanded(
             child: ListView(
               key: const Key('newChatList'),
+              controller: scroll,
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               children: [
                 if (groupsOn && _query.isEmpty)
