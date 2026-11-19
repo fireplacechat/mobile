@@ -123,14 +123,22 @@ class SafetyService {
   ///
   /// The document is only the two account ids, the reason and the time. There
   /// is no field for message text, and this method cannot add one.
-  Future<void> reportSpam(String peerUid) async {
-    await _db.collection('reports').doc('${uid}_$peerUid').set({
+  /// Sends the report, or throws when the server cannot be reached. A plain
+  /// write would be queued offline and wait without end, then go out later on
+  /// its own; a transaction needs the server now, so the person is told and
+  /// decides whether to try again (issue 120). Reporting twice is one report.
+  Future<void> reportSpam(String peerUid) => _db.runTransaction<void>(
+    (tx) async => tx.set(_db.collection('reports').doc('${uid}_$peerUid'), {
       'reporter': uid,
       'reported': peerUid,
       'reason': 'spam',
       'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
+    }),
+    timeout: reportTimeout,
+  );
+
+  /// How long a report may take before the person is told it did not go.
+  static const reportTimeout = Duration(seconds: 15);
 
   // ------------------------------------------------------------ hidden requests
 
