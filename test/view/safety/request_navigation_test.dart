@@ -41,7 +41,9 @@ void main() {
         await t.pumpAndSettle();
         expect(find.byType(ChatScreen), findsOneWidget);
         expect(find.byKey(const Key('composer')), findsOneWidget);
-        if (banner) {
+        if (banner &&
+            Theme.of(t.element(find.byType(ChatScreen))).platform ==
+                TargetPlatform.android) {
           final gesture = await dragRight(t, 260);
           await gesture.up();
         } else {
@@ -51,7 +53,10 @@ void main() {
         expect(find.byType(ChatListScreen), findsOneWidget);
         expect(find.byType(RequestsScreen), findsNothing);
       },
-      variant: TargetPlatformVariant.only(TargetPlatform.android),
+      variant: TargetPlatformVariant(<TargetPlatform>{
+        TargetPlatform.android,
+        TargetPlatform.iOS,
+      }),
     );
   }
 
