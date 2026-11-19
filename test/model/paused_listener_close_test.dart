@@ -3,7 +3,6 @@
 // chat list, and deleting an account closes the session first. Closing a
 // broadcast stream waits for every listener to take the done event, so
 // awaiting it hung the deletion for good.
-import 'dart:async';
 import 'dart:io';
 
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
