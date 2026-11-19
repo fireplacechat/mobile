@@ -159,7 +159,6 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const Key('reviewGroupIdentity')), findsOneWidget);
-    expect(find.text('2 people'), findsOneWidget);
 
     await t.runAsync(() async {
       await alice.keys.acceptIdentityChange(
@@ -198,9 +197,24 @@ void main() {
     await t.pump();
     expect((create() as TextButton).onPressed, isNotNull);
     await t.tap(find.byKey(const Key('createGroup')));
+    await t.pump();
+    // The Creating splash while the group is made (issue 204).
+    expect(find.byKey(const Key('creatingGroup')), findsOneWidget);
+    expect(find.byKey(const Key('groupName')), findsNothing);
     await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
     expect(alice.service.groups.values.single.name, 'Book club');
     await settle(t, () => bob.service.invitations.isNotEmpty);
+    // The group took New group's place: Back is the chat list.
+    for (var i = 0; i < 10; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(NewGroupScreen), findsNothing);
+    await t.tap(find.byType(BackButton));
+    for (var i = 0; i < 10; i++) {
+      await t.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.byType(ChatListScreen), findsOneWidget);
+    expect(find.byType(GroupChatScreen), findsNothing);
     await tearDownPhones(t);
   });
 
@@ -219,23 +233,41 @@ void main() {
     await pump(t, GroupChatScreen(gid: gid));
     await settle(t, () => find.text('from Alice').evaluate().isNotEmpty);
     expect(find.text('bob'), findsOneWidget); // the name above Bob's run
-    expect(find.text('2 people'), findsOneWidget);
+    // The title is the name alone, at the size of a 1:1 chat's (issue 210).
+    expect(find.text('2 people'), findsNothing);
+    final title = t.widget<Text>(
+      find.descendant(
+        of: find.byKey(const Key('groupHeader')),
+        matching: find.text('Book club'),
+      ),
+    );
+    expect(title.style?.fontSize, 16);
 
     // The same held-message menu as a 1:1 chat.
     await t.longPress(find.text('from Bob'));
     await t.pumpAndSettle();
-    expect(action('deleteForEveryone'), findsNothing);
     expect(action('edit'), findsNothing);
-    expect(action('deleteForMe'), findsOneWidget);
     expect(action('react-👍'), findsOneWidget);
-    await t.tapAt(const Offset(10, 10));
+    // One Delete, then the 1:1 sheet (issue 209): someone else's message
+    // goes from this phone only.
+    await t.ensureVisible(action('delete'));
     await t.pumpAndSettle();
+    await t.tap(action('delete'));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('confirmDeleteForMe')), findsOneWidget);
+    expect(find.byKey(const Key('confirmRemoteDelete')), findsNothing);
+    await t.tap(find.byKey(const Key('cancelMessageDelete')));
+    await t.pumpAndSettle();
+    expect(find.text('from Bob'), findsOneWidget);
 
     await t.longPress(find.text('from Alice'));
     await t.pumpAndSettle();
     expect(action('edit'), findsOneWidget);
-    await t.tap(action('deleteForEveryone'));
+    await t.ensureVisible(action('delete'));
     await t.pumpAndSettle();
+    await t.tap(action('delete'));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('confirmDeleteForMe')), findsOneWidget);
     await t.tap(find.byKey(const Key('confirmRemoteDelete')));
     await settle(t, () => find.text('from Alice').evaluate().isEmpty);
     await t.runAsync(

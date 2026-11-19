@@ -14,23 +14,11 @@ import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
 
-/// Settings -> Account -> Invite friends: this account's invite codes.
+/// Invite friends, from the + at the top left of the chat list: this
+/// account's invite codes.
 /// It never shows who used a code.
 class InviteScreen extends ConsumerStatefulWidget {
   const InviteScreen({super.key});
-
-  /// Opened from the + at the top left of the chat list, so it slides in from
-  /// the left and its back arrow sits on the right.
-  static Route<void> route() => PageRouteBuilder<void>(
-    pageBuilder: (_, _, _) => const InviteScreen(),
-    transitionsBuilder: (_, animation, _, child) => SlideTransition(
-      position: Tween(
-        begin: const Offset(-1, 0),
-        end: Offset.zero,
-      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
-      child: child,
-    ),
-  );
   @override
   ConsumerState<InviteScreen> createState() => _InviteScreenState();
 }
@@ -135,20 +123,9 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
     );
     final t = FireplaceUiTokens.of(context);
     return Scaffold(
-      appBar: UiAppBar(
-        context: context,
-        leading: const SizedBox.shrink(),
-        leadingWidth: 0,
-        title: const Text('Invite friends'),
-        actions: [
-          IconButton(
-            key: const Key('inviteBack'),
-            tooltip: 'Back to chats',
-            icon: const Icon(Icons.arrow_forward),
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-        ],
-      ),
+      // Opens and closes as the pages beside it do: the back arrow at the top
+      // left (issue 203).
+      appBar: UiAppBar(context: context, title: const Text('Invite friends')),
       body: invites == null
           ? state.hasError
                 ? UiEmptyState(

@@ -193,6 +193,59 @@ void main() {
           await t.pump(const Duration(milliseconds: 600));
         },
       );
+      // The rest of the 1:1 controls (issue 209).
+      await render(
+        'conversation-delete',
+        GroupChatScreen(gid: mine),
+        act: () async {
+          await t.longPress(find.text('Thursday at 7, then'));
+          await t.pump(const Duration(milliseconds: 600));
+          await t.ensureVisible(
+            find.byKey(const ValueKey('messageAction-delete')),
+          );
+          await t.pump(const Duration(milliseconds: 300));
+          await t.tap(find.byKey(const ValueKey('messageAction-delete')));
+          for (var i = 0; i < 10; i++) {
+            await t.pump(const Duration(milliseconds: 100));
+          }
+        },
+      );
+      await render(
+        'conversation-selecting',
+        GroupChatScreen(gid: mine),
+        act: () async {
+          await t.longPress(find.text('Thursday works for me'));
+          await t.pump(const Duration(milliseconds: 600));
+          await t.ensureVisible(
+            find.byKey(const ValueKey('messageAction-select')),
+          );
+          await t.pump(const Duration(milliseconds: 300));
+          await t.tap(find.byKey(const ValueKey('messageAction-select')));
+          for (var i = 0; i < 10; i++) {
+            await t.pump(const Duration(milliseconds: 100));
+          }
+          await t.tap(find.text('Thursday at 7, then'));
+          await t.pump(const Duration(milliseconds: 300));
+        },
+      );
+      await render(
+        'conversation-pinned',
+        GroupChatScreen(gid: mine),
+        act: () async {
+          await t.longPress(
+            find.text('Yes. I have the first three chapters done'),
+          );
+          await t.pump(const Duration(milliseconds: 600));
+          await t.ensureVisible(
+            find.byKey(const ValueKey('messageAction-pin')),
+          );
+          await t.pump(const Duration(milliseconds: 300));
+          await t.tap(find.byKey(const ValueKey('messageAction-pin')));
+          for (var i = 0; i < 10; i++) {
+            await t.pump(const Duration(milliseconds: 100));
+          }
+        },
+      );
       await render(
         'conversation-editing',
         GroupChatScreen(gid: mine),

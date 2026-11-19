@@ -94,7 +94,7 @@ class _ChatDetailsScreenState extends ConsumerState<ChatDetailsScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            '@${w.name}',
+            w.name,
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge,
           ),

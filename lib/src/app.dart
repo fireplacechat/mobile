@@ -13,11 +13,10 @@ import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/account/takeover_alert.dart';
 import 'package:fireplace/src/view/auth/auth_screen.dart';
 import 'package:fireplace/src/view/devices/new_device_screen.dart';
-import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
+import 'package:fireplace/src/view/recovery/backup_notice.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
 import 'package:fireplace/src/styles/theme.dart';
-import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/notifications/in_app_notice.dart';
 import 'package:fireplace/src/widgets/page_return_observer.dart';
@@ -138,7 +137,7 @@ class _AuthGateState extends ConsumerState<AuthGate> {
                   ? _Splash()
                   : TakeoverGuard(
                       uid: s.uid,
-                      child: _BackupNudge(child: ChatListScreen()),
+                      child: ChatListScreen(header: BackupNotice()),
                     ),
             );
       },
@@ -248,72 +247,4 @@ class _StartupFailureState extends State<_StartupFailure> {
       ),
     ],
   );
-}
-
-/// Reminds the user (once per session) to create a recovery key.
-class _BackupNudge extends ConsumerStatefulWidget {
-  const _BackupNudge({required this.child});
-  final Widget child;
-  @override
-  ConsumerState<_BackupNudge> createState() => _BackupNudgeState();
-}
-
-class _BackupNudgeState extends ConsumerState<_BackupNudge> {
-  bool _shown = false;
-  ScaffoldMessengerState? _messenger;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _messenger = ScaffoldMessenger.maybeOf(context);
-  }
-
-  @override
-  void dispose() {
-    _messenger?.clearMaterialBanners();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final has = ref.watch(hasBackupProvider).value;
-    if (has == false && !_shown) {
-      _shown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        final m = ScaffoldMessenger.of(context);
-        m.showMaterialBanner(
-          MaterialBanner(
-            key: Key('backupBanner'),
-            backgroundColor: FireplaceUiTokens.of(context).warningSurface,
-            leading: Icon(
-              Icons.key,
-              color: FireplaceUiTokens.of(context).danger,
-            ),
-            content: Text(
-              'Create a recovery key so you can restore your account if you '
-              'lose this phone.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: m.hideCurrentMaterialBanner,
-                child: Text('Later'),
-              ),
-              TextButton(
-                onPressed: () {
-                  m.hideCurrentMaterialBanner();
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => RecoveryKeyScreen()),
-                  );
-                },
-                child: Text('Create'),
-              ),
-            ],
-          ),
-        );
-      });
-    }
-    if (has == true) _messenger?.clearMaterialBanners();
-    return widget.child;
-  }
 }

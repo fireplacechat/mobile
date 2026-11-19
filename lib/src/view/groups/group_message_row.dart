@@ -33,6 +33,10 @@ class GroupMessageRow extends ConsumerWidget {
     required this.showAvatar,
     required this.actions,
     required this.onReactions,
+    this.bubbleKey,
+    this.selecting = false,
+    this.selected = false,
+    this.onToggleSelection,
   });
   final String gid;
   final LocalMessage message;
@@ -42,6 +46,11 @@ class GroupMessageRow extends ConsumerWidget {
   final bool showName, showAvatar;
   final List<MessageAction> actions;
   final VoidCallback onReactions;
+
+  /// Lets a jump to this message (a pin) find its bubble.
+  final Key? bubbleKey;
+  final bool selecting, selected;
+  final VoidCallback? onToggleSelection;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -64,9 +73,13 @@ class GroupMessageRow extends ConsumerWidget {
         Padding(
           padding: EdgeInsets.only(bottom: reserve),
           child: MessageBubble(
+            key: bubbleKey,
             message: message,
             senderName: name,
             actions: actions,
+            selecting: selecting,
+            selected: selected,
+            onToggleSelection: onToggleSelection,
             incomingColor: mine ? null : color,
             quoteAuthor: quoteAuthor,
             liveOf: (previewRef) => previewRef
@@ -83,7 +96,7 @@ class GroupMessageRow extends ConsumerWidget {
           child: MessageReactions(
             message: message,
             peerName: name,
-            onSelect: onReactions,
+            onSelect: selecting ? onToggleSelection : onReactions,
           ),
         ),
       ],

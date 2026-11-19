@@ -176,7 +176,6 @@ class MessageSelectionSurface extends ConsumerWidget {
     final selection = ref.watch(messageSelectionProvider(chatId));
     final controller = ref.read(messageSelectionProvider(chatId).notifier);
     final count = selection.ids.length;
-    final t = FireplaceUiTokens.of(context);
     return PopScope(
       canPop: !selection.active,
       onPopInvokedWithResult: (didPop, result) {
@@ -206,60 +205,79 @@ class MessageSelectionSurface extends ConsumerWidget {
               )
             : appBar,
         bottomNavigationBar: selection.active
-            ? Material(
-                color: t.panel,
-                child: SafeArea(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 52),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          key: const Key('deleteSelectedMessages'),
-                          tooltip: 'Delete',
-                          onPressed: selection.deleting || count == 0
-                              ? null
-                              : () => _deleteSelected(context, ref),
-                          icon: const Icon(ActionIcons.delete),
-                        ),
-                        // Balance the new right-hand action so the selected
-                        // count keeps its existing centered position.
-                        const SizedBox(width: 48),
-                        Expanded(
-                          child: Text(
-                            '$count Selected',
-                            key: const Key('selectionCount'),
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                        ),
-                        IconButton(
-                          key: const Key('copySelectedMessages'),
-                          tooltip: 'Copy',
-                          onPressed: selection.deleting || count == 0
-                              ? null
-                              : () => _copy(context, ref),
-                          icon: const Icon(ActionIcons.copy),
-                        ),
-                        IconButton(
-                          key: const Key('forwardSelectedMessages'),
-                          tooltip: 'Forward',
-                          onPressed: selection.deleting || count == 0
-                              ? null
-                              : () => _forward(context, ref),
-                          icon: const Icon(
-                            CupertinoIcons.arrowshape_turn_up_right,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+            ? MessageSelectionBar(
+                count: count,
+                busy: selection.deleting,
+                onDelete: () => _deleteSelected(context, ref),
+                onCopy: () => _copy(context, ref),
+                onForward: () => _forward(context, ref),
               )
             : null,
         body: GestureDetector(
           behavior: HitTestBehavior.translucent,
           onTap: selection.active ? controller.clear : null,
           child: body,
+        ),
+      ),
+    );
+  }
+}
+
+/// The bar under a conversation while messages are selected: Delete, the
+/// count, Copy and Forward. Shared by 1:1 and group conversations.
+class MessageSelectionBar extends StatelessWidget {
+  const MessageSelectionBar({
+    super.key,
+    required this.count,
+    required this.busy,
+    required this.onDelete,
+    required this.onCopy,
+    required this.onForward,
+  });
+  final int count;
+  final bool busy;
+  final VoidCallback onDelete, onCopy, onForward;
+
+  @override
+  Widget build(BuildContext context) {
+    final off = busy || count == 0;
+    return Material(
+      color: FireplaceUiTokens.of(context).panel,
+      child: SafeArea(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 52),
+          child: Row(
+            children: [
+              IconButton(
+                key: const Key('deleteSelectedMessages'),
+                tooltip: 'Delete',
+                onPressed: off ? null : onDelete,
+                icon: const Icon(ActionIcons.delete),
+              ),
+              // Balance the right-hand actions so the count stays centred.
+              const SizedBox(width: 48),
+              Expanded(
+                child: Text(
+                  '$count Selected',
+                  key: const Key('selectionCount'),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+              ),
+              IconButton(
+                key: const Key('copySelectedMessages'),
+                tooltip: 'Copy',
+                onPressed: off ? null : onCopy,
+                icon: const Icon(ActionIcons.copy),
+              ),
+              IconButton(
+                key: const Key('forwardSelectedMessages'),
+                tooltip: 'Forward',
+                onPressed: off ? null : onForward,
+                icon: const Icon(CupertinoIcons.arrowshape_turn_up_right),
+              ),
+            ],
+          ),
         ),
       ),
     );

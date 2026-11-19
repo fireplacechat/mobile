@@ -1,30 +1,29 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
-import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/view/chat/chat_app_bar_parts.dart';
 import 'package:fireplace/src/view/chat/chat_composer.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
-import 'package:fireplace/src/view/chat/message_menu_parts.dart';
-import 'package:fireplace/src/view/chat/message_reactions.dart';
 import 'package:fireplace/src/view/chat/message_widgets.dart';
+import 'package:fireplace/src/view/groups/group_avatar.dart';
 import 'package:fireplace/src/view/groups/group_held_notice.dart';
 import 'package:fireplace/src/view/groups/group_info_screen.dart';
-import 'package:fireplace/src/view/groups/group_message_row.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
-import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
-import 'package:fireplace/src/styles/action_icons.dart';
+import 'package:fireplace/src/model/chat/pinned_messages.dart';
+import 'package:fireplace/src/model/groups/group_selection.dart';
+import 'package:fireplace/src/view/chat/pinned_bar.dart';
+import 'package:fireplace/src/view/chat/timeline_scroll.dart';
+import 'package:fireplace/src/view/groups/group_message_menu.dart';
+import 'package:fireplace/src/view/groups/group_timeline.dart';
 
 /// A group conversation (decision 0050). It looks like a 1:1 chat: the same
 /// bubbles, day separators, held-message menu, reactions and composer, with
@@ -39,7 +38,7 @@ class GroupChatScreen extends ConsumerStatefulWidget {
 }
 
 class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
-  bool _loadingOlder = false;
+  late final _timeline = TimelineScroll(isMounted: () => mounted);
   final _text = TextEditingController();
   final _edit = TextEditingController();
   final _focus = FocusNode();
@@ -95,6 +94,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     _text.dispose();
     _edit.dispose();
     _focus.dispose();
+    _timeline.dispose();
     super.dispose();
   }
 
@@ -160,105 +160,55 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     if (_error == null) _cancelEdit();
   }
 
-  Future<void> _deleteForEveryone(LocalMessage message) async {
-    final service = ref.read(groupServiceProvider);
-    final yes = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => UiDialog(
-        title: const Text('Delete for everyone?'),
-        content: const Text(
-          'Ask everyone’s phones to delete this message. They may already '
-          'have seen or saved it.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            key: const Key('confirmRemoteDelete'),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              'Delete for everyone',
-              style: TextStyle(color: FireplaceUiTokens.of(ctx).danger),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || yes != true || service == null) return;
-    if (_editing?.id == message.id) _cancelEdit();
-    await _run(() => service.deleteForEveryone(widget.gid, message.id));
+  void _notice(String text) => ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(text)));
+
+  /// Messages about to be deleted are no longer edited or quoted.
+  void _letGo(Set<String> ids) {
+    if (ids.contains(_editing?.id)) _cancelEdit();
+    if (ids.contains(_replyTo?.id)) setState(() => _replyTo = null);
   }
 
-  /// The held-message menu: the same controls as a 1:1 chat. Only the author
-  /// can edit or delete for everyone; every phone enforces that.
   List<MessageAction> _actionsFor(LocalMessage message, String me) {
     final service = ref.read(groupServiceProvider);
-    if (service == null || message.status == MessageStatus.undecryptable) {
-      return const [];
+    if (service == null) return const [];
+    return groupMessageActions(
+      message,
+      gid: widget.gid,
+      me: me,
+      ref: ref,
+      context: context,
+      isMounted: () => mounted,
+      notice: _notice,
+      run: _run,
+      onReact: (emoji) =>
+          unawaited(_run(() => service.react(widget.gid, message.id, emoji))),
+      onReply: () => _startReply(message),
+      onEdit: () => _startEdit(message),
+      onDeleting: () => _letGo({message.id}),
+    );
+  }
+
+  /// Opens a pinned message: loads the history back to it, then scrolls to
+  /// it and lights it up, as a 1:1 chat does.
+  Future<void> _openPinned(String id) async {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    try {
+      await ref.read(groupServiceProvider)?.revealMessage(widget.gid, id);
+    } catch (_) {
+      // Not found: nothing to scroll to.
     }
-    void react(String emoji) =>
-        unawaited(_run(() => service.react(widget.gid, message.id, emoji)));
-    final sent = message.status == MessageStatus.ok;
-    return [
-      for (final emoji in quickReactions)
-        MessageAction(
-          id: 'react-$emoji',
-          label: 'React with $emoji',
-          icon: Icons.emoji_emotions_outlined,
-          reaction: true,
-          emoji: emoji,
-          selected: message.reactions[me]?.emoji == emoji,
-          onSelected: () => react(emoji),
-        ),
-      MessageAction(
-        id: 'moreReactions',
-        label: 'More reactions',
-        icon: Icons.add,
-        reaction: true,
-        onEmoji: react,
-        onSelected: () {},
-      ),
-      if (sent)
-        MessageAction(
-          id: 'reply',
-          label: 'Reply',
-          icon: CupertinoIcons.arrowshape_turn_up_left,
-          onSelected: () => _startReply(message),
-        ),
-      if (message.outgoing && sent)
-        MessageAction(
-          id: 'edit',
-          label: 'Edit',
-          icon: Icons.edit_outlined,
-          onSelected: () => _startEdit(message),
-        ),
-      MessageAction(
-        id: 'copy',
-        label: 'Copy',
-        icon: ActionIcons.copy,
-        onSelected: () =>
-            unawaited(Clipboard.setData(ClipboardData(text: message.body))),
-      ),
-      if (message.outgoing && sent)
-        MessageAction(
-          id: 'deleteForEveryone',
-          label: 'Delete for everyone',
-          icon: ActionIcons.delete,
-          destructive: true,
-          onSelected: () => unawaited(_deleteForEveryone(message)),
-        ),
-      MessageAction(
-        id: 'deleteForMe',
-        label: 'Delete for me',
-        icon: ActionIcons.delete,
-        destructive: true,
-        onSelected: () => unawaited(
-          _run(() => service.deleteLocally(widget.gid, message.id)),
-        ),
-      ),
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    final ids = [
+      for (final m
+          in ref.read(groupMessagesProvider(widget.gid)).value ??
+              const <LocalMessage>[])
+        if (m.visible && !m.remotelyDeleted) m.id,
     ];
+    final found = await _timeline.locate(id, ids, reduceMotion: reduceMotion);
+    if (found && mounted) _timeline.flash(id);
   }
 
   /// Who reacted with what. Tapping your own reaction removes it.
@@ -323,8 +273,6 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         if (m.visible && !m.remotelyDeleted) m,
     ];
     final colors = ref.watch(groupColorsProvider(widget.gid)).value ?? const {};
-    final invited =
-        ref.watch(groupInvitedProvider(widget.gid)).value ?? const {};
     if (group == null || service == null) {
       return Scaffold(
         appBar: UiAppBar(context: context, title: const Text('Group')),
@@ -335,10 +283,6 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         ),
       );
     }
-    // People who were invited and have not joined are not counted yet.
-    final count = group.members
-        .where((m) => !invited.containsKey(m.uid))
-        .length;
     final joinedLater = service.joinedLater(widget.gid);
     final editing = _editing != null;
     // The message being replied to, as it is now: it may have been edited or
@@ -347,211 +291,192 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         ? null
         : rows.where((m) => m.id == _replyTo!.id).firstOrNull;
     final brightness = Theme.of(context).brightness;
-    bool sameRun(LocalMessage a, LocalMessage? b) =>
-        b != null &&
-        b.status != MessageStatus.notice &&
-        b.senderUid == a.senderUid &&
-        sameLocalDay(a.sentAt, b.sentAt);
-    return Scaffold(
-      appBar: UiAppBar(
-        context: context,
-        title: InkWell(
-          key: const Key('groupHeader'),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => GroupInfoScreen(gid: widget.gid),
+    final selection = ref.watch(groupSelectionProvider(widget.gid));
+    final selecting = selection.active;
+    final select = ref.read(groupSelectionProvider(widget.gid).notifier);
+    final pinned = [
+      for (final id
+          in ref.watch(pinnedMessagesProvider)[groupChatId(widget.gid)] ??
+              const <String>[])
+        // A pinned message may be older than the loaded history.
+        ?(rows.where((m) => m.id == id).firstOrNull ??
+            ref.watch(groupStoredMessageProvider((widget.gid, id))).value),
+    ];
+    // Laid out as a 1:1 chat's title (issue 210): the avatar, then the name
+    // at the size of a name in the chat list.
+    final title = Row(
+      children: [
+        GroupAvatar(name: group.name, size: 36),
+        const SizedBox(width: 10),
+        Expanded(
+          child: InkWell(
+            key: const Key('groupHeader'),
+            onTap: selecting
+                ? null
+                : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => GroupInfoScreen(gid: widget.gid),
+                    ),
+                  ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: ChatTitleName(group.name),
             ),
           ),
+        ),
+      ],
+    );
+    return PopScope(
+      canPop: !selecting,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) select.clear();
+      },
+      child: Scaffold(
+        appBar: selecting
+            // Selecting, as in a 1:1 chat (issue 209).
+            ? UiAppBar(
+                context: context,
+                toolbarHeight: 64,
+                leading: TextButton(
+                  key: const Key('deleteAllMessages'),
+                  onPressed: selection.deleting
+                      ? null
+                      : () => deleteAllGroupMessages(
+                          context,
+                          ref,
+                          widget.gid,
+                          onDeleting: _letGo,
+                        ),
+                  child: const Text('Delete All'),
+                ),
+                leadingWidth: 120,
+                title: title,
+                actions: [
+                  TextButton(
+                    key: const Key('exitMessageSelection'),
+                    onPressed: selection.deleting ? null : select.clear,
+                    child: const Text('Cancel'),
+                  ),
+                ],
+              )
+            : UiAppBar(context: context, toolbarHeight: 64, title: title),
+        bottomNavigationBar: selecting
+            ? GroupSelectionBar(gid: widget.gid, onDeleting: _letGo)
+            : null,
+        body: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: selecting ? select.clear : null,
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(group.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text(
-                '$count ${count == 1 ? 'person' : 'people'}',
-                style: Theme.of(context).textTheme.bodySmall,
+              GroupHeldNotice(gid: widget.gid),
+              if (pinned.isNotEmpty)
+                PinnedBar(messages: pinned, onOpen: _openPinned),
+              Expanded(
+                child: rows.isEmpty && !joinedLater
+                    ? const UiEmptyState(
+                        icon: Icons.lock_outline_rounded,
+                        title: 'A private group',
+                        message:
+                            'Messages are end-to-end encrypted. Say hello when '
+                            'you’re ready.',
+                      )
+                    : GroupTimeline(
+                        gid: widget.gid,
+                        rows: rows,
+                        joinedLater: joinedLater,
+                        timeline: _timeline,
+                        actionsFor: (m) => _actionsFor(m, me),
+                        onReactions: (m) => _showReactions(m, me),
+                      ),
               ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: UiActionError(
+                    key: const Key('groupError'),
+                    message: _error!,
+                  ),
+                ),
+              if (!selecting)
+                ChatComposer(
+                  keyboardInset: MediaQuery.viewInsetsOf(context).bottom,
+                  text: editing ? _edit : _text,
+                  name: group.name,
+                  blocked: false,
+                  incomingRequest: false,
+                  waiting: false,
+                  identityHeld: false,
+                  hasSession: true,
+                  contactBusy: false,
+                  onUnblock: () async {},
+                  focusNode: _focus,
+                  submit: editing ? _saveEdit : _send,
+                  editing: editing,
+                  editingBusy: editing && _busy,
+                  canSubmit: !editing || _edit.text.trim() != _editing!.body,
+                  contextBar: editing
+                      ? Row(
+                          key: const Key('editComposerPreview'),
+                          children: [
+                            const Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit_outlined, size: 18),
+                                    SizedBox(width: 8),
+                                    Flexible(child: Text('Edit message')),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              key: const Key('cancelEdit'),
+                              tooltip: 'Cancel edit',
+                              onPressed: _cancelEdit,
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        )
+                      : _replyTo != null
+                      ? Consumer(
+                          builder: (context, barRef, _) => ReplyPanel(
+                            key: const Key('replyComposerPreview'),
+                            author: _replyTo!.outgoing
+                                ? 'You'
+                                : barRef
+                                          .watch(
+                                            peerUsernameProvider(
+                                              _replyTo!.senderUid,
+                                            ),
+                                          )
+                                          .value ??
+                                      '…',
+                            body: clipMessage(replyTo?.body ?? '', 1024),
+                            unavailable: replyTo == null,
+                            // The colour of the person replied to: their own in
+                            // this group, or this account's primary colour.
+                            color:
+                                (_replyTo!.outgoing
+                                        ? barRef
+                                              .watch(chatBubbleColorsProvider)
+                                              .outgoing
+                                        : memberColor(
+                                            colors,
+                                            _replyTo!.senderUid,
+                                          ))
+                                    .accentText(brightness),
+                            onCancel: () => setState(() => _replyTo = null),
+                          ),
+                        )
+                      : null,
+                ),
             ],
           ),
         ),
-      ),
-      body: Column(
-        children: [
-          GroupHeldNotice(gid: widget.gid),
-          Expanded(
-            child: rows.isEmpty && !joinedLater
-                ? const UiEmptyState(
-                    icon: Icons.lock_outline_rounded,
-                    title: 'A private group',
-                    message:
-                        'Messages are end-to-end encrypted. Say hello when '
-                        'you’re ready.',
-                  )
-                : NotificationListener<ScrollNotification>(
-                    // Nearing the oldest shown: load the next older messages.
-                    onNotification: (n) {
-                      if (n.metrics.axis == Axis.vertical &&
-                          n.metrics.extentAfter <= 800 &&
-                          !_loadingOlder) {
-                        final service = ref.read(groupServiceProvider);
-                        if (service != null) {
-                          _loadingOlder = true;
-                          unawaited(
-                            service
-                                .showOlderMessages(widget.gid)
-                                .catchError((Object _) {})
-                                .whenComplete(() => _loadingOlder = false),
-                          );
-                        }
-                      }
-                      return false;
-                    },
-                    child: ThinScrollbar(
-                      child: ListView.builder(
-                        key: const Key('groupMessages'),
-                        reverse: true,
-                        // The same insets as a 1:1 timeline, so a held message is
-                        // lifted without moving.
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: MessageMenuMetrics.edge,
-                          vertical: 12,
-                        ),
-                        itemCount: rows.length + (joinedLater ? 1 : 0),
-                        itemBuilder: (_, i) {
-                          if (i == rows.length) {
-                            // MLS gives a newcomer no keys for earlier messages.
-                            return const GroupQuietLine(
-                              key: Key('historyStart'),
-                              text: 'Messages sent before you joined aren’t shown.',
-                            );
-                          }
-                          final index = rows.length - 1 - i;
-                          final m = rows[index];
-                          final before = index == 0 ? null : rows[index - 1];
-                          final after = index == rows.length - 1
-                              ? null
-                              : rows[index + 1];
-                          final showDate =
-                              before == null ||
-                              !sameLocalDay(before.sentAt, m.sentAt);
-                          final notice = m.status == MessageStatus.notice
-                              ? GroupNotice.decode(m.body)
-                              : null;
-                          return Column(
-                            key: ValueKey(m.id),
-                            children: [
-                              if (showDate) DaySeparator(date: m.sentAt),
-                              if (m.status == MessageStatus.notice)
-                                if (notice != null)
-                                  GroupNoticeLine(notice: notice),
-                              if (m.status != MessageStatus.notice)
-                                GroupMessageRow(
-                                  gid: widget.gid,
-                                  message: m,
-                                  color: memberColor(colors, m.senderUid),
-                                  showName: !m.outgoing && !sameRun(m, before),
-                                  showAvatar: !m.outgoing && !sameRun(m, after),
-                                  actions: _actionsFor(m, me),
-                                  onReactions: () => _showReactions(m, me),
-                                ),
-                              if (m.outgoing &&
-                                  m.status == MessageStatus.unconfirmed)
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Text(
-                                    'Not confirmed',
-                                    key: Key('unconfirmed_${m.id}'),
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall,
-                                  ),
-                                ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: UiActionError(
-                key: const Key('groupError'),
-                message: _error!,
-              ),
-            ),
-          ChatComposer(
-            keyboardInset: MediaQuery.viewInsetsOf(context).bottom,
-            text: editing ? _edit : _text,
-            name: group.name,
-            blocked: false,
-            incomingRequest: false,
-            waiting: false,
-            identityHeld: false,
-            hasSession: true,
-            contactBusy: false,
-            onUnblock: () async {},
-            focusNode: _focus,
-            submit: editing ? _saveEdit : _send,
-            editing: editing,
-            editingBusy: editing && _busy,
-            canSubmit: !editing || _edit.text.trim() != _editing!.body,
-            contextBar: editing
-                ? Row(
-                    key: const Key('editComposerPreview'),
-                    children: [
-                      const Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.edit_outlined, size: 18),
-                              SizedBox(width: 8),
-                              Flexible(child: Text('Edit message')),
-                            ],
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        key: const Key('cancelEdit'),
-                        tooltip: 'Cancel edit',
-                        onPressed: _cancelEdit,
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  )
-                : _replyTo != null
-                ? Consumer(
-                    builder: (context, barRef, _) => ReplyPanel(
-                      key: const Key('replyComposerPreview'),
-                      author: _replyTo!.outgoing
-                          ? 'You'
-                          : barRef
-                                    .watch(
-                                      peerUsernameProvider(_replyTo!.senderUid),
-                                    )
-                                    .value ??
-                                '…',
-                      body: clipMessage(replyTo?.body ?? '', 1024),
-                      unavailable: replyTo == null,
-                      // The colour of the person replied to: their own in
-                      // this group, or this account's primary colour.
-                      color:
-                          (_replyTo!.outgoing
-                                  ? barRef
-                                        .watch(chatBubbleColorsProvider)
-                                        .outgoing
-                                  : memberColor(colors, _replyTo!.senderUid))
-                              .accentText(brightness),
-                      onCancel: () => setState(() => _replyTo = null),
-                    ),
-                  )
-                : null,
-          ),
-        ],
       ),
     );
   }
