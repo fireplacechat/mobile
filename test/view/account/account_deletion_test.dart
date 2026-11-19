@@ -13,12 +13,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// No deletion server in these tests: the app deletes the rest itself.
+const noServer = Duration(milliseconds: 50);
+
 Future<void> settle(WidgetTester t, {int rounds = 20}) async {
   for (var i = 0; i < rounds; i++) {
     await t.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 20)),
     );
-    await t.pump();
+    // Fake time too, for the wait on the deletion server.
+    await t.pump(const Duration(milliseconds: 20));
   }
 }
 
@@ -61,6 +65,7 @@ void main() {
       );
       final release = Completer<void>();
       final service = AccountService(
+        serverPickup: noServer,
         auth: auth,
         db: db,
         secrets: MemorySecretStore(),
@@ -118,6 +123,7 @@ void main() {
       });
       final calls = <String>[];
       final service = AccountService(
+        serverPickup: noServer,
         auth: MockFirebaseAuth(
           signedIn: true,
           mockUser: MockUser(

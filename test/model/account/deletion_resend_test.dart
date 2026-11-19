@@ -10,6 +10,9 @@ import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:fireplace/fireplace_services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// No deletion server in these tests: the app deletes the rest itself.
+const noServer = Duration(milliseconds: 50);
+
 FirebaseException refused() =>
     FirebaseException(plugin: 'cloud_firestore', code: 'permission-denied');
 
@@ -114,6 +117,7 @@ void main() {
   });
 
   AccountService service() => AccountService(
+    serverPickup: noServer,
     auth: auth,
     db: db,
     secrets: MemorySecretStore(),
