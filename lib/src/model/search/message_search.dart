@@ -8,6 +8,23 @@ class MessageSearchHit {
   final int start, end;
 }
 
+/// Case folding for search, per character, so that final sigma and similar
+/// match.
+String _fold(String s) => s.runes
+    .map((r) => String.fromCharCode(r).toLowerCase())
+    .join()
+    .replaceAll('ς', 'σ');
+
+/// Whether a message's text, as it reads on screen, contains [query], as
+/// [searchMessages] decides it. The history database calls the result on its
+/// own isolate for each message (decision 0057, step 4), so it captures only
+/// the folded query.
+bool Function(String body) messageMatcher(String query) {
+  final needle = _fold(query.trim());
+  return (body) =>
+      needle.isNotEmpty && _fold(displayMessage(body).plain).contains(needle);
+}
+
 /// Literal, case-insensitive Unicode search. Accents are significant; emoji and
 /// combining sequences remain intact. No regex from user input, no disk index.
 List<MessageSearchHit> searchMessages(
@@ -15,12 +32,7 @@ List<MessageSearchHit> searchMessages(
   String query, {
   int limit = 100,
 }) {
-  // Fold the query the same way as the text (per character) so final sigma and similar match.
-  String fold(String s) => s.runes
-      .map((r) => String.fromCharCode(r).toLowerCase())
-      .join()
-      .replaceAll('ς', 'σ');
-  final needle = fold(query.trim());
+  final needle = _fold(query.trim());
   if (needle.isEmpty) return [];
   if (limit <= 0) return [];
   final results = <MessageSearchHit>[];

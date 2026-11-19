@@ -228,6 +228,21 @@ class ChatService {
       if (!_sender.isInFlight(message.id)) message.forAccount(uid),
   ];
 
+  /// The newest messages in [chatIds] whose text [matches] accepts, for
+  /// search. The store finds them without reading whole conversations.
+  Future<List<LocalMessage>> findMessages(
+    Set<String> chatIds,
+    bool Function(String body) matches, {
+    int limit = 100,
+  }) async => [
+    for (final message in await _messages.search(
+      chatIds,
+      matches,
+      limit: limit,
+    ))
+      if (!_sender.isInFlight(message.id)) message.forAccount(uid),
+  ];
+
   /// One stored message, however old, or null.
   Future<LocalMessage?> message(String chatId, String messageId) async =>
       (await _messages.get(chatId, messageId))?.forAccount(uid);

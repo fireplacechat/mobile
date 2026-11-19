@@ -197,6 +197,17 @@ abstract class LocalMessageStore {
   /// those watching.
   Future<List<LocalMessage>> all(String chatId);
 
+  /// The readable messages in [chatIds] whose text [matches] accepts, newest
+  /// first (ties by chat, then id), at most [limit]. Not edits, reactions or
+  /// deletes, not lines about a group, and not what its author deleted.
+  /// [matches] may run on another isolate, so it must not capture anything
+  /// that cannot be sent there.
+  Future<List<LocalMessage>> search(
+    Set<String> chatIds,
+    bool Function(String body) matches, {
+    int limit = 100,
+  });
+
   /// Gives those watching [chatId] at least [more] older messages as well,
   /// when there are any.
   Future<void> showOlder(String chatId, {int more = 200});
@@ -222,6 +233,31 @@ abstract class LocalMessageStore {
   /// a conversation that still exists on the server: a message seen again
   /// must not be decrypted a second time.
   Future<void> clearChat(String chatId);
+}
+
+/// [LocalMessageStore.search] for a store that reads whole conversations.
+Future<List<LocalMessage>> searchWholeConversations(
+  LocalMessageStore store,
+  Set<String> chatIds,
+  bool Function(String body) matches, {
+  int limit = 100,
+}) async {
+  if (limit <= 0) return const [];
+  final found = [
+    for (final chatId in chatIds)
+      for (final m in await store.all(chatId))
+        if (m.status == MessageStatus.ok &&
+            !m.remotelyDeleted &&
+            matches(m.body))
+          m,
+  ];
+  found.sort((a, b) {
+    final byTime = b.sentAt.compareTo(a.sentAt);
+    if (byTime != 0) return byTime;
+    final byChat = a.chatId.compareTo(b.chatId);
+    return byChat != 0 ? byChat : a.id.compareTo(b.id);
+  });
+  return found.take(limit).toList();
 }
 
 class MemoryMessageStore implements LocalMessageStore {
@@ -290,6 +326,13 @@ class MemoryMessageStore implements LocalMessageStore {
   // Everything is in memory already: a window would save nothing.
   @override
   Future<List<LocalMessage>> all(String chatId) async => _sorted(chatId);
+
+  @override
+  Future<List<LocalMessage>> search(
+    Set<String> chatIds,
+    bool Function(String body) matches, {
+    int limit = 100,
+  }) => searchWholeConversations(this, chatIds, matches, limit: limit);
   @override
   Future<void> showOlder(String chatId, {int more = 200}) async {}
   @override
