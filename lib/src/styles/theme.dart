@@ -190,7 +190,25 @@ ThemeData fireplaceTheme(
       backgroundColor: t.page,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
-    snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
+    // The same card as the message banner (issue 233), at the bottom.
+    snackBarTheme: SnackBarThemeData(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: t.panel,
+      elevation: 8,
+      insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(color: t.separator),
+      ),
+      contentTextStyle: TextStyle(
+        color: t.text,
+        fontSize: 15,
+        fontWeight: FontWeight.w500,
+        fontFamily: fontFamily,
+      ),
+      actionTextColor: t.accentText,
+      closeIconColor: t.secondaryText,
+    ),
     chipTheme: ChipThemeData(
       backgroundColor: t.panel,
       selectedColor: t.selectedRow,
