@@ -1,8 +1,11 @@
 # 0033: Optional passphrase lock
 
-Status: Proposed, for the owner to decide. Issue #77. No code in this change.
-The direction is the one in decision 0030, under "Keys on a locked iPhone":
-an optional lock modelled on Molly, on top of "after first unlock".
+Status: accepted by the owner on 2026-11-19, with the four choices recorded
+under *Owner's choices*. Issue #77. First drafted before history moved into
+SQLCipher (0057) and the keychain was shared with the iPhone notification
+extension (0042, 0043); this version is updated for both. The direction is the
+one in decision 0030, under "Keys on a locked iPhone": an optional lock
+modelled on Molly, on top of "after first unlock".
 
 ## What Molly does
 
@@ -33,116 +36,165 @@ the passphrase.
 On lock, Molly drops the keys it was holding, can exit the process, and
 `WipeMemoryService` overwrites free RAM so a memory image is less use.
 
+## Owner's choices (2026-11-19)
+
+1. **No notification previews while the lock is on**, on either platform, even
+   while the app is unlocked. Every alert is "New Message".
+2. **The device key is a random secret in the existing secure store**, not a
+   new non-exportable key. No native code.
+3. **Auto-lock is the person's choice**, five minutes away by default.
+4. **A forgotten passphrase offers "Erase and set up again"** on the unlock
+   screen.
+
 ## What we copy
 
 - Off unless the person turns it on. Decision 0018 stays for everyone else.
-- Argon2id from `cryptography` 2.9.0, which the app already depends on. No new
-  package. That package's `memory` is a count of 1 KiB blocks, so a byte count
-  from Molly is divided by 1024.
-- Measure once, on the phone, when the passphrase is set. Store the parameters.
-  Unlock reuses them. Floor of 4 iterations, and do not go under Argon2's
-  minimum memory. Do not ask for more than about half the free memory.
-- Mix the result with a non-exportable key in the iPhone Keychain and the
-  Android Keystore, the same job as Molly's keystore HMAC.
-- A wrong passphrase changes nothing. There is no recovery.
-- While the app is locked, a notification is "New Message" only (decision 0030).
+- Argon2id from `cryptography`, which the app already depends on. No new
+  package. Its `memory` is a count of 1 KiB blocks.
+- Measured once, on the phone, when the passphrase is set. The parameters are
+  stored, and unlocking reuses them.
+- The passphrase's hash is mixed with a device secret (choice 2), the same job
+  as Molly's keystore HMAC.
+- A random data key is wrapped with the result. Changing the passphrase
+  rewraps only that key.
+- A wrong passphrase changes nothing, and there is no recovery (choice 4).
 
-## What is different
+## What is different from Molly
 
-History here is AES-GCM files (decisions 0013 and 0027), not a SQLCipher
-database. The secret that hides history is `msgkey:<uid>`. Molly's database
-key is not under the passphrase; ours has to be, or the lock does not hide
-messages.
+**The history database key is under the passphrase.** Molly's database key is
+not. Ours is `msgkey:{uid}`, the SQLCipher key of `history.db` (0057). If it
+were left out, the lock would not hide messages.
 
-We do not kill the process and we do not overwrite all free RAM. Dart does not
-give us that. We wipe the passphrase bytes and the unwrapped keys we hold, and
-we drop the in-memory copies. A native wipe of free RAM can be a later decision.
+**The device secret is not hardware-bound** (choice 2). It is a random 32-byte
+value, `passlockpepper:{uid}`, in the same Keychain / Keystore-backed store as
+everything else, device-only and never in a backup. Without it, a copy of the
+app's files gives nothing. Someone who extracts both the files and the secure
+store can try passphrases offline, at the cost of an Argon2id run per guess. A
+non-exportable key would stop that, and can be added later without changing
+the stored format.
 
-"After first unlock" (decision 0030, issue #85) stays the default, so previews
-work for people who do not set a passphrase.
+**We do not kill the process or overwrite free RAM.** Dart does not give us
+that. On lock the account's session is closed, which drops its in-memory
+copies (the secure-store cache, open sessions, the database connection), and
+the data key is forgotten. Dart strings cannot be wiped, so a copy may stay in
+freed memory until it is reused.
 
 ## What is wrapped
 
-- `msgkey:<uid>`, the history key
-- `chatprefskey:<uid>`, mute, pins and read marks (chat ids, not message text)
-- `identity:<uid>`, this account's private identity
-- `sess:<device>:<peer>:<peerDevice>`, the sessions
-- `journal:<device>`, an open receive journal
+Each of these is stored as `fpl1:` followed by AES-256-GCM of its value under
+the data key, with the item's name as associated data, so a value cannot be
+moved to another name:
+
+- `msgkey:{uid}`, the history database key (and the old per-chat files')
+- `chatprefskey:{uid}`, mute, pins and read marks
+- `groupkey:{uid}`, the group records' key
+- `identity:{uid}`, this account's private identity
+- `device:{uid}`, this device's private keys
+- `prekeys:{uid}:{device}`, the private halves of the prekeys
+- `sess:{device}:…`, the sessions
+- `journal:{device}`, `journals:{device}` and `journal:{device}:…`, an open
+  receive journal
 
 ## What stays readable
 
-The signed-in uid, the salt, the Argon2 parameters, the wrapped blobs, and the
-push registration. Nothing that decrypts a message, a name, or a session. A
-locked app can post "New Message". It cannot show a preview or the chat list.
+`passlock:{uid}` (the salt, the Argon2 parameters, the wrapped data key, the
+device id, the auto-lock choice and the preview choice to restore),
+`passlockpepper:{uid}`, the signed-in uid, the public `bundle:{uid}`, pinned
+identities (public keys), receive cursors (times), peer colours, the lists of
+hidden and cleared chats and the push chat index (chat ids), and the push
+choices. Nothing that decrypts a message, a session or a name.
 
-## Unlock, lock, change, and a forgotten passphrase
+## Previews (choice 1)
 
-Unlock runs Argon2 on a background isolate, then unwraps. It takes about 3
-seconds and does not use the network.
+Both background paths already post a plain "New Message" when
+`pushnopreview:{uid}` is set: the Android handler (decision 0030) and the
+iPhone extension (0043), which checks it before touching anything else. Turning
+the lock on remembers whether previews were on, in `passlock:{uid}`, and sets
+that marker. Turning it off puts the person's choice back. "Show message
+preview" in Settings is shown off and disabled meanwhile, with the reason. No
+change to the extension.
 
-Lock is a button, a timeout after unlock, and leaving the app. The unwrapped
-keys are dropped.
+With previews off, the Android handler does not open the stores, and the
+extension never reads a wrapped item. A message that arrives while the app is
+locked waits on the server and is received after unlock, as one does today
+when the app is closed with previews off.
 
-Changing it unwraps with the old passphrase and writes a new wrapped blob, then
-removes the old one. A crash in between still opens with the old passphrase
-(decision 0013).
+## Unlock, lock, change and turning it off
 
-A forgotten passphrase cannot be reset. This device's history, sessions and
-identity secret are gone. The account on the server is still there. This device
-has to be set up again. The screen says that, in those words, before the
+**Unlock** runs Argon2id on a background isolate, mixes in the device secret
+(HMAC-SHA256), and opens the data key with AES-GCM. A wrong passphrase fails
+that check and changes nothing. It does not use the network.
+
+**Lock** happens on "Lock now", on restart, and when the app comes back after
+being away for the chosen time: immediately, 1 minute, 5 minutes (default),
+1 hour or 1 day (choice 3). The session is closed first, so writes in flight
+finish, then the data key is dropped and the unlock screen shows.
+
+**Turning it on** writes `passlock:{uid}` with `pending: on`, then rewrites each
+item above wrapped, then clears `pending`. **Turning it off** sets
+`pending: off`, rewrites each item plain, then removes `passlock:{uid}` and the
+device secret. Reads accept both forms while either is under way. If the app
+is stopped half-way, the record is still there: the next start asks for the
+passphrase and finishes the job.
+
+**Changing it** needs the old passphrase. A new salt and parameters wrap the
+same data key, written in one secure-store write. The items are not touched.
+
+## A forgotten passphrase (choice 4)
+
+It cannot be reset. The unlock screen offers "Erase and set up again", after a
+warning. It erases this account's data on this phone (history, keys, sessions,
+preferences) and signs out. The account on the server stays. Signing in again
+is like a new phone: restore with the recovery key, link from another device,
+or start fresh (0063). The screen that turns the lock on says this before the
 passphrase is accepted.
-
-## How it fits #85 and #86
-
-Issue #85 moves keychain items to after first unlock only with the iOS
-extension, and only so previews can run on a locked phone. This lock is
-optional. With it on, those items are wrapped, and they are not in memory, so
-after-first-unlock does not reveal them.
-
-Issue #86, while this lock is on and the app is locked, does not decrypt and
-does not open history. It posts "New Message" only.
 
 ## Parameters
 
-Cited from Molly's `PassphraseBasedKdf`. Not measured on a Fireplace phone yet.
+Argon2id, version 0x13, parallelism 1, a 16-byte salt and a 32-byte output.
+Measured when the passphrase is set: start at 19 MiB and 2 passes (the OWASP
+minimum) and double the memory while one run takes under about 0.4 seconds, up
+to 64 MiB; then raise the passes while a run takes under about 1 second, up to
+8. The chosen numbers are stored. Unlock reuses them, so it takes about 1 to 2
+seconds.
 
-- Argon2id, version 0x13
-- about 3 seconds, once, on the phone where the passphrase is created
-- at least 4 iterations
-- memory starts at 16383 bytes times the parallelism, then rises until the hash
-  takes about 3 seconds, and stops at about half the free memory
-- parallelism is one less than the CPU count, or 1
-- 16-byte salt, 32-byte output
+`cryptography`'s Argon2id is pure Dart. On a 2026 laptop (JIT, in a test), one
+run took 180 ms at 19 MiB and 2 passes, 250 ms at 32 MiB and 3, and 600 ms at
+64 MiB and 3. A phone in release mode is not measured yet; the first build
+records an older phone's numbers here.
 
-The first code change measures one older phone and adds the numbers it picked
-here before that code merges.
+Molly aims for 3 seconds and up to half the free memory. We aim lower and cap
+memory at 64 MiB, because Dart cannot ask how much memory is free, and the
+calculation runs while the app is in use.
 
 ## Cost
 
-One local Argon2 run each time the person unlocks, and one when they set or
-change the passphrase. No Firestore read or write. Only people who turn it on
-pay it.
+One Argon2id run on each unlock, and when the passphrase is set or changed.
+No Firestore read or write. Only people who turn it on pay it.
 
 ## Tests it will need
 
-- a wrong passphrase does not unwrap, and the failure does not throw out
-- the right passphrase unwraps, and after lock the history key is gone from memory
-- the stored parameters are reused, not measured again on unlock
-- after a change, the old passphrase fails and the new one works
-- a crash before the old blob is removed still opens with the old passphrase
-- nothing unwraps with an empty passphrase or a skipped prompt
-- while locked, the #86 path is not given the history key, and the text is
-  "New Message"
+- a wrong passphrase does not open the data key, and the failure is shown in
+  plain words, not as an exception
+- the right passphrase opens it; after lock, wrapped items cannot be read and
+  the session is closed
+- the stored parameters are reused on unlock, not measured again
+- after a change, the old passphrase fails and the new one works, and the
+  items are untouched
+- turning it on and off with existing history, sessions and groups, including
+  stopped at every step, loses nothing and finishes on the next unlock
+- a wrapped value moved to another name does not open
+- previews are off while it is on, and the earlier choice comes back
+- "Erase and set up again" erases this account's data on this phone only
 - the derivation test is tagged `timing`
 
 ## Order of work
 
-1. This note. The owner decides.
-2. Wrap and unwrap the keys above. Tests. No screen.
-3. Lock and unlock: the button, the timeout, and leaving the app.
-4. The screen for setting and changing it, including the warning that a
-   forgotten passphrase deletes local history on this device. Renders.
-5. #86 checks the lock.
-6. Measure an older phone and record the Argon2 numbers in this note.
+1. This note.
+2. The wrapping store, the lock record, turning it on, off and changing it,
+   unlocking and locking. Tests. No screen.
+3. The unlock screen, auto-lock, Settings and "Erase and set up again".
+   Previews forced off. Renders.
+4. Measure an older phone and record the Argon2 numbers here.
 
-Drafted by Grok.
+Drafted by Grok; updated for 0042, 0043 and 0057 by Claude.
