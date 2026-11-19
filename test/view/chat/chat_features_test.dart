@@ -256,6 +256,7 @@ void main() {
       findsOneWidget,
     );
     await t.pump(const Duration(seconds: 6));
+    await t.pump(const Duration(milliseconds: 300)); // it slides back up
     expect(find.byKey(const Key('inAppNotification')), findsNothing);
     await f.chat.store.add(message(id: 'second', body: 'Again'));
     await settleUi(t);

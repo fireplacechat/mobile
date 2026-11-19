@@ -3,14 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/chat_visibility.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
+import 'package:fireplace/src/view/notifications/in_app_banner.dart';
 
-/// Foreground-only, one coalesced card. All navigation is local.
+/// Foreground-only, one coalesced card that falls in from the top. All
+/// navigation is local. It goes when it times out, is swiped up or aside,
+/// or is tapped; it vanishes at once when it may no longer be shown.
 class InAppNoticeHost extends ConsumerStatefulWidget {
   const InAppNoticeHost({
     super.key,
@@ -24,7 +28,19 @@ class InAppNoticeHost extends ConsumerStatefulWidget {
 }
 
 class _InAppNoticeHostState extends ConsumerState<InAppNoticeHost>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+  late final _drop = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
+    reverseDuration: const Duration(milliseconds: 220),
+  );
+  late final _fall = CurvedAnimation(
+    parent: _drop,
+    curve: Curves.easeOutBack,
+    reverseCurve: Curves.easeInCubic,
+  );
+  // How far a finger has pushed the card up, in pixels (negative).
+  double _lift = 0;
   Timer? _timer;
   LocalMessage? _message;
   int _count = 0;
@@ -45,19 +61,34 @@ class _InAppNoticeHostState extends ConsumerState<InAppNoticeHost>
     if (!_foreground) _dismiss();
   }
 
+  /// Gone at once: backgrounded, signed out, or no longer allowed.
   void _dismiss() {
     _timer?.cancel();
+    _drop.value = 0;
     if (mounted) {
       setState(() {
         _message = null;
         _count = 0;
+        _lift = 0;
       });
     }
+  }
+
+  /// Back up the way it came, then gone.
+  Future<void> _slideAway() async {
+    _timer?.cancel();
+    final shown = _message;
+    if (shown == null) return;
+    if (MediaQuery.disableAnimationsOf(context)) return _dismiss();
+    await _drop.reverse();
+    if (mounted && identical(_message, shown)) _dismiss();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _fall.dispose();
+    _drop.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -91,12 +122,22 @@ class _InAppNoticeHostState extends ConsumerState<InAppNoticeHost>
             owner != ref.read(appSessionProvider).value?.uid) {
           return;
         }
+        final showing = _message != null;
         setState(() {
           _message = candidates.last;
-          _count = candidates.length;
+          _count = showing ? _count + candidates.length : candidates.length;
+          _lift = 0;
         });
+        // One already down just takes the news; a new one falls in.
+        if (!showing || _drop.status == AnimationStatus.reverse) {
+          if (MediaQuery.disableAnimationsOf(context)) {
+            _drop.value = 1;
+          } else {
+            _drop.forward(from: showing ? _drop.value : 0);
+          }
+        }
         _timer?.cancel();
-        _timer = Timer(const Duration(seconds: 5), _dismiss);
+        _timer = Timer(const Duration(seconds: 5), _slideAway);
       });
     });
     final m = _message;
@@ -130,78 +171,87 @@ class _InAppNoticeHostState extends ConsumerState<InAppNoticeHost>
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: 560,
-                    maxHeight: (MediaQuery.sizeOf(context).height * .35).clamp(
-                      80,
-                      240,
-                    ),
-                  ),
-                  child: Dismissible(
-                    key: ValueKey('inAppNotice-${m.id}'),
-                    direction: DismissDirection.horizontal,
-                    onDismissed: (_) => _dismiss(),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: -20, end: 0),
-                      duration: MediaQuery.disableAnimationsOf(context)
-                          ? Duration.zero
-                          : const Duration(milliseconds: 180),
-                      builder: (_, offset, child) => Transform.translate(
-                        offset: Offset(0, offset),
-                        child: child,
-                      ),
-                      child: Material(
-                        elevation: 8,
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        clipBehavior: Clip.antiAlias,
-                        child: SingleChildScrollView(
+                  constraints: const BoxConstraints(maxWidth: 560),
+                  child: SlideTransition(
+                    // From above the top of the screen, with a little bounce
+                    // as it lands.
+                    position: Tween(
+                      begin: const Offset(0, -1.6),
+                      end: Offset.zero,
+                    ).animate(_fall),
+                    child: Transform.translate(
+                      offset: Offset(0, _lift),
+                      child: Dismissible(
+                        key: ValueKey('inAppNotice-${m.id}'),
+                        direction: DismissDirection.horizontal,
+                        onDismissed: (_) => _dismiss(),
+                        child: GestureDetector(
+                          onVerticalDragUpdate: (d) => setState(
+                            () => _lift = (_lift + d.primaryDelta!).clamp(
+                              -200.0,
+                              0.0,
+                            ),
+                          ),
+                          onVerticalDragEnd: (d) {
+                            if (_lift < -24 ||
+                                d.velocity.pixelsPerSecond.dy < -300) {
+                              unawaited(_slideAway());
+                            } else {
+                              setState(() => _lift = 0);
+                            }
+                          },
                           child: Semantics(
                             liveRegion: true,
-                            child: ListTile(
-                              key: const Key('inAppNotification'),
-                              leading: const Icon(Icons.chat_bubble_outline),
-                              title: Text(
-                                activity.previewText
-                                    ? name
-                                    : (_count > 1
-                                          ? '$_count new messages'
-                                          : 'New message'),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              subtitle: activity.previewText
-                                  ? Text(
-                                      messagePreview(m.body),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    )
-                                  : null,
-                              trailing: IconButton(
-                                tooltip: 'Dismiss notification',
-                                icon: const Icon(Icons.close),
-                                onPressed: _dismiss,
-                              ),
-                              onTap: () {
-                                // Recheck at tap time; a hold or block may have just arrived.
-                                final current = ref.read(
-                                  chatSummaryProvider(m.chatId),
-                                );
-                                if (current == null ||
-                                    !ref
-                                        .read(chatActivityProvider.notifier)
-                                        .eligible(current)) {
+                            button: true,
+                            onDismiss: _dismiss,
+                            child: Material(
+                              type: MaterialType.transparency,
+                              child: InkWell(
+                                key: const Key('inAppNotification'),
+                                borderRadius: BorderRadius.circular(22),
+                                onTap: () {
+                                  // Recheck at tap time; a hold or block may
+                                  // have just arrived.
+                                  final current = ref.read(
+                                    chatSummaryProvider(m.chatId),
+                                  );
+                                  if (current == null ||
+                                      !ref
+                                          .read(chatActivityProvider.notifier)
+                                          .eligible(current)) {
+                                    _dismiss();
+                                    return;
+                                  }
                                   _dismiss();
-                                  return;
-                                }
-                                _dismiss();
-                                widget.navigatorKey.currentState?.push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) =>
-                                        ChatScreen(chatId: m.chatId),
-                                  ),
-                                );
-                              },
+                                  widget.navigatorKey.currentState?.push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) =>
+                                          ChatScreen(chatId: m.chatId),
+                                    ),
+                                  );
+                                },
+                                child: InAppBanner(
+                                  title: activity.previewText
+                                      ? name
+                                      : (_count > 1
+                                            ? '$_count new messages'
+                                            : 'New message'),
+                                  preview: activity.previewText
+                                      ? messagePreview(m.body)
+                                      : null,
+                                  sender: activity.previewText ? name : null,
+                                  senderColor: activity.previewText
+                                      ? ref
+                                            .watch(
+                                              acceptedPeerColorProvider(
+                                                summary.peerUid,
+                                              ),
+                                            )
+                                            ?.outgoing
+                                      : null,
+                                  count: activity.previewText ? _count : 1,
+                                ),
+                              ),
                             ),
                           ),
                         ),

@@ -220,14 +220,4 @@ void main() {
       await holdIcon(tester, name);
     }
   });
-
-  iconTest('Dismiss notification has no held label', (tester) async {
-    final fixture = await mount(tester, const ChatListScreen(), notices: true);
-    await fixture.chat.store.add(
-      message(id: 'arrives', body: 'A new note', at: fixtureTime),
-    );
-    await settleUi(tester);
-    await tester.pump(const Duration(milliseconds: 200));
-    await holdIcon(tester, 'Dismiss notification');
-  });
 }
