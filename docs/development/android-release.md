@@ -7,8 +7,8 @@
 - **CI** (`android-build`) builds a release APK with the *debug* key and runs the permission/backup check. That APK is never to be distributed.
 
 ## Signing key
-The upload key is `upload-keystore.jks` (RSA 4096, valid to 2056), kept **outside the repository** in a secure location outside the checkout together with `key.properties` (passwords). `android/key.properties` is a git-ignored copy that Gradle reads.
-- Certificate SHA-256: `6C:3F:ED:82:FF:8C:6E:79:8C:6C:EF:6D:2F:F5:03:94:A5:D0:44:9E:DD:67:96:B1:B6:9F:F3:39:6B:8E:28:04` (public information; useful when registering the app with Google).
+The upload key is `upload-keystore.jks` (RSA 4096, valid to 2054), kept **outside the repository** in a secure location outside the checkout together with `key.properties` (passwords). `android/key.properties` is a git-ignored copy that Gradle reads.
+- Certificate SHA-256: `5A:EB:81:01:8A:64:A4:4F:9B:92:73:34:6F:EF:1D:46:82:11:6B:AB:60:83:FF:08:A9:D1:42:7B:BC:4C:D6:72` (public information; useful when registering the app with Google).
 - **Back it up** (keystore file + password) somewhere offline and separate from this computer. If it is lost, phones that installed a build signed with it cannot be *updated* (only reinstalled, losing local keys and history). With Google Play App Signing the upload key can be reset through Google; sideloaded installs cannot.
 - Never commit it, paste it, or put it in CI secrets unless you deliberately set up signed CI releases.
 
