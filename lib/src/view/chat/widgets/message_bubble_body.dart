@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/message_edit_history.dart';
 import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
 
@@ -16,6 +17,7 @@ class MessageBubbleBody extends ConsumerWidget {
     required this.preview,
     required this.selecting,
     required this.quoted,
+    required this.emojiCount,
     required this.mine,
     required this.bad,
     required this.oversize,
@@ -43,6 +45,7 @@ class MessageBubbleBody extends ConsumerWidget {
   final bool preview;
   final bool selecting;
   final bool quoted;
+  final int? emojiCount;
   final bool mine;
   final bool bad;
   final bool oversize;
@@ -61,10 +64,19 @@ class MessageBubbleBody extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final emojiSize = switch (emojiCount) {
+      1 => 56.0,
+      2 => 44.0,
+      3 => 34.0,
+      _ => null,
+    };
+    final bare = emojiSize != null && !quoted;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: quoted
           ? CrossAxisAlignment.stretch
+          : bare && !mine
+          ? CrossAxisAlignment.start
           : CrossAxisAlignment.end,
       children: [
         if (quoted)
@@ -106,19 +118,26 @@ class MessageBubbleBody extends ConsumerWidget {
           child: Align(
             widthFactor: quoted ? null : 1,
             alignment: AlignmentDirectional.centerStart,
-            child: Text.rich(
-              formatted.span(
-                TextStyle(
-                  color: fg,
-                  fontSize: 17,
-                  height: 1.3,
-                  fontStyle: bad || message.remotelyDeleted
-                      ? FontStyle.italic
-                      : FontStyle.normal,
-                ),
-              ),
-              semanticsLabel: formatted.plain,
-            ),
+            child: emojiSize != null
+                ? Text(
+                    message.body.trim(),
+                    style: TextStyle(fontSize: emojiSize, height: 1.15),
+                    textScaler: MediaQuery.textScalerOf(context)
+                        .clamp(maxScaleFactor: 2),
+                  )
+                : Text.rich(
+                    formatted.span(
+                      TextStyle(
+                        color: fg,
+                        fontSize: 17,
+                        height: 1.3,
+                        fontStyle: bad || message.remotelyDeleted
+                            ? FontStyle.italic
+                            : FontStyle.normal,
+                      ),
+                    ),
+                    semanticsLabel: formatted.plain,
+                  ),
           ),
         ),
         if (oversize)
@@ -131,8 +150,16 @@ class MessageBubbleBody extends ConsumerWidget {
             ),
           ),
         const SizedBox(height: 2),
-        Padding(
-          padding: textInset,
+        Container(
+          padding: bare
+              ? const EdgeInsets.symmetric(horizontal: 7, vertical: 2)
+              : textInset,
+          decoration: bare
+              ? BoxDecoration(
+                  color: FireplaceUiTokens.of(context).panel,
+                  borderRadius: BorderRadius.circular(12),
+                )
+              : null,
           child: Wrap(
             alignment: WrapAlignment.end,
             crossAxisAlignment: WrapCrossAlignment.center,
