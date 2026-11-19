@@ -169,7 +169,7 @@ class _RequestTileState extends ConsumerState<_RequestTile> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '@$name',
+                              name,
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
                             const Text('wants to chat'),

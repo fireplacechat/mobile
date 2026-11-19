@@ -52,6 +52,14 @@ final groupMessagesProvider = StreamProvider.autoDispose
           : service.watchMessages(gid);
     });
 
+/// One stored message of a group, by (gid, message id): a pinned message may
+/// be older than the loaded history.
+final groupStoredMessageProvider = FutureProvider.autoDispose
+    .family<LocalMessage?, (String, String)>((ref, key) async {
+      final service = ref.watch(groupServiceProvider);
+      return service?.message(key.$1, key.$2);
+    });
+
 /// Each member's colour name in one group, updated as profile messages arrive.
 final groupColorsProvider = StreamProvider.autoDispose
     .family<MemberColors, String>((ref, gid) async* {
