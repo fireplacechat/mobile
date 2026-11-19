@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fireplace/src/styles/chat_colors.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/styles/theme.dart';
 
 // The highlight after a jump to a message must stand apart from both bubble
@@ -68,6 +69,22 @@ void main() {
             reason: '$pair: too close to the page',
           );
         }
+      }
+    });
+  }
+
+  // The tints are deeper by day and lighter at night than they were; the
+  // message text must still read on every one of them.
+  for (final brightness in Brightness.values) {
+    test('message text reads on every ${brightness.name} tint', () {
+      final text = fireplaceTheme(brightness)
+          .extension<FireplaceUiTokens>()!
+          .incomingText;
+      for (final color in ChatBubbleColor.values) {
+        final a = text.computeLuminance();
+        final b = color.incoming(brightness).computeLuminance();
+        final ratio = (math.max(a, b) + .05) / (math.min(a, b) + .05);
+        expect(ratio, greaterThanOrEqualTo(4.5), reason: color.label);
       }
     });
   }
