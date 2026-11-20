@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/jump_band.dart';
 import '../../support/ui_fixture.dart';
 
 ProviderContainer _container(WidgetTester t) =>
@@ -59,12 +60,7 @@ Future<UiFixture> _longChat() async {
 ScrollController _timeline(WidgetTester t) =>
     t.widget<ListView>(find.byKey(const Key('messageTimeline'))).controller!;
 
-bool _flashing(WidgetTester t, String id) {
-  final band = t.widget<AnimatedContainer>(
-    find.byKey(ValueKey('messageFlash-$id')),
-  );
-  return (band.decoration! as BoxDecoration).color!.a > 0;
-}
+bool _flashing(WidgetTester t, String id) => jumpBandTarget(t, id).a > 0;
 
 void main() {
   testWidgets('jumps to the result and the rest of the chat scrolls', (

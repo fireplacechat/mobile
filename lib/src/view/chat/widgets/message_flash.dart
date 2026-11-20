@@ -42,7 +42,6 @@ class MessageFlash extends StatelessWidget {
             child: ValueListenableBuilder<String?>(
               valueListenable: flashed,
               builder: (context, id, _) => AnimatedContainer(
-                key: ValueKey('messageFlash-$messageId'),
                 duration: reduceMotion
                     ? Duration.zero
                     : const Duration(milliseconds: 450),

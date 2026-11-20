@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/jump_band.dart';
 import '../../support/ui_fixture.dart';
 
 /// 30 messages, then fred's reply quoting [target] (one of mine).
@@ -62,12 +63,7 @@ Rect _view(WidgetTester t) =>
 Rect _bubble(WidgetTester t, String id) =>
     t.getRect(find.byKey(ValueKey('messageBubble-$id')));
 
-bool _flashing(WidgetTester t, String id) {
-  final band = t.widget<AnimatedContainer>(
-    find.byKey(ValueKey('messageFlash-$id')),
-  );
-  return (band.decoration! as BoxDecoration).color!.a > 0;
-}
+bool _flashing(WidgetTester t, String id) => jumpBandTarget(t, id).a > 0;
 
 ScrollController _scroll(WidgetTester t) =>
     t.widget<ListView>(find.byKey(const Key('messageTimeline'))).controller!;

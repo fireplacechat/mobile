@@ -11,13 +11,12 @@ import 'package:fireplace/src/view/chat/message_menu_parts.dart';
 import 'package:fireplace/src/view/chat/widgets/message_flash.dart';
 import 'package:fireplace/src/view/groups/group_chat_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/fake_group_server.dart';
 import '../../support/group_phones.dart';
-import '../../support/painted_pixel.dart';
+import '../../support/jump_band.dart';
 import '../../support/ui_fixture.dart';
 
 void main() {
@@ -108,14 +107,15 @@ void main() {
     await settle(t, () => find.text('from Alice').evaluate().isNotEmpty);
   }
 
-  Finder flash() => find.ancestor(
-    of: find.text('from Bob').last,
-    matching: find.byType(MessageFlash),
-  );
-
-  Finder band(WidgetTester t) => find.byKey(
-    ValueKey('messageFlash-${t.widget<MessageFlash>(flash()).messageId}'),
-  );
+  /// The id of Bob's message, from the row that shows it.
+  String bobs(WidgetTester t) => t
+      .widget<MessageFlash>(
+        find.ancestor(
+          of: find.text('from Bob').last,
+          matching: find.byType(MessageFlash),
+        ),
+      )
+      .messageId;
 
   /// Pins Bob's message from its menu, then jumps to it from the pinned bar.
   Future<void> jumpToPinned(WidgetTester t) async {
@@ -132,8 +132,7 @@ void main() {
     );
     await t.tap(find.byKey(const Key('pinnedMessages')));
     await settle(t, () {
-      final box = t.renderObject(band(t)) as RenderDecoratedBox;
-      return (box.decoration as BoxDecoration).color!.a == 1;
+      return jumpBandShown(t, bobs(t)) == 1;
     });
   }
 
@@ -150,8 +149,9 @@ void main() {
       await open(t, size, padding);
       await jumpToPinned(t);
 
-      final bandRect = t.getRect(band(t));
-      final row = t.getRect(flash());
+      final id = bobs(t);
+      final bandRect = t.getRect(jumpBand(id));
+      final row = t.getRect(flashedRow(id));
       expect(bandRect.left, 0);
       expect(bandRect.right, size.width);
       expect(bandRect.top, row.top);
@@ -160,7 +160,8 @@ void main() {
       expect(row.right, size.width - MessageMenuMetrics.edge);
 
       final decoration =
-          t.widget<AnimatedContainer>(band(t)).decoration! as BoxDecoration;
+          t.widget<AnimatedContainer>(jumpBand(id)).decoration!
+              as BoxDecoration;
       expect(decoration.borderRadius, isNull, reason: 'square corners');
       for (final x in [0.0, size.width - 1]) {
         final painted = await paintedPixel(

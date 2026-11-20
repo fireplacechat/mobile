@@ -6,13 +6,11 @@ import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/message_menu_parts.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
-import 'package:fireplace/src/view/chat/widgets/message_flash.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../../support/painted_pixel.dart';
+import '../../support/jump_band.dart';
 import '../../support/ui_fixture.dart';
 
 final _boundary = GlobalKey();
@@ -51,31 +49,17 @@ Future<void> _open(WidgetTester t, Size size, FakeViewPadding padding) async {
   // Until the band has faded in, well before the highlight times out.
   for (
     var i = 0;
-    i < 20 && (_band('1').evaluate().isEmpty || _shown(t, '1') < 1);
+    i < 20 && (flashedRow('1').evaluate().isEmpty || jumpBandShown(t, '1') < 1);
     i++
   ) {
     await t.pump(const Duration(milliseconds: 50));
   }
-  expect(_shown(t, '1'), 1);
+  expect(jumpBandShown(t, '1'), 1);
 }
 
-Finder _band(String id) => find.byKey(ValueKey('messageFlash-$id'));
-
-/// How opaque the band is now, part way through its fade or not.
-double _shown(WidgetTester t, String id) =>
-    ((t.renderObject(_band(id)) as RenderDecoratedBox).decoration
-            as BoxDecoration)
-        .color!
-        .a;
-
-Finder _row(String id) => find.ancestor(
-  of: find.byKey(ValueKey('messageBubble-$id')),
-  matching: find.byType(MessageFlash),
-);
-
 Future<void> _expectBand(WidgetTester t, Size size) async {
-  final band = t.getRect(_band('1'));
-  final row = t.getRect(_row('1'));
+  final band = t.getRect(jumpBand('1'));
+  final row = t.getRect(flashedRow('1'));
   expect(band.left, 0);
   expect(band.right, size.width);
   expect(band.top, row.top);
@@ -88,7 +72,7 @@ Future<void> _expectBand(WidgetTester t, Size size) async {
   expect(bubble.right, lessThanOrEqualTo(row.right));
 
   final decoration =
-      t.widget<AnimatedContainer>(_band('1')).decoration! as BoxDecoration;
+      t.widget<AnimatedContainer>(jumpBand('1')).decoration! as BoxDecoration;
   expect(decoration.borderRadius, isNull, reason: 'square corners');
   final color = decoration.color!;
   expect(color.a, 1);
@@ -118,9 +102,9 @@ void main() {
 
   testWidgets('only the jumped-to row is lit, and it goes', (t) async {
     await _open(t, const Size(390, 780), const FakeViewPadding(top: 47));
-    expect(_shown(t, '2'), 0);
+    expect(jumpBandShown(t, '2'), 0);
     await t.pump(TimelineScroll.flashFor);
     await t.pumpAndSettle();
-    expect(_shown(t, '1'), 0);
+    expect(jumpBandShown(t, '1'), 0);
   });
 }
