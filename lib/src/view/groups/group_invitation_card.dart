@@ -11,7 +11,6 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/view/groups/group_chat_screen.dart';
 import 'package:fireplace/src/widgets/status.dart';
-import 'package:fireplace/src/view/safety/request_conversation_route.dart';
 
 /// An invitation to a group, with Join and Decline. The group's name is
 /// encrypted for its members, so it shows once you have joined.
@@ -153,14 +152,10 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
                           final gid = widget.invitation.gid;
                           final origin = ModalRoute.of(context);
                           final replace = widget.replaceRequests;
-                          final destination = replace
-                              ? requestConversationRoute(
-                                  context,
-                                  GroupChatScreen(gid: gid),
-                                )
-                              : MaterialPageRoute<void>(
-                                  builder: (_) => GroupChatScreen(gid: gid),
-                                );
+                          // Opened as the chat list opens a group.
+                          final destination = MaterialPageRoute<void>(
+                            builder: (_) => GroupChatScreen(gid: gid),
+                          );
                           var joined = false;
                           await _run((g) async {
                             await service.accept(g);

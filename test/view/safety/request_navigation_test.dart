@@ -7,8 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/ui_fixture.dart';
-import '../chat_list/swipe_back_test.dart' show dragRight;
-import 'safety_ui_test.dart' show host, settle, world;
+import '../../support/safety_world.dart';
 
 class _RefusedChat extends FixtureChat {
   @override
@@ -50,11 +49,13 @@ void main() {
         await t.pumpAndSettle();
         expect(find.byType(ChatScreen), findsOneWidget);
         expect(find.byKey(const Key('composer')), findsOneWidget);
+        // Android's own back (the gesture or button) after a banner accept;
+        // the app's back arrow otherwise. A chat has no full-page swipe:
+        // dragging a message to the right replies to it.
         if (banner &&
             Theme.of(t.element(find.byType(ChatScreen))).platform ==
                 TargetPlatform.android) {
-          final gesture = await dragRight(t, 260);
-          await gesture.up();
+          await t.binding.handlePopRoute();
         } else {
           await t.tap(find.byKey(const Key('chatBack')));
         }

@@ -6,7 +6,6 @@ import 'package:fireplace/src/view/groups/group_invitation_card.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
-import 'package:fireplace/src/view/safety/request_conversation_route.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/widgets/page.dart';
@@ -162,9 +161,8 @@ class _RequestTileState extends ConsumerState<_RequestTile> {
                         final navigator = Navigator.of(context);
                         final requests = ModalRoute.of(context);
                         navigator.push(
-                          requestConversationRoute(
-                            context,
-                            ChatScreen(
+                          MaterialPageRoute<void>(
+                            builder: (_) => ChatScreen(
                               chatId: chat.chatId,
                               onRequestAccepted: () {
                                 if (requests != null &&
@@ -212,9 +210,9 @@ class _RequestTileState extends ConsumerState<_RequestTile> {
                         : () => _run(() async {
                             final navigator = Navigator.of(context);
                             final requests = ModalRoute.of(context);
-                            final conversation = requestConversationRoute(
-                              context,
-                              ChatScreen(chatId: chat.chatId),
+                            // Opened as the chat list opens a chat.
+                            final conversation = MaterialPageRoute<void>(
+                              builder: (_) => ChatScreen(chatId: chat.chatId),
                             );
                             await session.chat.acceptRequest(chat.chatId);
                             if (mounted) ref.invalidate(hiddenChatsProvider);
