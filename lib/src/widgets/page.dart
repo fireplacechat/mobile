@@ -71,10 +71,14 @@ class UiEmptyState extends StatelessWidget {
     required this.message,
     this.action,
     this.icon = Icons.chat_bubble_outline_rounded,
+    this.illustration,
   });
   final String title, message;
   final Widget? action;
   final IconData icon;
+
+  /// Drawn in place of [icon]'s tile, for a page with a picture of its own.
+  final Widget? illustration;
   @override
   Widget build(BuildContext context) => Center(
     child: SingleChildScrollView(
@@ -82,18 +86,19 @@ class UiEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: FireplaceUiTokens.of(context).selectedRow,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Icon(
-              icon,
-              size: 36,
-              color: FireplaceUiTokens.of(context).accentText,
-            ),
-          ),
+          illustration ??
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: FireplaceUiTokens.of(context).selectedRow,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  icon,
+                  size: 36,
+                  color: FireplaceUiTokens.of(context).accentText,
+                ),
+              ),
           const SizedBox(height: 20),
           Text(
             title,
