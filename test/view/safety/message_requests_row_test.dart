@@ -1,5 +1,7 @@
 // Issue 248: Message requests at the top of the chat list shows who is
 // waiting as a small stack of faces, names them, and counts them.
+import 'dart:async';
+
 import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app/group_providers.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
@@ -121,6 +123,27 @@ void main() {
     );
     expect(summary(t), 'dana and theo');
     expect(count(t), '2');
+  });
+
+  testWidgets('while a name is loading, a general line and no placeholder', (
+    t,
+  ) async {
+    final f = UiFixture();
+    await f.seed();
+    addTearDown(f.session.close);
+    f.names['theo'] = Completer<String>().future;
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: f.overrides,
+        child: MaterialApp(
+          theme: fireplaceTheme(Brightness.light),
+          home: const ChatListScreen(),
+        ),
+      ),
+    );
+    await settleUi(t);
+    expect(summary(t), 'People who want to chat with you');
+    expect(find.text('…'), findsNothing);
   });
 
   testWidgets('the empty Requests page draws places for faces, no envelope', (

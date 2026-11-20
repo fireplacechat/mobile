@@ -32,18 +32,25 @@ class MessageRequestsRow extends ConsumerWidget {
         (r.lastMessageAt ?? DateTime(0), r.peerUid, false),
       for (final i in invitations) (i.at, i.inviter, true),
     ]..sort((a, b) => b.$1.compareTo(a.$1));
-    String nameOf(String uid) =>
-        ref.watch(peerUsernameProvider(uid)).value ?? '…';
+    final names = {
+      for (final (_, uid, _) in waiting)
+        uid: ref.watch(peerUsernameProvider(uid)).value,
+    };
+    // Until every name has arrived: plain faces and a general line, never
+    // a placeholder.
+    final named = !names.values.contains(null);
     final faces = [
       for (final (_, uid, group) in waiting)
         // In the app's own colour: a requester's colour shows only once
         // accepted (decision 0053).
-        RequestFace(nameOf(uid), group: group),
+        RequestFace(names[uid] ?? '', group: group),
     ];
-    final summary = requestSummary([
-      for (final (_, uid, group) in waiting)
-        WaitingRequest(nameOf(uid), group: group),
-    ]);
+    final summary = named
+        ? requestSummary([
+            for (final (_, uid, group) in waiting)
+              WaitingRequest(names[uid]!, group: group),
+          ])
+        : 'People who want to chat with you';
     final count = waiting.length;
     return Semantics(
       button: true,
