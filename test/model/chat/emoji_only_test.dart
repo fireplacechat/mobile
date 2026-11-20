@@ -2,41 +2,74 @@ import 'package:fireplace/src/model/chat/emoji_only.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('counts complete emoji graphemes, including modifiers and keycaps', () {
-    for (final emoji in [
-      '🔥',
-      '👨‍👩‍👧',
-      '👩🏽‍💻',
-      '👍🏿',
-      '🇬🇧',
-      '1️⃣',
-      '#⃣',
-      '*️⃣',
+  test(
+    'counts complete emoji, including joined ones, skin tones and flags',
+    () {
+      for (final emoji in [
+        '🔥',
+        '⭐',
+        '✨',
+        '❤️',
+        '☺️',
+        '✔️',
+        '☝🏽',
+        '👍🏿',
+        '👨‍👩‍👧',
+        '👩🏽‍💻',
+        '❤️‍🔥',
+        '🏳️‍🌈',
+        '🇬🇧',
+        '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
+        '1️⃣',
+        '#⃣',
+        '*️⃣',
+      ]) {
+        expect(emojiOnlyCount(emoji), 1, reason: emoji);
+      }
+      expect(emojiOnlyCount('👍🏾🇬🇧'), 2);
+      expect(emojiOnlyCount('🎉🍎🔥'), 3);
+    },
+  );
+
+  test('symbols shown as text are not emoji', () {
+    for (final text in [
+      '©',
+      '®',
+      '™',
+      '‼',
+      '★',
+      '☆',
+      '☺',
+      '❤',
+      '✔',
+      '↔',
+      'ℹ',
+      '☀︎',
+      '©©',
     ]) {
-      expect(emojiOnlyCount(emoji), 1, reason: emoji);
+      expect(emojiOnlyCount(text), isNull, reason: text);
     }
-    expect(emojiOnlyCount(' \n👍🏾🇬🇧\t'), 2);
-    expect(emojiOnlyCount('🎉🍎🔥'), 3);
   });
 
-  test('regular messages, text presentation and excess emoji keep bubbles', () {
+  test('any space, text or a fourth emoji keeps the bubble', () {
     for (final text in [
       '',
       ' ',
       '1',
       '#',
-      '🔥!',
-      'Hi 🔥',
-      '👍 ok',
+      '🔥 ',
+      ' 🔥',
+      '🔥\n',
       '👍 👍',
       '👍\n👍',
-      '👍\u0301',
-      '☀\uFE0E',
+      '🔥!',
+      'Hi 🔥',
+      '👍́',
       '🇬',
       '🏽',
       '🔥' * 4,
       '🔥' * 5,
-      '🔥${'\u0301' * 16384}',
+      '🔥${'́' * 16384}',
       ' ' * 16384,
     ]) {
       expect(
@@ -46,4 +79,18 @@ void main() {
       );
     }
   });
+
+  test('a message is trimmed for sending, except a space after emoji', () {
+    expect(messageBodyToSend('  hello  '), 'hello');
+    expect(messageBodyToSend('🔥'), '🔥');
+    expect(messageBodyToSend(' 🔥'), '🔥');
+    expect(messageBodyToSend('🔥 '), '🔥 ');
+    expect(messageBodyToSend('🔥🔥  \n'), '🔥🔥 ');
+    expect(messageBodyToSend('🔥 '), isNot(predicate(_bare)));
+    expect(messageBodyToSend('Hi 🔥 '), 'Hi 🔥');
+    expect(messageBodyToSend('🔥🔥🔥🔥 '), '🔥🔥🔥🔥');
+    expect(messageBodyToSend('   '), '');
+  });
 }
+
+bool _bare(Object? body) => emojiOnlyCount(body! as String) != null;

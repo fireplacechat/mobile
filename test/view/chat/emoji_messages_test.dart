@@ -2,6 +2,7 @@ import 'package:fireplace/src/db/message_quote.dart';
 import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:flutter/material.dart';
@@ -132,5 +133,52 @@ void main() {
     await t.pumpAndSettle();
     expect(find.byKey(const Key('copySelectedMessages')), findsOneWidget);
     expect(find.byKey(const ValueKey('messageBubble-emoji2')), findsOneWidget);
+  });
+
+  testWidgets('a space keeps the bubble; a focused bare emoji is outlined', (
+    t,
+  ) async {
+    final fixture = UiFixture();
+    await fixture.seed();
+    addTearDown(fixture.session.close);
+    for (final (id, body) in [('spaced', '🔥 '), ('bare', '🔥')]) {
+      await fixture.chat.store.add(
+        message(
+          id: id,
+          body: body,
+          outgoing: true,
+          at: fixtureTime.add(Duration(minutes: id == 'bare' ? 2 : 1)),
+        ),
+      );
+    }
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: fixture.overrides,
+        child: MaterialApp(
+          theme: fireplaceTheme(Brightness.light),
+          home: const ChatScreen(chatId: 'alice_fred'),
+        ),
+      ),
+    );
+    await settleUi(t);
+    final spaced = find.byKey(const ValueKey('messageBubble-spaced'));
+    final bare = find.byKey(const ValueKey('messageBubble-bare'));
+    expect(t.widget<Container>(spaced).decoration, isNotNull);
+    expect(t.widget<Container>(bare).decoration, isNull);
+
+    // Keyboard focus: the outline must show on the page, so it takes the
+    // page's text colour, not the white of an outgoing bubble's text.
+    FocusManager.instance.highlightStrategy =
+        FocusHighlightStrategy.alwaysTraditional;
+    addTearDown(
+      () => FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.automatic,
+    );
+    Focus.of(t.element(bare)).requestFocus();
+    await t.pump();
+    final outline =
+        t.widget<Container>(bare).foregroundDecoration! as BoxDecoration;
+    final text = Theme.of(t.element(bare)).extension<FireplaceUiTokens>()!.text;
+    expect((outline.border! as Border).top.color, text);
   });
 }

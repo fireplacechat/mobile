@@ -6,6 +6,7 @@ import 'package:fireplace/src/model/chat/message_compose_target.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/message_controls.dart';
 import 'package:fireplace/src/view/chat/widgets/reply_panel.dart';
+import 'package:fireplace/src/model/chat/emoji_only.dart';
 
 class ComposerContextView {
   const ComposerContextView({
@@ -64,7 +65,7 @@ class _MessageComposerContextState
     final target = ref.read(provider);
     if (target?.action != MessageComposeAction.edit ||
         _edit.text.trim().isEmpty ||
-        _edit.text.trim() == target?.message.body) {
+        messageBodyToSend(_edit.text) == target?.message.body) {
       return;
     }
     final consumed = await ref
@@ -115,7 +116,7 @@ class _MessageComposerContextState
         busy: editing && busy,
         canSubmit:
             !editing ||
-            (_edit.text.trim() != live?.body &&
+            (messageBodyToSend(_edit.text) != live?.body &&
                 live != null &&
                 !live.remotelyDeleted),
         bar: target == null

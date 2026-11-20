@@ -24,6 +24,7 @@ import 'package:fireplace/src/view/chat/pinned_bar.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/view/groups/group_message_menu.dart';
 import 'package:fireplace/src/view/groups/group_timeline.dart';
+import 'package:fireplace/src/model/chat/emoji_only.dart';
 
 /// A group conversation (decision 0050). It looks like a 1:1 chat: the same
 /// bubbles, day separators, held-message menu, reactions and composer, with
@@ -113,7 +114,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 
   Future<void> _send() async {
     final service = ref.read(groupServiceProvider);
-    final text = _text.text.trim();
+    final text = messageBodyToSend(_text.text);
     if (service == null || text.isEmpty) return;
     final replyTo = _replyTo;
     _text.clear();
@@ -151,7 +152,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   Future<void> _saveEdit() async {
     final service = ref.read(groupServiceProvider);
     final target = _editing;
-    final body = _edit.text.trim();
+    final body = messageBodyToSend(_edit.text);
     if (service == null || target == null || body.isEmpty || _busy) return;
     setState(() => _busy = true);
     await _run(() => service.edit(widget.gid, target.id, body));
@@ -413,7 +414,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                   submit: editing ? _saveEdit : _send,
                   editing: editing,
                   editingBusy: editing && _busy,
-                  canSubmit: !editing || _edit.text.trim() != _editing!.body,
+                  canSubmit:
+                      !editing ||
+                      messageBodyToSend(_edit.text) != _editing!.body,
                   contextBar: editing
                       ? Row(
                           key: const Key('editComposerPreview'),

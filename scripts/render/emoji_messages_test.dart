@@ -25,6 +25,8 @@ void main() {
       'selected',
       'group',
       'large',
+      // A space, or a symbol shown as text, keeps the bubble.
+      'spaced',
     ]) {
       testWidgets('${brightness.name} $state', (t) async {
         final originalShadows = debugDisableShadows;
@@ -39,7 +41,9 @@ void main() {
           fixture.secrets.data[ChatAppearance.storageKey] = 'ocean';
           addTearDown(fixture.session.close);
           await fixture.chat.store.clearChat('alice_fred');
-          const glyphs = ['🔥', '👋🏽🌷', '🌱🍎🌼', '🎈🎈🎈🎈'];
+          final glyphs = state == 'spaced'
+              ? const ['🔥 ', '👋🏽 🌷', '©', '™']
+              : const ['🔥', '👋🏽🌷', '🌱🍎🌼', '🎈🎈🎈🎈'];
           for (var i = 0; i < glyphs.length; i++) {
             final msg = message(
               id: 'e$i',

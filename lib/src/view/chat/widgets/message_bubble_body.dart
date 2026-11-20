@@ -119,8 +119,22 @@ class MessageBubbleBody extends ConsumerWidget {
             alignment: AlignmentDirectional.centerStart,
             child: emojiSize != null
                 ? Text(
-                    message.body.trim(),
-                    style: TextStyle(fontSize: emojiSize, height: 1.15),
+                    message.body,
+                    style: TextStyle(
+                      fontSize: emojiSize,
+                      height: 1.15,
+                      // The held copy is lifted off the page, as a bubble
+                      // is; without one, the emoji carry the shadow.
+                      shadows: preview && bare
+                          ? const [
+                              Shadow(
+                                color: Color(0x4D000000),
+                                blurRadius: 12,
+                                offset: Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
                     textScaler: MediaQuery.textScalerOf(context)
                         .clamp(maxScaleFactor: 2),
                   )

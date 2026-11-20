@@ -326,10 +326,17 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                               : null,
                         ),
                   // Painted over the bubble, so focus never changes its size.
+                  // Bare emoji sit on the page, so their outline takes the
+                  // page's text colour rather than the bubble's.
                   foregroundDecoration: _focused
                       ? BoxDecoration(
-                          border: Border.all(color: fg, width: 2),
-                          borderRadius: bubbleRadius,
+                          border: Border.all(
+                            color: bare ? t.text : fg,
+                            width: 2,
+                          ),
+                          borderRadius: bare
+                              ? BorderRadius.circular(12)
+                              : bubbleRadius,
                         )
                       : null,
                   // The sender is announced first. The menu actions are also offered to screen readers, as
