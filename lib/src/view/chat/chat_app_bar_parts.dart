@@ -4,6 +4,7 @@ import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
+import 'package:fireplace/src/widgets/person_tap.dart';
 
 class ChatBackButton extends StatelessWidget {
   // Rebuild with the screen; keep this extraction non-const.
@@ -45,18 +46,25 @@ class ChatTitle extends ConsumerWidget {
     final theirs = peerUid == null
         ? null
         : ref.watch(acceptedPeerColorProvider(peerUid!));
+    final open = peerUid == null || !hasSession
+        ? null
+        : () => onOpenDetails(context);
+    // The avatar and the name open the profile; the bar beside them does
+    // not (issue 245).
     return Row(
       children: [
-        PersonAvatar(name: name, size: 36, color: theirs?.outgoing),
-        SizedBox(width: 10),
+        TappableAvatar(
+          key: const Key('chatAvatar'),
+          onTap: open,
+          child: PersonAvatar(name: name, size: 36, color: theirs?.outgoing),
+        ),
+        SizedBox(width: 6),
         Expanded(
-          child: InkWell(
-            key: const Key('chatDetails'),
-            onTap: peerUid == null || !hasSession
-                ? null
-                : () => onOpenDetails(context),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TappableName(
+              key: const Key('chatDetails'),
+              onTap: open,
               child: ChatTitleName(
                 name,
                 color: theirs?.accentText(Theme.of(context).brightness),

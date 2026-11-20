@@ -10,6 +10,8 @@ import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/view/chat/message_reactions.dart';
 import 'package:fireplace/src/view/chat/message_widgets.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
+import 'package:fireplace/src/view/profile/person_profile_screen.dart';
+import 'package:fireplace/src/widgets/person_tap.dart';
 
 /// Layout shared by the rows of a group conversation.
 abstract final class GroupRowMetrics {
@@ -103,24 +105,42 @@ class GroupMessageRow extends ConsumerWidget {
     );
     if (mine) return bubble;
     final shade = color.accentText(brightness);
+    // The sender's avatar and name open their profile, except while
+    // selecting, when taps choose messages (issue 245).
+    final openProfile = selecting || name == '…'
+        ? null
+        : () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => PersonProfileScreen(
+                peerUid: message.senderUid,
+                name: name,
+                color: shade,
+              ),
+            ),
+          );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (showName)
           Padding(
+            // The name's own few pixels of padding keep it over the bubble.
             padding: const EdgeInsets.only(
-              left: GroupRowMetrics.gutter + 14,
-              top: 6,
+              left: GroupRowMetrics.gutter + 10,
+              top: 4,
             ),
-            child: Text(
-              name,
-              key: Key('groupSender_${message.id}'),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: shade,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+            child: TappableName(
+              key: Key('groupSenderTap_${message.id}'),
+              onTap: openProfile,
+              child: Text(
+                name,
+                key: Key('groupSender_${message.id}'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: shade,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
@@ -133,11 +153,14 @@ class GroupMessageRow extends ConsumerWidget {
                   ? Padding(
                       // Level with the bubble, above its margin and reactions.
                       padding: EdgeInsets.only(right: 8, bottom: 4 + reserve),
-                      child: PersonAvatar(
-                        key: Key('groupAvatar_${message.id}'),
-                        name: name,
-                        size: GroupRowMetrics.avatar,
-                        color: shade,
+                      child: TappableAvatar(
+                        onTap: openProfile,
+                        child: PersonAvatar(
+                          key: Key('groupAvatar_${message.id}'),
+                          name: name,
+                          size: GroupRowMetrics.avatar,
+                          color: shade,
+                        ),
                       ),
                     )
                   : null,

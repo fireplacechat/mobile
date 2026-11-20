@@ -9,6 +9,7 @@ import 'package:fireplace/src/view/groups/text_prompt_dialog.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/view/profile/person_profile_screen.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
+import 'package:fireplace/src/widgets/person_tap.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/status.dart';
@@ -346,16 +347,30 @@ class _MemberRow extends ConsumerWidget {
             colors,
             member.uid,
           ).accentText(Theme.of(context).brightness);
+    // Only the avatar and the name open the profile (issue 245).
+    final open = onOpen == null || name == '…'
+        ? null
+        : () => onOpen!(name, color);
     return ListTile(
       key: Key('member_${member.uid}'),
-      leading: PersonAvatar(name: name, size: 40, color: color),
-      title: Text(me ? 'You' : name),
+      leading: TappableAvatar(
+        key: Key('memberAvatar_${member.uid}'),
+        onTap: open,
+        child: PersonAvatar(name: name, size: 40, color: color),
+      ),
+      title: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: TappableName(
+          key: Key('memberName_${member.uid}'),
+          onTap: open,
+          child: Text(me ? 'You' : name),
+        ),
+      ),
       subtitle: invited
           ? const Text('Invited')
           : isAdmin
           ? const Text('Administrator')
           : null,
-      onTap: onOpen == null || name == '…' ? null : () => onOpen!(name, color),
       trailing: canRemove
           ? IconButton(
               key: Key('remove_${member.uid}'),

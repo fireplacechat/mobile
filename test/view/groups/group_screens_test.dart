@@ -503,6 +503,45 @@ void main() {
     await tearDownPhones(t);
   });
 
+  testWidgets('a sender’s avatar and name open their profile, except while '
+      'selecting (issue 245)', (t) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await t.runAsync(() async {
+      await bob.service.send(gid, 'from Bob');
+      await until(
+        () async => (await texts(alice, gid)).contains('from Bob'),
+        what: 'the message',
+      );
+    });
+    await pump(t, GroupChatScreen(gid: gid));
+    await settle(t, () => find.text('from Bob').evaluate().isNotEmpty);
+    final history = (await t.runAsync(
+      () => alice.messages.watch('group-$gid').first,
+    ))!;
+    final id = history.firstWhere((m) => m.body == 'from Bob').id;
+    for (final part in ['groupAvatar_$id', 'groupSender_$id']) {
+      await t.tap(find.byKey(Key(part)));
+      await t.pumpAndSettle();
+      expect(find.byType(PersonProfileScreen), findsOneWidget, reason: part);
+      expect(find.byKey(const Key('profileName')), findsOneWidget);
+      await t.pageBack();
+      await t.pumpAndSettle();
+    }
+    // While choosing messages, a tap on the sender opens nothing.
+    await t.longPress(find.text('from Bob'));
+    await t.pump(const Duration(milliseconds: 600));
+    final select = find.byKey(const ValueKey('messageAction-select'));
+    await t.ensureVisible(select);
+    await t.pump(const Duration(milliseconds: 300));
+    await t.tap(select);
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(Key('groupAvatar_$id')));
+    await t.pumpAndSettle();
+    expect(find.byType(PersonProfileScreen), findsNothing);
+    await tearDownPhones(t);
+  });
+
   testWidgets('the history shows who was added, and where it starts for '
       'someone who joined later', (t) async {
     await setUpPhones(t);
@@ -685,7 +724,7 @@ void main() {
     await t.ensureVisible(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
     // The member's profile carries the choice (issue 244).
-    await t.tap(find.byKey(const Key('member_bob')));
+    await t.tap(find.byKey(const Key('memberName_bob')));
     await t.pumpAndSettle();
     expect(find.byType(PersonProfileScreen), findsOneWidget);
     expect(find.byKey(const Key('removeAdmin')), findsNothing);
@@ -712,14 +751,23 @@ void main() {
     // Your own row is not a way into a profile.
     await t.ensureVisible(find.byKey(const Key('member_alice')));
     await t.pumpAndSettle();
-    await t.tap(find.byKey(const Key('member_alice')));
+    await t.tap(find.byKey(const Key('memberName_alice')));
     await t.pumpAndSettle();
     expect(find.byType(PersonProfileScreen), findsNothing);
 
     await t.scrollUntilVisible(find.byKey(const Key('member_bob')), 200);
     await t.ensureVisible(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
+    // Only the avatar and the name open it, not the rest of the row.
     await t.tap(find.byKey(const Key('member_bob')));
+    await t.pumpAndSettle();
+    expect(find.byType(PersonProfileScreen), findsNothing);
+    await t.tap(find.byKey(const Key('memberAvatar_bob')));
+    await t.pumpAndSettle();
+    expect(find.byType(PersonProfileScreen), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('memberName_bob')));
     await t.pumpAndSettle();
     final remove = find.byKey(const Key('profileRemoveFromGroup'));
     await t.ensureVisible(remove);
