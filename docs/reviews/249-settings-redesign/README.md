@@ -1,7 +1,7 @@
 # Settings redesign (issue 249)
 
 Settings now opens on a profile card and six categories. Each category opens
-its own page with the same rows as before, in rounded cards with tinted icons
+its own page with the same rows as before, in rounded cards with plain icons on soft tiles
 and the current value on the row. Open-source licences are back under Help and
 about.
 
