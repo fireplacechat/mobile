@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/view/chat/conversation_search.dart';
 import 'package:fireplace/src/view/chat/message_edit_history.dart';
 import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
 
@@ -107,14 +109,24 @@ class MessageBubbleBody extends ConsumerWidget {
             widthFactor: quoted ? null : 1,
             alignment: AlignmentDirectional.centerStart,
             child: Text.rich(
-              formatted.span(
+              // Words matching an open search are marked (issue 246).
+              markMatches(
+                formatted.span(
+                  TextStyle(
+                    color: fg,
+                    fontSize: 17,
+                    height: 1.3,
+                    fontStyle: bad || message.remotelyDeleted
+                        ? FontStyle.italic
+                        : FontStyle.normal,
+                  ),
+                ),
+                bad || message.remotelyDeleted
+                    ? ''
+                    : SearchHighlight.queryOf(context),
                 TextStyle(
-                  color: fg,
-                  fontSize: 17,
-                  height: 1.3,
-                  fontStyle: bad || message.remotelyDeleted
-                      ? FontStyle.italic
-                      : FontStyle.normal,
+                  color: FireplaceUiTokens.of(context).warningText,
+                  backgroundColor: FireplaceUiTokens.of(context).warningSurface,
                 ),
               ),
               semanticsLabel: formatted.plain,

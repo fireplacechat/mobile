@@ -29,8 +29,12 @@ class ProfileChatHandlers {
     required this.onBlock,
     required this.onUnblock,
     required this.onReportSpam,
+    this.onSearch,
   });
   final String chatId;
+
+  /// Opens the search inside that chat (issue 246).
+  final VoidCallback? onSearch;
   final Future<void> Function(bool muted) onMute;
   final Future<void> Function() onBlock, onUnblock;
   final Future<void> Function(ReportSpamChoice choice) onReportSpam;
@@ -291,6 +295,21 @@ class _PersonProfileScreenState extends ConsumerState<PersonProfileScreen> {
                             : Icons.notifications_none,
                         label: muted ? 'Unmute' : 'Mute',
                         onPressed: _busy ? null : () => _mute(chatId, !muted),
+                      ),
+                    ),
+                  ],
+                  if (w.inChat?.onSearch case final search?) ...[
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ProfileQuickAction(
+                        key: const Key('profileSearch'),
+                        icon: Icons.search,
+                        label: 'Search',
+                        // Back to the chat, with its search open.
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          search();
+                        },
                       ),
                     ),
                   ],

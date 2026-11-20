@@ -223,6 +223,15 @@ class GroupService {
   Future<void> revealMessage(String gid, String messageId) =>
       _messages.reveal(groupChatId(gid), messageId);
 
+  /// The newest messages in the group whose text [matches] accepts, for the
+  /// search inside it (issue 246). The store finds them without reading the
+  /// whole history.
+  Future<List<LocalMessage>> findMessages(
+    String gid,
+    bool Function(String body) matches, {
+    int limit = 100,
+  }) => _messages.search({groupChatId(gid)}, matches, limit: limit);
+
   MemberColors colorsOf(String gid) =>
       Map.unmodifiable(_colors[gid] ?? const {});
   Stream<String> get colorChanges => _colorsCtrl.stream;

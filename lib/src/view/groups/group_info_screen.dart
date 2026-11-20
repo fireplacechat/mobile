@@ -19,8 +19,11 @@ import 'package:fireplace/src/widgets/status.dart';
 /// administrators; anyone may leave. People who were invited and have not
 /// answered are listed apart, so nobody is surprised that they are there.
 class GroupInfoScreen extends ConsumerStatefulWidget {
-  const GroupInfoScreen({super.key, required this.gid});
+  const GroupInfoScreen({super.key, required this.gid, this.onSearch});
   final String gid;
+
+  /// Opens the search inside the group's conversation (issue 246).
+  final VoidCallback? onSearch;
   @override
   ConsumerState<GroupInfoScreen> createState() => _GroupInfoScreenState();
 }
@@ -224,6 +227,17 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
             title: Text(muted ? 'Unmute' : 'Mute'),
             onTap: () => _run(() => setGroupMuted(ref, widget.gid, !muted)),
           ),
+          if (widget.onSearch case final search?)
+            ListTile(
+              key: const Key('groupSearch'),
+              leading: const Icon(Icons.search),
+              title: const Text('Search'),
+              // Back to the conversation, with its search open.
+              onTap: () {
+                Navigator.of(context).pop();
+                search();
+              },
+            ),
           if (admin)
             ListTile(
               key: const Key('renameGroup'),
