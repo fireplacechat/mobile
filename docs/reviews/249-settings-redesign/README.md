@@ -1,7 +1,7 @@
 # Settings redesign (issue 249)
 
 Settings now opens on a profile card and six categories. Each category opens
-its own page with the same rows as before, in rounded cards with plain icons on soft tiles
+its own page with the same rows as before, in rounded cards with plain outline icons
 and the current value on the row. Open-source licences are back under Help and
 about.
 
@@ -18,7 +18,7 @@ inset. They are not device screenshots.
 | `ios-{light,dark}-notifications-scrolled.png` | A page scrolled: the large title has gone and the bar shows it small |
 | `ios-light-licences.png` | Flutter's licence page, opened from Help and about. A test has no licences registered, so the list is empty here; the app lists every package |
 | `android-{light,dark}-{main,privacy}.png` | The same on Android (back arrow, Android wording) |
-| `narrow-large-light-*.png`, `narrow-large-dark-main.png` | Every page at 320 points with 200% text. At this size the icon squares step aside so whole words fit |
+| `narrow-large-light-*.png`, `narrow-large-dark-main.png` | Every page at 320 points with 200% text. At this size the icons step aside so whole words fit |
 | `moving-through-pages.gif` | Opening Privacy and security, Appearance and Help and about, and going back |
 
 Made with:

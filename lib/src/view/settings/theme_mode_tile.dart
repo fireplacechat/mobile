@@ -20,7 +20,7 @@ class ThemeModeTile extends ConsumerWidget {
       key: const Key('themeMode'),
       leading: const SettingsCategoryIcon(
         SettingsCategory.appearance,
-        Icons.brightness_6_rounded,
+        Icons.brightness_6_outlined,
       ),
       title: 'Theme',
       value: dark ? 'Dark' : 'Light',

@@ -136,7 +136,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
           key: const Key('pushSwitch'),
           secondary: const SettingsCategoryIcon(
             category,
-            Icons.notifications_rounded,
+            Icons.notifications_none_rounded,
           ),
           title: const Text('Allow notifications'),
           subtitle: _subtitle == null ? null : Text(_subtitle!),
@@ -145,7 +145,10 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
         ),
         SwitchListTile(
           key: const Key('pushShowName'),
-          secondary: const SettingsCategoryIcon(category, Icons.person_rounded),
+          secondary: const SettingsCategoryIcon(
+            category,
+            Icons.person_outline_rounded,
+          ),
           title: const Text('Show sender’s name'),
           value: _showName,
           onChanged: on && !_busy
@@ -155,7 +158,10 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
         if (previews)
           SwitchListTile(
             key: const Key('pushPreview'),
-            secondary: const SettingsCategoryIcon(category, Icons.chat_rounded),
+            secondary: const SettingsCategoryIcon(
+              category,
+              Icons.chat_outlined,
+            ),
             title: const Text('Show message preview'),
             // The passphrase lock keeps previews off (decision 0033) and puts
             // this choice back when it is turned off.
@@ -171,7 +177,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
           key: const Key('pushSound'),
           secondary: const SettingsCategoryIcon(
             category,
-            Icons.volume_up_rounded,
+            Icons.volume_up_outlined,
           ),
           title: const Text('Notification sound'),
           value: _sound,

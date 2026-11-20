@@ -38,7 +38,7 @@ class _HelpSettingsScreenState extends ConsumerState<HelpSettingsScreen>
               key: const Key('openPrivacyPolicy'),
               leading: const SettingsCategoryIcon(
                 category,
-                Icons.policy_rounded,
+                Icons.policy_outlined,
               ),
               title: 'Privacy policy',
               onLongPress: previewDiagnosticsEnabled
@@ -50,7 +50,7 @@ class _HelpSettingsScreenState extends ConsumerState<HelpSettingsScreen>
               key: const Key('openTermsOfUse'),
               leading: const SettingsCategoryIcon(
                 category,
-                Icons.description_rounded,
+                Icons.description_outlined,
               ),
               title: 'Terms of use',
               onTap: busy ? null : () => openLegal(termsOfUseUrl),

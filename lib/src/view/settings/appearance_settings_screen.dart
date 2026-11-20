@@ -41,7 +41,7 @@ class _AppearanceSettingsScreenState
               key: const Key('chatColors'),
               leading: const SettingsCategoryIcon(
                 category,
-                Icons.palette_rounded,
+                Icons.palette_outlined,
               ),
               title: 'Your color',
               value: colors.outgoing.label,

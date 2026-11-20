@@ -5,12 +5,12 @@ import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 
 /// The pages the main Settings page opens (issue 249).
 enum SettingsCategory {
-  account('Account', Icons.person_rounded),
-  privacy('Privacy and security', Icons.lock_rounded),
-  notifications('Notifications and sounds', Icons.notifications_rounded),
-  appearance('Appearance', Icons.palette_rounded),
-  devices('Devices and recovery', Icons.devices_rounded),
-  help('Help and about', Icons.help_rounded);
+  account('Account', Icons.person_outline_rounded),
+  privacy('Privacy and security', Icons.lock_outline_rounded),
+  notifications('Notifications and sounds', Icons.notifications_none_rounded),
+  appearance('Appearance', Icons.palette_outlined),
+  devices('Devices and recovery', Icons.devices_outlined),
+  help('Help and about', Icons.help_outline_rounded);
 
   const SettingsCategory(this.title, this.icon);
   final String title;
