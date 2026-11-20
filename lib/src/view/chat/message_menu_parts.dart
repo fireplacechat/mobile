@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/view/chat/message_menu_placement.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 
 /// The measured geometry of the held-message menu, in logical pixels.
 abstract final class MessageMenuMetrics {
@@ -207,7 +208,12 @@ class MessageMenuRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Icon(action.icon, size: MessageMenuMetrics.rowIcon),
+                  action.iconMark == null
+                      ? Icon(action.icon, size: MessageMenuMetrics.rowIcon)
+                      : RoundBubbleIcon(
+                          mark: action.iconMark!,
+                          size: MessageMenuMetrics.rowIcon,
+                        ),
                 ],
               ),
             ),

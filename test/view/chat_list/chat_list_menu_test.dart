@@ -2,6 +2,7 @@
 // block, and delete on this phone.
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/styles/action_icons.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
@@ -40,13 +41,21 @@ void main() {
       ),
       findsOneWidget,
     );
-    // Each action has its icon.
+    // Each action has its icon; Mark read's is a round bubble with a tick
+    // in it, drawn as two icons.
     expect(
       find.descendant(
         of: find.byKey(const Key('chatRowMenu')),
         matching: find.byType(Icon),
       ),
-      findsNWidgets(4),
+      findsNWidgets(5),
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('chatRowMenu')),
+        matching: find.byType(RoundBubbleIcon),
+      ),
+      findsOneWidget,
     );
     // The bin of the held-message menu, as everywhere (issue 212).
     expect(

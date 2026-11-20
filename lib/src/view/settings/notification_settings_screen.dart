@@ -11,6 +11,7 @@ import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/settings/settings_group.dart';
 import 'package:fireplace/src/widgets/settings/settings_tile.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 
 /// Settings → Notifications and sounds: alerts while Fireplace is closed,
 /// banners and sounds while it is open, and the reset for unread counts
@@ -97,10 +98,7 @@ class _NotificationSettingsScreenState
           children: [
             SwitchListTile(
               key: const Key('notificationPreviews'),
-              secondary: const SettingsCategoryIcon(
-                category,
-                Icons.chat_bubble_outline_rounded,
-              ),
+              secondary: const SettingsCategoryIcon(category, roundBubble),
               title: const Text('In-App Notifications'),
               value: activity.previewText,
               onChanged: busy || !activity.preferencesAvailable

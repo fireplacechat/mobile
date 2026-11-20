@@ -18,6 +18,7 @@ import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
 import 'package:fireplace/src/widgets/status.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 
 /// What the 1:1 chat hands its profile, so the chat's own handling (going
 /// home after a block, its notices) applies; Message then goes back to it.
@@ -278,7 +279,7 @@ class _PersonProfileScreenState extends ConsumerState<PersonProfileScreen> {
                           )
                         : ProfileQuickAction(
                             key: const Key('profileMessage'),
-                            icon: Icons.chat_bubble_outline,
+                            icon: roundBubble,
                             label: 'Message',
                             onPressed: _busy || !named
                                 ? null
@@ -394,7 +395,8 @@ class _PersonProfileScreenState extends ConsumerState<PersonProfileScreen> {
               if (chatId != null)
                 ProfileSafetyAction(
                   buttonKey: const Key('detailsReport'),
-                  icon: Icons.announcement_outlined,
+                  icon: roundBubble,
+                  iconMark: Icons.priority_high_rounded,
                   label: 'Report Spam',
                   danger: true,
                   onPressed: _busy ? null : () => _report(blocked),
@@ -477,9 +479,13 @@ class ProfileSafetyAction extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.danger = false,
+    this.iconMark,
   });
   final Key buttonKey;
   final IconData icon;
+
+  /// A mark drawn inside a round bubble, in place of [icon].
+  final IconData? iconMark;
   final String label;
   final VoidCallback? onPressed;
   final bool danger;
@@ -495,7 +501,10 @@ class ProfileSafetyAction extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 22),
+            if (iconMark case final mark?)
+              RoundBubbleIcon(mark: mark, color: color, size: 22)
+            else
+              Icon(icon, color: color, size: 22),
             const SizedBox(width: 12),
             Expanded(
               child: Text(

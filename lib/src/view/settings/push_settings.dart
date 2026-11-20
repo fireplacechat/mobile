@@ -10,6 +10,7 @@ import 'package:fireplace/src/view/settings/settings_category.dart';
 import 'package:fireplace/src/widgets/settings/settings_group.dart';
 import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 import 'package:fireplace/src/app/passphrase_lock_providers.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 
 /// Settings → Notifications: alerts while Fireplace is closed, whether they
 /// show the sender's name and the message and play the pop, and a shortcut to
@@ -158,10 +159,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
         if (previews)
           SwitchListTile(
             key: const Key('pushPreview'),
-            secondary: const SettingsCategoryIcon(
-              category,
-              Icons.chat_outlined,
-            ),
+            secondary: const SettingsCategoryIcon(category, roundBubbleText),
             title: const Text('Show message preview'),
             // The passphrase lock keeps previews off (decision 0033) and puts
             // this choice back when it is turned off.

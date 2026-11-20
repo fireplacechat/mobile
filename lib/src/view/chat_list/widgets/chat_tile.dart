@@ -17,6 +17,7 @@ import 'package:fireplace/src/view/chat/chat_safety_actions.dart';
 import 'package:fireplace/src/view/safety/safety_action_sheet.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/styles/action_icons.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 
 /// One conversation row: avatar, name and date on the first line, then a
 /// two-line preview with the unread count beside its second line.
@@ -134,7 +135,8 @@ class ChatTile extends ConsumerWidget {
           const ChatRowAction(
             id: 'read',
             label: 'Mark read',
-            icon: Icons.mark_chat_read_outlined,
+            icon: roundBubble,
+            iconMark: Icons.check_rounded,
           ),
         const ChatRowAction(id: 'block', label: 'Block', icon: Icons.block),
         const ChatRowAction(
