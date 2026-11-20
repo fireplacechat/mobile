@@ -9,6 +9,7 @@ import 'package:fireplace/src/view/devices/recovery_entry_screen.dart';
 import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
 import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
+import 'package:fireplace/src/view/settings/settings_category.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -58,6 +59,20 @@ Future<void> reveal(WidgetTester t, Finder finder) async {
 void main() {
   testWidgets('settings controls are labeled and large text fits', (t) async {
     await check(t, 'settings', const SettingsScreen());
+    // Reached as people reach them: a category row on the main page.
+    Future<void> openCategory(SettingsCategory category) async {
+      final row = find.byKey(category.rowKey, skipOffstage: false);
+      await reveal(t, row);
+      await t.pumpAndSettle();
+      expect(t.getSize(row).shortestSide, greaterThanOrEqualTo(48));
+      await t.tap(row);
+      await t.pumpAndSettle();
+      expect(t.takeException(), isNull, reason: category.title);
+      await expectLater(t, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(t, meetsGuideline(androidTapTargetGuideline));
+    }
+
+    await openCategory(SettingsCategory.notifications);
     final soundFinder = find.byKey(const Key('sendSound'), skipOffstage: false);
     await reveal(t, soundFinder);
     final sound = t.getSemantics(soundFinder).getSemanticsData();
@@ -72,6 +87,9 @@ void main() {
     final previews = t.getSemantics(previewFinder).getSemanticsData();
     expect(previews.label, contains('In-App Notifications'));
     expect(previews.flagsCollection.isToggled, isNot(Tristate.none));
+    await t.pageBack();
+    await t.pumpAndSettle();
+    await openCategory(SettingsCategory.appearance);
     final theme = find.byKey(const Key('themeMode'), skipOffstage: false);
     await reveal(t, theme);
     await t.tap(theme);

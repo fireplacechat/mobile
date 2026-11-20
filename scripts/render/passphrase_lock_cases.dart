@@ -5,7 +5,8 @@ import 'package:fireplace/src/model/lock/passphrase_lock.dart';
 import 'package:fireplace/src/view/lock/passphrase_lock_screen.dart';
 import 'package:fireplace/src/view/lock/set_passphrase_screen.dart';
 import 'package:fireplace/src/view/lock/unlock_screen.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/notification_settings_screen.dart';
+import 'package:fireplace/src/view/settings/privacy_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -76,21 +77,12 @@ List<CatalogCase> passphraseLockCases() => [
   ),
   CatalogCase(
     'lock-settings-row',
-    const SettingsScreen(),
+    const PrivacySettingsScreen(),
     overrides: _lock(_on),
-    act: (t, _) async {
-      await t.scrollUntilVisible(
-        find.text('Privacy and security'),
-        200,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await t.ensureVisible(find.text('Privacy and security'));
-      await t.pumpAndSettle();
-    },
   ),
   CatalogCase(
     'lock-previews-off',
-    const SettingsScreen(),
+    const NotificationSettingsScreen(),
     push: true,
     overrides: _lock(_on),
     act: (t, _) async {

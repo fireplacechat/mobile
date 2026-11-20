@@ -5,7 +5,7 @@ import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/account/lost_phone_wait_screen.dart';
 import 'package:fireplace/src/view/account/takeover_alert.dart';
 import 'package:fireplace/src/view/devices/new_device_screen.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/devices_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -227,7 +227,7 @@ void main() {
     t,
   ) async {
     final f = UiFixture()..takeover.server = false;
-    await host(t, f, const SettingsScreen());
+    await host(t, f, const DevicesSettingsScreen());
     await t.scrollUntilVisible(
       find.byKey(const Key('linkDevice')),
       200,
@@ -242,7 +242,7 @@ void main() {
   testWidgets('Settings shows the wait and saves a new one through this '
       'device', (t) async {
     final f = UiFixture()..takeover.chosen = LostPhoneWait.oneWeek;
-    await host(t, f, const SettingsScreen());
+    await host(t, f, const DevicesSettingsScreen());
     await t.scrollUntilVisible(
       find.byKey(const Key('lostPhoneWait')),
       200,

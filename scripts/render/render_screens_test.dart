@@ -54,6 +54,12 @@ import 'package:fireplace/src/view/safety/blocked_users_screen.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
 import 'package:fireplace/src/view/settings/security_code_screen.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/account_settings_screen.dart';
+import 'package:fireplace/src/view/settings/appearance_settings_screen.dart';
+import 'package:fireplace/src/view/settings/devices_settings_screen.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
+import 'package:fireplace/src/view/settings/notification_settings_screen.dart';
+import 'package:fireplace/src/view/settings/privacy_settings_screen.dart';
 import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
 import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
 import 'package:fireplace/src/styles/theme.dart';
@@ -445,7 +451,7 @@ void main() {
       ),
     CatalogCase(
       'password-dialog',
-      const SettingsScreen(),
+      const AccountSettingsScreen(),
       services: (f) => [authServiceProvider.overrideWithValue(ActionAuth())],
       act: (t, f) async {
         await t.ensureVisible(find.byKey(const Key('changePassword')));
@@ -710,43 +716,15 @@ void main() {
     // Against a server without the lost-phone wait, the row is not offered.
     CatalogCase(
       'settings-older-server',
-      const SettingsScreen(),
+      const DevicesSettingsScreen(),
       prepare: (f) => f.takeover.server = false,
-      act: (t, f) async {
-        await t.scrollUntilVisible(
-          find.byKey(const Key('linkDevice')),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        await t.pumpAndSettle();
-      },
     ),
-    CatalogCase(
-      'settings-privacy',
-      const SettingsScreen(),
-      act: (t, f) async {
-        await t.scrollUntilVisible(
-          find.text('Privacy and security'),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        await t.ensureVisible(find.text('Privacy and security'));
-        await t.pumpAndSettle();
-      },
-    ),
+    const CatalogCase('settings-devices', DevicesSettingsScreen()),
+    const CatalogCase('settings-privacy', PrivacySettingsScreen()),
+    const CatalogCase('settings-appearance', AppearanceSettingsScreen()),
+    const CatalogCase('settings-help', HelpSettingsScreen()),
     const CatalogCase('security-code', SecurityCodeScreen()),
-    CatalogCase(
-      'settings-account-actions',
-      const SettingsScreen(),
-      act: (t, f) async {
-        await t.scrollUntilVisible(
-          find.byKey(const Key('signOut')),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        await t.pumpAndSettle();
-      },
-    ),
+    const CatalogCase('settings-account-actions', AccountSettingsScreen()),
     CatalogCase(
       'preview-diagnostics',
       const PreviewDiagnosticsScreen(),
@@ -775,7 +753,7 @@ void main() {
     ),
     CatalogCase(
       'settings-notifications',
-      const SettingsScreen(),
+      const NotificationSettingsScreen(),
       push: true,
       overrides: [
         appleWordingProvider.overrideWithValue(true),
@@ -796,7 +774,7 @@ void main() {
     ),
     CatalogCase(
       'settings-notifications-android',
-      const SettingsScreen(),
+      const NotificationSettingsScreen(),
       push: true,
       overrides: [
         appleWordingProvider.overrideWithValue(false),
@@ -816,7 +794,7 @@ void main() {
     ),
     CatalogCase(
       'theme-picker',
-      const SettingsScreen(),
+      const AppearanceSettingsScreen(),
       act: (t, f) async {
         await t.ensureVisible(find.byKey(const Key('themeMode')));
         await t.tap(find.byKey(const Key('themeMode')));

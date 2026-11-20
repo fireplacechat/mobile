@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
+import 'package:fireplace/src/view/settings/settings_category.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:fireplace/src/model/chat/chat_visibility.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
@@ -78,6 +79,9 @@ void main() {
       await t.tap(find.byKey(const Key('settings')));
       await t.pumpAndSettle();
       expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.text('Needs attention'), findsOneWidget);
+      await t.tap(find.byKey(SettingsCategory.notifications.rowKey));
+      await t.pumpAndSettle();
       await t.tap(find.byKey(const Key('resetChatPreferences')));
       await t.pumpAndSettle();
       await t.tap(find.text('Reset'));
