@@ -1,11 +1,20 @@
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
+import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../../support/ui_fixture.dart';
 import '../chat_list/swipe_back_test.dart' show dragRight;
 import 'safety_ui_test.dart' show host, settle, world;
+
+class _RefusedChat extends FixtureChat {
+  @override
+  Future<void> acceptRequest(String chatId) async =>
+      throw StateError('offline');
+}
 
 void main() {
   Future<void> open(WidgetTester t) async {
@@ -79,4 +88,35 @@ void main() {
       expect(find.byType(ChatListScreen), findsOneWidget);
     });
   }
+
+  testWidgets('a failed acceptance keeps the request and its retry action', (
+    t,
+  ) async {
+    final fixture = UiFixture(chat: _RefusedChat());
+    await fixture.seed();
+    addTearDown(fixture.session.close);
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: fixture.overrides,
+        child: MaterialApp(
+          theme: fireplaceTheme(Brightness.light),
+          home: const ChatListScreen(),
+        ),
+      ),
+    );
+    await settleUi(t);
+    await t.tap(find.byKey(const Key('requestsTile')));
+    await t.pumpAndSettle();
+    final accept = find.byKey(const Key('accept_alice_theo'));
+    await t.tap(accept);
+    await t.pumpAndSettle();
+    expect(
+      find.text('Could not update this request. Try again.'),
+      findsOneWidget,
+    );
+    expect(accept, findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.byType(ChatListScreen), findsOneWidget);
+  });
 }

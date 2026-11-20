@@ -403,10 +403,11 @@ void main() {
     t,
   ) async {
     await setUpPhones(t);
-    await t.runAsync(() async {
-      await bob.service.create('Tea club', ['alice']);
+    final gid = (await t.runAsync(() async {
+      final gid = await bob.service.create('Tea club', ['alice']);
       await until(() async => alice.service.invitations.isNotEmpty);
-    });
+      return gid;
+    }))!;
     final f = await pump(t, const ChatListScreen());
     // This fixture also includes a direct request; hide it for the empty state.
     f.hidden.add('alice_theo');
@@ -420,6 +421,8 @@ void main() {
     await t.pageBack();
     await t.pumpAndSettle();
     expect(find.byType(ChatListScreen), findsOneWidget);
+    // The inviter still needs the fake server to remove the declined member.
+    await settle(t, () => bob.service.groups[gid]?.members.length == 1);
     await tearDownPhones(t);
   });
 
