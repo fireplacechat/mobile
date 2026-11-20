@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
-import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/view/chat/message_edit_history.dart';
 import 'package:fireplace/src/view/chat/widgets/message_quote_preview.dart';
 
@@ -151,12 +150,13 @@ class MessageBubbleBody extends ConsumerWidget {
           ),
         const SizedBox(height: 2),
         Container(
+          key: bare ? ValueKey('emojiTime-${message.id}') : null,
           padding: bare
               ? const EdgeInsets.symmetric(horizontal: 7, vertical: 2)
               : textInset,
           decoration: bare
               ? BoxDecoration(
-                  color: FireplaceUiTokens.of(context).panel,
+                  color: base,
                   borderRadius: BorderRadius.circular(12),
                 )
               : null,

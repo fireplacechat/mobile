@@ -367,7 +367,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                         outgoingFailed:
                             widget.outgoingSend?.state == OutgoingState.failed,
                         hasOutgoingSend: widget.outgoingSend != null,
-                        secondaryText: mine && !bare ? fg : t.secondaryText,
+                        secondaryText: mine ? fg : t.secondaryText,
                         onToggleShowAll: () =>
                             setState(() => _showAll = !_showAll),
                         onToggleSelection: widget.onToggleSelection,

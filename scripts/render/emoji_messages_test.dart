@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:fireplace/src/db/message_quote.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
 import 'package:fireplace/src/styles/chat_colors.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
@@ -35,6 +36,7 @@ void main() {
           addTearDown(t.view.reset);
           final fixture = UiFixture();
           await fixture.seed();
+          fixture.secrets.data[ChatAppearance.storageKey] = 'ocean';
           addTearDown(fixture.session.close);
           await fixture.chat.store.clearChat('alice_fred');
           const glyphs = ['🔥', '👋🏽🌷', '🌱🍎🌼', '🎈🎈🎈🎈'];
@@ -61,10 +63,17 @@ void main() {
             await fixture.chat.react('alice_fred', 'e0', '❤️');
           }
           final key = GlobalKey();
-          final theme = fireplaceTheme(brightness);
+          final theme = fireplaceTheme(
+            brightness,
+            accent: ChatBubbleColor.ocean,
+          );
           await t.pumpWidget(
             ProviderScope(
-              overrides: fixture.overrides,
+              overrides: [
+                ...fixture.overrides,
+                knownPeerColorProvider('fred')
+                    .overrideWithValue(ChatBubbleColor.plum),
+              ],
               child: RepaintBoundary(
                 key: key,
                 child: MaterialApp(
@@ -115,30 +124,42 @@ void main() {
             ),
           );
           await settleUi(t);
+          Future<void> capture(String path) async {
+            expect(t.takeException(), isNull);
+            final boundary =
+                key.currentContext!.findRenderObject() as RenderRepaintBoundary;
+            await t.runAsync(() async {
+              final image = await boundary.toImage(pixelRatio: 2);
+              try {
+                final data = await image.toByteData(
+                  format: ui.ImageByteFormat.png,
+                );
+                File('build/emoji-review/$path.png')
+                  ..createSync(recursive: true)
+                  ..writeAsBytesSync(data!.buffer.asUint8List());
+              } finally {
+                image.dispose();
+              }
+            });
+          }
+
           if (state == 'selected') {
-            await t.longPress(find.byKey(const ValueKey('messageBubble-e0')));
+            final target = find.byKey(const ValueKey('messageBubble-e0'));
+            final gesture = await t.startGesture(t.getCenter(target));
+            for (var i = 0; i < 13; i++) {
+              await t.pump(const Duration(milliseconds: 60));
+              await capture(
+                'hold-${brightness.name}/${i.toString().padLeft(2, '0')}',
+              );
+            }
+            await gesture.up();
             await t.pumpAndSettle();
             final select = find.byKey(const ValueKey('messageAction-select'));
             await t.ensureVisible(select);
             await t.tap(select);
             await t.pumpAndSettle();
           }
-          expect(t.takeException(), isNull);
-          final boundary =
-              key.currentContext!.findRenderObject() as RenderRepaintBoundary;
-          await t.runAsync(() async {
-            final image = await boundary.toImage(pixelRatio: 2);
-            try {
-              final data = await image.toByteData(
-                format: ui.ImageByteFormat.png,
-              );
-              File('build/emoji-review/${brightness.name}-$state.png')
-                ..createSync(recursive: true)
-                ..writeAsBytesSync(data!.buffer.asUint8List());
-            } finally {
-              image.dispose();
-            }
-          });
+          await capture('${brightness.name}-$state');
         } finally {
           debugDisableShadows = originalShadows;
         }

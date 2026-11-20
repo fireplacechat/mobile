@@ -1,4 +1,7 @@
 import 'package:fireplace/src/db/message_quote.dart';
+import 'package:fireplace/src/app/chat_color_preference.dart';
+import 'package:fireplace/src/styles/chat_colors.dart';
+import 'package:fireplace/src/view/chat/widgets/message_bubble.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +11,56 @@ import 'package:flutter_test/flutter_test.dart';
 import '../../support/ui_fixture.dart';
 
 void main() {
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'timestamp pills use each sender’s chosen colour in ${brightness.name}',
+      (t) async {
+        final f = UiFixture();
+        addTearDown(f.session.close);
+        f.secrets.data[ChatAppearance.storageKey] = 'ocean';
+        await t.pumpWidget(
+          ProviderScope(
+            overrides: [
+              ...f.overrides,
+              knownPeerColorProvider('fred')
+                  .overrideWithValue(ChatBubbleColor.plum),
+            ],
+            child: MaterialApp(
+              theme: fireplaceTheme(brightness),
+              home: Scaffold(
+                body: Column(
+                  children: [
+                    MessageBubble(
+                      message: message(id: 'mine', body: '🔥', outgoing: true),
+                    ),
+                    MessageBubble(
+                      message: message(id: 'theirs', body: '🌷🌷'),
+                    ),
+                    MessageBubble(
+                      message: message(id: 'group', body: '🍎🍎🍎'),
+                      incomingColor: ChatBubbleColor.forest,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        await settleUi(t);
+        for (final (id, fill) in [
+          ('mine', ChatBubbleColor.ocean.outgoing),
+          ('theirs', ChatBubbleColor.plum.incoming(brightness)),
+          ('group', ChatBubbleColor.forest.incoming(brightness)),
+        ]) {
+          final pill = t.widget<Container>(
+            find.byKey(ValueKey('emojiTime-$id')),
+          );
+          expect((pill.decoration as BoxDecoration).color, fill);
+        }
+      },
+    );
+  }
+
   testWidgets('one to three emoji lose the bubble, four and replies keep it', (
     t,
   ) async {
