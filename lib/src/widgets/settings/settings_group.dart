@@ -22,8 +22,8 @@ class SettingsGroup extends StatelessWidget {
   /// Where a row's text starts, so dividers begin under the text, not the
   /// icon.
   static const double textStart =
-      _padding + SettingsIcon.size + _gap; // 16 + 30 + 14
-  static const double _padding = 16, _gap = 14;
+      _padding + SettingsIcon.size + _gap; // 16 + 24 + 20
+  static const double _padding = 16, _gap = 20;
 
   @override
   Widget build(BuildContext context) {

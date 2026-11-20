@@ -49,7 +49,7 @@ class _PrivacySettingsScreenState extends ConsumerState<PrivacySettingsScreen>
                 key: const Key('passphraseLock'),
                 leading: const SettingsCategoryIcon(
                   category,
-                  Icons.lock_rounded,
+                  Icons.lock_outline_rounded,
                 ),
                 title: 'Passphrase lock',
                 value: ref.watch(passphraseLockProvider).value?.on == true

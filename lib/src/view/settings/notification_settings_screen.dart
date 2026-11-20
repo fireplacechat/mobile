@@ -99,7 +99,7 @@ class _NotificationSettingsScreenState
               key: const Key('notificationPreviews'),
               secondary: const SettingsCategoryIcon(
                 category,
-                Icons.chat_bubble_rounded,
+                Icons.chat_bubble_outline_rounded,
               ),
               title: const Text('In-App Notifications'),
               value: activity.previewText,
@@ -115,7 +115,7 @@ class _NotificationSettingsScreenState
               key: const Key('sendSound'),
               secondary: const SettingsCategoryIcon(
                 category,
-                Icons.send_rounded,
+                Icons.send_outlined,
               ),
               title: const Text('Send sound'),
               value: ref.watch(sendSoundProvider).value ?? true,

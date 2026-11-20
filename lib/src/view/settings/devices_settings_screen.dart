@@ -43,7 +43,7 @@ class _DevicesSettingsScreenState extends ConsumerState<DevicesSettingsScreen>
               key: const Key('devices'),
               leading: const SettingsCategoryIcon(
                 category,
-                Icons.devices_rounded,
+                Icons.devices_outlined,
               ),
               title: 'Your devices',
               onTap: busy ? null : () => open(const DevicesScreen()),
@@ -52,7 +52,7 @@ class _DevicesSettingsScreenState extends ConsumerState<DevicesSettingsScreen>
               key: const Key('linkDevice'),
               leading: const SettingsCategoryIcon(
                 category,
-                Icons.add_to_home_screen_rounded,
+                Icons.add_to_home_screen_outlined,
               ),
               title: 'Link a new device',
               onTap: busy ? null : () => open(const LinkNewDeviceScreen()),
@@ -63,7 +63,7 @@ class _DevicesSettingsScreenState extends ConsumerState<DevicesSettingsScreen>
           children: [
             SettingsTile(
               key: const Key('recoveryKey'),
-              leading: const SettingsCategoryIcon(category, Icons.key_rounded),
+              leading: const SettingsCategoryIcon(category, Icons.key_outlined),
               title: 'Recovery key',
               onTap: busy ? null : () => open(const RecoveryKeyScreen()),
             ),
@@ -75,7 +75,7 @@ class _DevicesSettingsScreenState extends ConsumerState<DevicesSettingsScreen>
                 onChanged: (wait) => _setWait(s, wait),
                 leading: const SettingsCategoryIcon(
                   category,
-                  Icons.hourglass_bottom_rounded,
+                  Icons.hourglass_empty_rounded,
                 ),
               ),
           ],
