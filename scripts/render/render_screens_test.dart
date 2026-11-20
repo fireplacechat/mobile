@@ -28,7 +28,7 @@ import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/app.dart';
 import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/auth/auth_screen.dart';
-import 'package:fireplace/src/view/chat/chat_details_screen.dart';
+import 'package:fireplace/src/view/profile/person_profile_screen.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/groups/creating_group_splash.dart';
@@ -666,26 +666,30 @@ void main() {
     ),
     CatalogCase(
       'chat-details',
-      ChatDetailsScreen(
+      PersonProfileScreen(
         peerUid: 'fred',
-        chatId: 'alice_fred',
         name: 'fred',
-        onMute: (_) async {},
-        onBlock: () async {},
-        onUnblock: () async {},
-        onReportSpam: (_) async {},
+        inChat: ProfileChatHandlers(
+          chatId: 'alice_fred',
+          onMute: (_) async {},
+          onBlock: () async {},
+          onUnblock: () async {},
+          onReportSpam: (_) async {},
+        ),
       ),
     ),
     CatalogCase(
       'block-confirm',
-      ChatDetailsScreen(
+      PersonProfileScreen(
         peerUid: 'fred',
-        chatId: 'alice_fred',
         name: 'fred',
-        onMute: (_) async {},
-        onBlock: () async {},
-        onUnblock: () async {},
-        onReportSpam: (_) async {},
+        inChat: ProfileChatHandlers(
+          chatId: 'alice_fred',
+          onMute: (_) async {},
+          onBlock: () async {},
+          onUnblock: () async {},
+          onReportSpam: (_) async {},
+        ),
       ),
       act: (t, f) async {
         await t.tap(find.byKey(const Key('detailsBlock')));
@@ -694,14 +698,16 @@ void main() {
     ),
     CatalogCase(
       'report-spam',
-      ChatDetailsScreen(
+      PersonProfileScreen(
         peerUid: 'fred',
-        chatId: 'alice_fred',
         name: 'fred',
-        onMute: (_) async {},
-        onBlock: () async {},
-        onUnblock: () async {},
-        onReportSpam: (_) async {},
+        inChat: ProfileChatHandlers(
+          chatId: 'alice_fred',
+          onMute: (_) async {},
+          onBlock: () async {},
+          onUnblock: () async {},
+          onReportSpam: (_) async {},
+        ),
       ),
       act: (t, f) async {
         await t.tap(find.byKey(const Key('detailsReport')));

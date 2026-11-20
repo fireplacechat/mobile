@@ -40,7 +40,7 @@ import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/view/chat/confirm_another_copy.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
-import 'package:fireplace/src/view/chat/chat_details_screen.dart';
+import 'package:fireplace/src/view/profile/person_profile_screen.dart';
 import 'package:fireplace/src/model/chat/chat_visibility.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
@@ -407,15 +407,22 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       hasSession: session != null,
       onOpenDetails: (partContext) => Navigator.of(partContext).push(
         MaterialPageRoute(
-          builder: (_) => ChatDetailsScreen(
+          builder: (_) => PersonProfileScreen(
             peerUid: peerUid!,
-            chatId: widget.chatId,
             name: name,
-            onMute: _mute,
-            onBlock: () => blockConfirmed(context, session!, peerUid),
-            onUnblock: () => session!.safety.unblock(peerUid),
-            onReportSpam: (choice) =>
-                reportSpam(context, session!, peerUid, choice, notice: _snack),
+            inChat: ProfileChatHandlers(
+              chatId: widget.chatId,
+              onMute: _mute,
+              onBlock: () => blockConfirmed(context, session!, peerUid),
+              onUnblock: () => session!.safety.unblock(peerUid),
+              onReportSpam: (choice) => reportSpam(
+                context,
+                session!,
+                peerUid,
+                choice,
+                notice: _snack,
+              ),
+            ),
           ),
         ),
       ),
