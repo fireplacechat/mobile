@@ -71,17 +71,32 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     super.dispose();
   }
 
+  Future<void> _openRequests() => _open(
+    const RequestsScreen(),
+    settings: const RouteSettings(name: RequestsScreen.routeName),
+  );
+
   /// [swipeBack]: on Android the page can be dragged back to this list from
   /// anywhere on it, as iOS already allows (issue 236).
-  Future<void> _open(Widget screen, {bool swipeBack = false}) async {
+  Future<void> _open(
+    Widget screen, {
+    bool swipeBack = false,
+    RouteSettings? settings,
+  }) async {
     if (_opening) return;
     _opening = true;
     try {
       final android = Theme.of(context).platform == TargetPlatform.android;
       await Navigator.of(context).push(
         swipeBack && android
-            ? SwipeBackPageRoute<void>(builder: (_) => screen)
-            : MaterialPageRoute<void>(builder: (_) => screen),
+            ? SwipeBackPageRoute<void>(
+                builder: (_) => screen,
+                settings: settings,
+              )
+            : MaterialPageRoute<void>(
+                builder: (_) => screen,
+                settings: settings,
+              ),
       );
     } finally {
       _opening = false;
@@ -281,7 +296,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                               subtitle: const Text(
                                 'People who want to chat with you',
                               ),
-                              onTap: () => _open(const RequestsScreen()),
+                              onTap: _openRequests,
                             ),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -385,7 +400,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                             ),
                             subtitle: Text('People who want to chat with you'),
                             trailing: Icon(Icons.chevron_right),
-                            onTap: () => _open(const RequestsScreen()),
+                            onTap: _openRequests,
                           );
                         }
                         if (entries.isEmpty) {

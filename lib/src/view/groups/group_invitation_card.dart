@@ -18,7 +18,12 @@ import 'package:fireplace/src/widgets/status.dart';
 /// Shown in Message requests and in the 1:1 chat with the person who sent
 /// it; answering it in one place takes it away from both.
 class GroupInvitationCard extends ConsumerStatefulWidget {
-  const GroupInvitationCard({super.key, required this.invitation});
+  const GroupInvitationCard({
+    super.key,
+    required this.invitation,
+    this.replaceRequests = false,
+  });
+  final bool replaceRequests;
   final GroupInvitation invitation;
   @override
   ConsumerState<GroupInvitationCard> createState() =>
@@ -41,8 +46,9 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
     } on IdentityChangedException catch (e) {
       // A member's security code is not the one this phone knows. Joining
       // waits until the person has looked at it.
+      if (!mounted) return;
       final session = ref.read(appSessionProvider).value;
-      if (session == null || !mounted) return;
+      if (session == null) return;
       await reviewChatIdentity(
         context,
         session,
@@ -144,19 +150,26 @@ class _GroupInvitationCardState extends ConsumerState<GroupInvitationCard> {
                           // the group needs.
                           final navigator = Navigator.of(context);
                           final gid = widget.invitation.gid;
+                          final origin = ModalRoute.of(context);
+                          final replace = widget.replaceRequests;
+                          // Opened as the chat list opens a group.
+                          final destination = MaterialPageRoute<void>(
+                            builder: (_) => GroupChatScreen(gid: gid),
+                          );
                           var joined = false;
                           await _run((g) async {
                             await service.accept(g);
                             joined = true;
                           });
-                          if (!joined) return;
-                          // Straight into the conversation, as the owner asked.
+                          if (!joined ||
+                              !navigator.mounted ||
+                              origin?.isCurrent != true) {
+                            return;
+                          }
                           unawaited(
-                            navigator.push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => GroupChatScreen(gid: gid),
-                              ),
-                            ),
+                            replace
+                                ? navigator.pushReplacement(destination)
+                                : navigator.push(destination),
                           );
                         },
                   child: const Text('Join'),

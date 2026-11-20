@@ -353,7 +353,9 @@ void main() {
       await until(() async => alice.service.invitations.isNotEmpty);
       return gid;
     }))!;
-    await pump(t, const RequestsScreen());
+    await pump(t, const ChatListScreen());
+    await t.tap(find.byKey(const Key('requestsTile')));
+    await t.pumpAndSettle();
     expect(find.text('bob invited you to a group'), findsOneWidget);
     await t.tap(find.byKey(const Key('joinGroup')));
     await settle(t, () => alice.service.groups.containsKey(gid));
@@ -362,9 +364,13 @@ void main() {
       () => find.byKey(Key('groupInvite_$gid')).evaluate().isEmpty,
     );
     expect(alice.service.groups[gid]!.name, 'Tea club');
-    // Join goes straight into the conversation.
+    // Back from an accepted group invitation goes straight to the chat list.
     await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
     expect(find.text('Tea club'), findsOneWidget);
+    await t.pumpAndSettle();
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.byType(ChatListScreen), findsOneWidget);
     await tearDownPhones(t);
   });
 
@@ -393,6 +399,33 @@ void main() {
     await tearDownPhones(t);
   });
 
+  testWidgets('declining the last invitation leaves Requests open until Back', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    final gid = (await t.runAsync(() async {
+      final gid = await bob.service.create('Tea club', ['alice']);
+      await until(() async => alice.service.invitations.isNotEmpty);
+      return gid;
+    }))!;
+    final f = await pump(t, const ChatListScreen());
+    // This fixture also includes a direct request; hide it for the empty state.
+    f.hidden.add('alice_theo');
+    await t.tap(find.byKey(const Key('requestsTile')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('declineGroup')));
+    await settle(
+      t,
+      () => find.text('No message requests').evaluate().isNotEmpty,
+    );
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.byType(ChatListScreen), findsOneWidget);
+    // The inviter still needs the fake server to remove the declined member.
+    await settle(t, () => bob.service.groups[gid]?.members.length == 1);
+    await tearDownPhones(t);
+  });
+
   testWidgets('joining from the chat with the inviter opens the group', (
     t,
   ) async {
@@ -407,6 +440,10 @@ void main() {
     await settle(t, () => alice.service.groups.containsKey(gid));
     await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
     expect(find.text('Tea club'), findsOneWidget);
+    await t.pumpAndSettle();
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.byType(ChatScreen), findsOneWidget);
     await tearDownPhones(t);
   });
 
