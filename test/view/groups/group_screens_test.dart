@@ -17,6 +17,7 @@ import 'package:fireplace/src/view/groups/group_info_screen.dart';
 import 'package:fireplace/src/view/groups/new_group_screen.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
+import 'package:fireplace/src/view/profile/person_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -646,20 +647,57 @@ void main() {
     await t.scrollUntilVisible(find.byKey(const Key('member_bob')), 200);
     await t.ensureVisible(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
+    // The member's profile carries the choice (issue 244).
     await t.tap(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
+    expect(find.byType(PersonProfileScreen), findsOneWidget);
     expect(find.byKey(const Key('removeAdmin')), findsNothing);
     await t.tap(find.byKey(const Key('makeAdmin')));
     await settle(t, () => alice.service.groups[gid]!.isAdmin('bob'));
+    // The page follows the change: now the choice is to take it away again.
+    await settle(
+      t,
+      () => find.byKey(const Key('removeAdmin')).evaluate().isNotEmpty,
+    );
+    expect(find.text('Group administrator'), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
     await settle(t, () => find.text('Administrator').evaluate().length == 2);
-    // Now the choice is to take it away again.
+    await tearDownPhones(t);
+  });
+
+  testWidgets('a member profile removes them; your own row opens nothing', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await pump(t, GroupInfoScreen(gid: gid));
+    // Your own row is not a way into a profile.
+    await t.ensureVisible(find.byKey(const Key('member_alice')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('member_alice')));
+    await t.pumpAndSettle();
+    expect(find.byType(PersonProfileScreen), findsNothing);
+
+    await t.scrollUntilVisible(find.byKey(const Key('member_bob')), 200);
     await t.ensureVisible(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
     await t.tap(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
-    expect(find.byKey(const Key('removeAdmin')), findsOneWidget);
-    await t.tapAt(const Offset(10, 10));
+    final remove = find.byKey(const Key('profileRemoveFromGroup'));
+    await t.ensureVisible(remove);
     await t.pumpAndSettle();
+    await t.tap(remove);
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('confirmGroupAction')));
+    await settle(
+      t,
+      () => !alice.service.groups[gid]!.members.any((m) => m.uid == 'bob'),
+    );
+    // Gone from the group, the profile closes on Group info.
+    await settle(t, () => find.byType(PersonProfileScreen).evaluate().isEmpty);
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('member_bob')), findsNothing);
     await tearDownPhones(t);
   });
 

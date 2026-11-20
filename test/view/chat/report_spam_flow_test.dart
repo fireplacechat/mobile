@@ -1,7 +1,7 @@
 // Reporting spam from the chat details screen (issue 120): cancelling sends
 // nothing, a report says so, report-and-block also blocks and leaves the
 // details, and a report that cannot reach the server says it did not go.
-import 'package:fireplace/src/view/chat/chat_details_screen.dart';
+import 'package:fireplace/src/view/profile/person_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -38,7 +38,7 @@ void main() {
     await settleUi(t);
     expect(safety.reports, isEmpty);
     expect(safety.blocks, isEmpty);
-    expect(find.byType(ChatDetailsScreen), findsOneWidget);
+    expect(find.byType(PersonProfileScreen), findsOneWidget);
   });
 
   testWidgets('a report says it was sent', (t) async {
@@ -57,7 +57,7 @@ void main() {
     await t.pumpAndSettle();
     expect(safety.reports, ['fred']);
     expect(safety.blocks, ['fred']);
-    expect(find.byType(ChatDetailsScreen), findsNothing);
+    expect(find.byType(PersonProfileScreen), findsNothing);
     expect(find.text('Reported as spam and blocked.'), findsOneWidget);
   });
 
@@ -68,7 +68,7 @@ void main() {
     await settleUi(t);
     expect(safety.reports, isEmpty);
     expect(safety.blocks, isEmpty);
-    expect(find.byType(ChatDetailsScreen), findsOneWidget);
+    expect(find.byType(PersonProfileScreen), findsOneWidget);
     expect(
       find.text('Could not send the spam report. Try again.'),
       findsOneWidget,

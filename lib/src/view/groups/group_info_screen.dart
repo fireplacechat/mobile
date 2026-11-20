@@ -7,6 +7,7 @@ import 'package:fireplace/src/view/groups/contact_picker.dart';
 import 'package:fireplace/src/view/groups/group_avatar.dart';
 import 'package:fireplace/src/view/groups/text_prompt_dialog.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
+import 'package:fireplace/src/view/profile/person_profile_screen.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:fireplace/src/widgets/page.dart';
@@ -88,46 +89,33 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
     await _run(() => service.rename(widget.gid, name));
   }
 
-  /// Make administrator, or Remove as administrator: an administrator's
-  /// choice for another member (or themselves, while another remains).
-  Future<void> _changeRole(
+  Future<void> _openProfile(
     GroupMember member,
     String name,
-    bool isAdmin,
+    Color? color,
   ) async {
     final service = ref.read(groupServiceProvider);
     if (service == null) return;
-    final choice = await showModalBottomSheet<bool>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(title: Text(name)),
-            if (isAdmin)
-              ListTile(
-                key: const Key('removeAdmin'),
-                leading: const Icon(Icons.remove_moderator_outlined),
-                title: const Text('Remove as administrator'),
-                onTap: () => Navigator.pop(ctx, false),
-              )
-            else
-              ListTile(
-                key: const Key('makeAdmin'),
-                leading: const Icon(Icons.add_moderator_outlined),
-                title: const Text('Make administrator'),
-                subtitle: const Text(
-                  'Administrators rename the group, remove people and choose '
-                  'other administrators.',
-                ),
-                onTap: () => Navigator.pop(ctx, true),
-              ),
-          ],
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => PersonProfileScreen(
+          peerUid: member.uid,
+          name: name,
+          color: color,
+          member: ProfileGroupMember(
+            gid: widget.gid,
+            onRole: (admin) =>
+                service.setAdmin(widget.gid, member.uid, admin: admin),
+            confirmRemove: () => _confirm(
+              'Remove $name?',
+              'They will no longer receive messages in this group.',
+              'Remove',
+            ),
+            onRemove: () => service.remove(widget.gid, member.uid),
+          ),
         ),
       ),
     );
-    if (choice == null || !mounted) return;
-    await _run(() => service.setAdmin(widget.gid, member.uid, admin: choice));
   }
 
   Future<void> _addPeople(GroupInfo group) async {
@@ -260,10 +248,11 @@ class _GroupInfoScreenState extends ConsumerState<GroupInfoScreen> {
                   await _run(() => service.remove(widget.gid, m.uid));
                 }
               },
-              // An administrator taps a member to change their role.
-              onRole: admin && !_busy
-                  ? (name) => _changeRole(m, name, m.admin || !named)
-                  : null,
+              // Anyone else opens their profile; an administrator manages
+              // them there (issue 244).
+              onOpen: m.uid == me
+                  ? null
+                  : (name, color) => _openProfile(m, name, color),
             ),
           if (waiting.isNotEmpty) ...[
             const Divider(),
@@ -338,38 +327,35 @@ class _MemberRow extends ConsumerWidget {
     required this.canRemove,
     required this.onRemove,
     this.invited = false,
-    this.onRole,
+    this.onOpen,
   });
   final String gid;
   final GroupMember member;
   final bool me, isAdmin, canRemove, invited;
   final ValueChanged<String> onRemove;
-  final ValueChanged<String>? onRole;
+  final void Function(String name, Color? color)? onOpen;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final name = ref.watch(peerUsernameProvider(member.uid)).value ?? '…';
     // Other people's avatars use their own colour, as in the conversation.
     final colors = ref.watch(groupColorsProvider(gid)).value ?? const {};
+    final color = me
+        ? null
+        : memberColor(
+            colors,
+            member.uid,
+          ).accentText(Theme.of(context).brightness);
     return ListTile(
       key: Key('member_${member.uid}'),
-      leading: PersonAvatar(
-        name: name,
-        size: 40,
-        color: me
-            ? null
-            : memberColor(
-                colors,
-                member.uid,
-              ).accentText(Theme.of(context).brightness),
-      ),
+      leading: PersonAvatar(name: name, size: 40, color: color),
       title: Text(me ? 'You' : name),
       subtitle: invited
           ? const Text('Invited')
           : isAdmin
           ? const Text('Administrator')
           : null,
-      onTap: onRole == null ? null : () => onRole!(name),
+      onTap: onOpen == null || name == '…' ? null : () => onOpen!(name, color),
       trailing: canRemove
           ? IconButton(
               key: Key('remove_${member.uid}'),

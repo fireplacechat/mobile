@@ -294,6 +294,23 @@ void main() {
           );
         },
       );
+      // A member's profile, as an administrator opens it (issue 244).
+      await render(
+        'member-profile',
+        GroupInfoScreen(gid: mine),
+        act: () async {
+          final row = find.byKey(const Key('member_bob_jones'));
+          await t.scrollUntilVisible(
+            row,
+            200,
+            scrollable: find.byType(Scrollable).first,
+          );
+          await t.tap(row);
+          for (var i = 0; i < 10; i++) {
+            await t.pump(const Duration(milliseconds: 100));
+          }
+        },
+      );
       // Last, so the open invitation is in none of the pictures above: Dana
       // invites Alice, and the card shows in their 1:1 chat.
       await t.runAsync(() async {
