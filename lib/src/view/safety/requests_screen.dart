@@ -144,7 +144,11 @@ class _NobodyWaiting extends StatelessWidget {
         children: [
           Positioned(left: 0, child: _Place(size: 52, fill: t.separator)),
           Positioned(right: 0, child: _Place(size: 52, fill: t.separator)),
-          _Place(size: 64, fill: t.accentText.withAlpha(150)),
+          // Solid, so the places behind it do not show through.
+          _Place(
+            size: 64,
+            fill: Color.alphaBlend(t.accentText.withAlpha(150), t.page),
+          ),
         ],
       ),
     );
