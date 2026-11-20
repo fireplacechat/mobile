@@ -1,5 +1,5 @@
 // The approved theme picker at phone and tablet sizes, reached from Settings.
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/appearance_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,7 +17,7 @@ final themeCases = <CatalogCase>[
   ])
     CatalogCase(
       'theme-picker-$name',
-      const SettingsScreen(),
+      const AppearanceSettingsScreen(),
       size: size,
       textScale: scale,
       padding: size.width > size.height

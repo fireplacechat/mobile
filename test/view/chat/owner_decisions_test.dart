@@ -9,6 +9,7 @@ import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/view/chat_list/chat_list_screen.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/view/chat/forward/forward_message.dart';
+import 'package:fireplace/src/view/settings/settings_category.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -245,6 +246,8 @@ void main() {
       await mount(t, f, const ChatListScreen(), notices: true);
       await t.tap(find.byKey(const Key('settings')));
       await t.pumpAndSettle();
+      await t.tap(find.byKey(SettingsCategory.notifications.rowKey));
+      await t.pumpAndSettle();
       await t.scrollUntilVisible(
         find.byKey(const Key('notificationPreviews')),
         300,
@@ -263,6 +266,9 @@ void main() {
       await t.tap(find.byKey(const Key('notificationPreviews')));
       await settleUi(t);
       expect(container(t).read(chatActivityProvider).previewText, isFalse);
+      // Notifications and sounds, then Settings.
+      await t.pageBack();
+      await t.pumpAndSettle();
       await t.pageBack();
       await t.pumpAndSettle();
       await f.chat.store.add(

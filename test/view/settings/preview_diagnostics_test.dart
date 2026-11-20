@@ -1,6 +1,6 @@
 import 'package:fireplace/src/model/notifications/preview_diagnostics.dart';
 import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -85,7 +85,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: fireplaceTheme(Brightness.light),
-          home: const SettingsScreen(),
+          home: const HelpSettingsScreen(),
         ),
       ),
     );

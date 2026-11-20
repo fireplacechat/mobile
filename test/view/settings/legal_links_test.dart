@@ -1,6 +1,6 @@
 // Settings opens each URL directly from a row; sign-up keeps its legal links.
 import 'package:fireplace/src/view/auth/auth_screen.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,7 +33,7 @@ void main() {
         overrides: f.overrides,
         child: MaterialApp(
           theme: fireplaceTheme(Brightness.light),
-          home: const SettingsScreen(),
+          home: const HelpSettingsScreen(),
         ),
       ),
     );
@@ -79,7 +79,7 @@ void main() {
           overrides: f.overrides,
           child: MaterialApp(
             theme: fireplaceTheme(Brightness.light),
-            home: const SettingsScreen(),
+            home: const HelpSettingsScreen(),
           ),
         ),
       );
@@ -92,9 +92,9 @@ void main() {
       await t.tap(find.byKey(const Key('openTermsOfUse')));
       await t.pump(const Duration(milliseconds: 100));
       expect(opened, termsUrl);
-      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.byType(HelpSettingsScreen), findsOneWidget);
       expect(
-        Navigator.of(t.element(find.byType(SettingsScreen))).canPop(),
+        Navigator.of(t.element(find.byType(HelpSettingsScreen))).canPop(),
         isFalse,
       );
     },

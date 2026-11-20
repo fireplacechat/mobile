@@ -1,5 +1,5 @@
 import 'package:fireplace/src/model/common/external_browser.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,7 +15,7 @@ class _UnavailableBrowser implements ExternalBrowser {
 final legalCases = <CatalogCase>[
   CatalogCase(
     'settings-legal-links',
-    const SettingsScreen(),
+    const HelpSettingsScreen(),
     act: (tester, fixture) async {
       await tester.scrollUntilVisible(
         find.byKey(const Key('openTermsOfUse')),
@@ -28,7 +28,7 @@ final legalCases = <CatalogCase>[
   for (final large in [false, true])
     CatalogCase(
       'settings-legal-links-browser-unavailable${large ? '-narrow-large' : ''}',
-      const SettingsScreen(),
+      const HelpSettingsScreen(),
       size: large ? const Size(320, 640) : const Size(390, 844),
       textScale: large ? 2 : 1,
       overrides: [
@@ -48,7 +48,7 @@ final legalCases = <CatalogCase>[
     ),
   CatalogCase(
     'settings-legal-links-narrow-large',
-    const SettingsScreen(),
+    const HelpSettingsScreen(),
     size: Size(320, 640),
     textScale: 2,
     act: (tester, fixture) async {

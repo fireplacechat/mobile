@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -37,7 +37,7 @@ Future<void> openPage(
               .copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
-        home: settings ? const SettingsScreen() : const LegalLinksScreen(),
+        home: settings ? const HelpSettingsScreen() : const LegalLinksScreen(),
       ),
     ),
   );

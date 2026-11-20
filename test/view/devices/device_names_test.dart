@@ -4,7 +4,7 @@ import 'package:fireplace/fireplace_services.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
 import 'package:fireplace/src/view/settings/security_code_screen.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/privacy_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -86,7 +86,7 @@ void main() {
   testWidgets('Settings has a Security code row, not hex or a device id', (
     t,
   ) async {
-    await open(t, const SettingsScreen());
+    await open(t, const PrivacySettingsScreen());
     expect(find.text('Your identity fingerprint'), findsNothing);
     expect(find.text('example-device-alice'), findsNothing);
     expect(find.text('This device'), findsNothing);

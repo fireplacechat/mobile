@@ -1,4 +1,4 @@
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
 import 'package:flutter/material.dart';
@@ -18,7 +18,7 @@ void main() {
         overrides: fixture.overrides,
         child: MaterialApp(
           theme: fireplaceTheme(Brightness.light),
-          home: const SettingsScreen(),
+          home: const HelpSettingsScreen(),
         ),
       ),
     );
