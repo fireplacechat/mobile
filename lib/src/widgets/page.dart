@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 
 /// Keep chat/search controls scroll-reachable when a keyboard leaves little space.
 class UiBodyViewport extends StatelessWidget {
@@ -70,11 +71,15 @@ class UiEmptyState extends StatelessWidget {
     required this.title,
     required this.message,
     this.action,
-    this.icon = Icons.chat_bubble_outline_rounded,
+    this.icon = roundBubble,
+    this.illustration,
   });
   final String title, message;
   final Widget? action;
   final IconData icon;
+
+  /// Drawn in place of [icon]'s tile, for a page with a picture of its own.
+  final Widget? illustration;
   @override
   Widget build(BuildContext context) => Center(
     child: SingleChildScrollView(
@@ -82,18 +87,19 @@ class UiEmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: FireplaceUiTokens.of(context).selectedRow,
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Icon(
-              icon,
-              size: 36,
-              color: FireplaceUiTokens.of(context).accentText,
-            ),
-          ),
+          illustration ??
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: FireplaceUiTokens.of(context).selectedRow,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  icon,
+                  size: 36,
+                  color: FireplaceUiTokens.of(context).accentText,
+                ),
+              ),
           const SizedBox(height: 20),
           Text(
             title,

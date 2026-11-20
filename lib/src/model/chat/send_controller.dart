@@ -6,6 +6,7 @@ import 'package:fireplace/src/model/chat/message_limits.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/memory_pending.dart';
 import 'package:fireplace/src/model/chat/message_recovery_action.dart';
+import 'package:fireplace/src/model/chat/emoji_only.dart';
 
 /// Chat-screen state for sending and for resolving unconfirmed sends. Warnings
 /// that could not be saved to history stay in memory until resolved.
@@ -104,7 +105,7 @@ class SendController extends ChangeNotifier {
       _changed();
       return;
     }
-    final body = draft().trim();
+    final body = messageBodyToSend(draft());
     final service = chat();
     if (body.isEmpty || service == null) return;
     final peerUid = service.peerOf(chatId());

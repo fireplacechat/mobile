@@ -17,6 +17,7 @@ import 'package:fireplace/src/view/groups/group_info_screen.dart';
 import 'package:fireplace/src/view/groups/new_group_screen.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
+import 'package:fireplace/src/view/profile/person_profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -353,7 +354,9 @@ void main() {
       await until(() async => alice.service.invitations.isNotEmpty);
       return gid;
     }))!;
-    await pump(t, const RequestsScreen());
+    await pump(t, const ChatListScreen());
+    await t.tap(find.byKey(const Key('requestsTile')));
+    await t.pumpAndSettle();
     expect(find.text('bob invited you to a group'), findsOneWidget);
     await t.tap(find.byKey(const Key('joinGroup')));
     await settle(t, () => alice.service.groups.containsKey(gid));
@@ -362,9 +365,13 @@ void main() {
       () => find.byKey(Key('groupInvite_$gid')).evaluate().isEmpty,
     );
     expect(alice.service.groups[gid]!.name, 'Tea club');
-    // Join goes straight into the conversation.
+    // Back from an accepted group invitation goes straight to the chat list.
     await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
     expect(find.text('Tea club'), findsOneWidget);
+    await t.pumpAndSettle();
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.byType(ChatListScreen), findsOneWidget);
     await tearDownPhones(t);
   });
 
@@ -393,6 +400,33 @@ void main() {
     await tearDownPhones(t);
   });
 
+  testWidgets('declining the last invitation leaves Requests open until Back', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    final gid = (await t.runAsync(() async {
+      final gid = await bob.service.create('Tea club', ['alice']);
+      await until(() async => alice.service.invitations.isNotEmpty);
+      return gid;
+    }))!;
+    final f = await pump(t, const ChatListScreen());
+    // This fixture also includes a direct request; hide it for the empty state.
+    f.hidden.add('alice_theo');
+    await t.tap(find.byKey(const Key('requestsTile')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('declineGroup')));
+    await settle(
+      t,
+      () => find.text('No message requests').evaluate().isNotEmpty,
+    );
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.byType(ChatListScreen), findsOneWidget);
+    // The inviter still needs the fake server to remove the declined member.
+    await settle(t, () => bob.service.groups[gid]?.members.length == 1);
+    await tearDownPhones(t);
+  });
+
   testWidgets('joining from the chat with the inviter opens the group', (
     t,
   ) async {
@@ -407,6 +441,10 @@ void main() {
     await settle(t, () => alice.service.groups.containsKey(gid));
     await settle(t, () => find.byType(GroupChatScreen).evaluate().isNotEmpty);
     expect(find.text('Tea club'), findsOneWidget);
+    await t.pumpAndSettle();
+    await t.pageBack();
+    await t.pumpAndSettle();
+    expect(find.byType(ChatScreen), findsOneWidget);
     await tearDownPhones(t);
   });
 
@@ -462,6 +500,86 @@ void main() {
           .color,
       shade,
     );
+    await tearDownPhones(t);
+  });
+
+  testWidgets('a sender’s avatar and name open their profile, except while '
+      'selecting (issue 245)', (t) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await t.runAsync(() async {
+      await bob.service.send(gid, 'from Bob');
+      await until(
+        () async => (await texts(alice, gid)).contains('from Bob'),
+        what: 'the message',
+      );
+    });
+    await pump(t, GroupChatScreen(gid: gid));
+    await settle(t, () => find.text('from Bob').evaluate().isNotEmpty);
+    final history = (await t.runAsync(
+      () => alice.messages.watch('group-$gid').first,
+    ))!;
+    final id = history.firstWhere((m) => m.body == 'from Bob').id;
+    for (final part in ['groupAvatar_$id', 'groupSender_$id']) {
+      await t.tap(find.byKey(Key(part)));
+      await t.pumpAndSettle();
+      expect(find.byType(PersonProfileScreen), findsOneWidget, reason: part);
+      expect(find.byKey(const Key('profileName')), findsOneWidget);
+      await t.pageBack();
+      await t.pumpAndSettle();
+    }
+    // While choosing messages, a tap on the sender opens nothing.
+    await t.longPress(find.text('from Bob'));
+    await t.pump(const Duration(milliseconds: 600));
+    final select = find.byKey(const ValueKey('messageAction-select'));
+    await t.ensureVisible(select);
+    await t.pump(const Duration(milliseconds: 300));
+    await t.tap(select);
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(Key('groupAvatar_$id')));
+    await t.pumpAndSettle();
+    expect(find.byType(PersonProfileScreen), findsNothing);
+    await tearDownPhones(t);
+  });
+
+  testWidgets('Group info opens a search of the conversation (issue 246)', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await t.runAsync(() async {
+      await bob.service.send(gid, 'Chapter four tonight');
+      await until(
+        () async => (await texts(alice, gid)).contains('Chapter four tonight'),
+        what: 'the message',
+      );
+    });
+    await pump(t, GroupChatScreen(gid: gid));
+    await settle(
+      t,
+      () => find.text('Chapter four tonight').evaluate().isNotEmpty,
+    );
+    await t.tap(find.byKey(const Key('groupHeader')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('groupSearch')));
+    await t.pumpAndSettle();
+    await t.enterText(
+      find.byKey(const Key('conversationSearchField')),
+      'chapter',
+    );
+    await settle(
+      t,
+      () =>
+          t
+              .widget<Text>(find.byKey(const Key('conversationSearchCount')))
+              .data ==
+          '1 of 1',
+    );
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('conversationSearchClose')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('conversationSearchField')), findsNothing);
+    expect(find.byType(GroupChatScreen), findsOneWidget);
     await tearDownPhones(t);
   });
 
@@ -646,20 +764,66 @@ void main() {
     await t.scrollUntilVisible(find.byKey(const Key('member_bob')), 200);
     await t.ensureVisible(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
-    await t.tap(find.byKey(const Key('member_bob')));
+    // The member's profile carries the choice (issue 244).
+    await t.tap(find.byKey(const Key('memberName_bob')));
     await t.pumpAndSettle();
+    expect(find.byType(PersonProfileScreen), findsOneWidget);
     expect(find.byKey(const Key('removeAdmin')), findsNothing);
     await t.tap(find.byKey(const Key('makeAdmin')));
     await settle(t, () => alice.service.groups[gid]!.isAdmin('bob'));
+    // The page follows the change: now the choice is to take it away again.
+    await settle(
+      t,
+      () => find.byKey(const Key('removeAdmin')).evaluate().isNotEmpty,
+    );
+    expect(find.text('Group administrator'), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
     await settle(t, () => find.text('Administrator').evaluate().length == 2);
-    // Now the choice is to take it away again.
+    await tearDownPhones(t);
+  });
+
+  testWidgets('a member profile removes them; your own row opens nothing', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await pump(t, GroupInfoScreen(gid: gid));
+    // Your own row is not a way into a profile.
+    await t.ensureVisible(find.byKey(const Key('member_alice')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('memberName_alice')));
+    await t.pumpAndSettle();
+    expect(find.byType(PersonProfileScreen), findsNothing);
+
+    await t.scrollUntilVisible(find.byKey(const Key('member_bob')), 200);
     await t.ensureVisible(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
+    // Only the avatar and the name open it, not the rest of the row.
     await t.tap(find.byKey(const Key('member_bob')));
     await t.pumpAndSettle();
-    expect(find.byKey(const Key('removeAdmin')), findsOneWidget);
-    await t.tapAt(const Offset(10, 10));
+    expect(find.byType(PersonProfileScreen), findsNothing);
+    await t.tap(find.byKey(const Key('memberAvatar_bob')));
     await t.pumpAndSettle();
+    expect(find.byType(PersonProfileScreen), findsOneWidget);
+    await t.pageBack();
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('memberName_bob')));
+    await t.pumpAndSettle();
+    final remove = find.byKey(const Key('profileRemoveFromGroup'));
+    await t.ensureVisible(remove);
+    await t.pumpAndSettle();
+    await t.tap(remove);
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('confirmGroupAction')));
+    await settle(
+      t,
+      () => !alice.service.groups[gid]!.members.any((m) => m.uid == 'bob'),
+    );
+    // Gone from the group, the profile closes on Group info.
+    await settle(t, () => find.byType(PersonProfileScreen).evaluate().isEmpty);
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('member_bob')), findsNothing);
     await tearDownPhones(t);
   });
 

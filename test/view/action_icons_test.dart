@@ -5,7 +5,7 @@ import 'package:fireplace/src/styles/action_icons.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/devices/devices_screen.dart';
 import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/account_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,7 +36,7 @@ void main() {
       find.descendant(of: find.byKey(Key(key)), matching: find.byIcon(icon));
 
   testWidgets('Delete account has the bin of the message menu', (t) async {
-    await open(t, const SettingsScreen());
+    await open(t, const AccountSettingsScreen());
     expect(iconIn('deleteAccountTile', ActionIcons.delete), findsOneWidget);
     expect(find.byIcon(Icons.delete_forever), findsNothing);
   });

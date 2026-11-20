@@ -6,8 +6,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:fireplace/src/model/notifications/system_notifications.dart';
 import 'package:fireplace/src/model/push/push_notification_service.dart';
-import 'package:fireplace/src/widgets/settings_section.dart';
+import 'package:fireplace/src/view/settings/settings_category.dart';
+import 'package:fireplace/src/widgets/settings/settings_group.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 import 'package:fireplace/src/app/passphrase_lock_providers.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 
 /// Settings → Notifications: alerts while Fireplace is closed, whether they
 /// show the sender's name and the message and play the pop, and a shortcut to
@@ -126,12 +129,16 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
     final on = _status == PushStatus.on;
     final previews = ref.watch(notificationPreviewAvailableProvider);
     final locked = ref.watch(passphraseLockProvider).value?.on == true;
-    return UiSettingsSection(
+    const category = SettingsCategory.notifications;
+    return SettingsGroup(
       title: 'Notifications',
       children: [
         SwitchListTile(
           key: const Key('pushSwitch'),
-          secondary: const Icon(Icons.notifications_outlined),
+          secondary: const SettingsCategoryIcon(
+            category,
+            Icons.notifications_none_rounded,
+          ),
           title: const Text('Allow notifications'),
           subtitle: _subtitle == null ? null : Text(_subtitle!),
           value: on,
@@ -139,7 +146,10 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
         ),
         SwitchListTile(
           key: const Key('pushShowName'),
-          secondary: const Icon(Icons.person_outline),
+          secondary: const SettingsCategoryIcon(
+            category,
+            Icons.person_outline_rounded,
+          ),
           title: const Text('Show sender’s name'),
           value: _showName,
           onChanged: on && !_busy
@@ -149,7 +159,7 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
         if (previews)
           SwitchListTile(
             key: const Key('pushPreview'),
-            secondary: const Icon(Icons.chat_outlined),
+            secondary: const SettingsCategoryIcon(category, roundBubbleText),
             title: const Text('Show message preview'),
             // The passphrase lock keeps previews off (decision 0033) and puts
             // this choice back when it is turned off.
@@ -163,17 +173,20 @@ class _PushSettingsState extends ConsumerState<PushSettingsSection>
           ),
         SwitchListTile(
           key: const Key('pushSound'),
-          secondary: const Icon(Icons.volume_up_outlined),
+          secondary: const SettingsCategoryIcon(
+            category,
+            Icons.volume_up_outlined,
+          ),
           title: const Text('Notification sound'),
           value: _sound,
           onChanged: on && !_busy
               ? (value) => _change(() => widget.service.setSound(value))
               : null,
         ),
-        ListTile(
+        SettingsTile(
           key: const Key('pushSystemSettings'),
-          leading: const Icon(Icons.tune),
-          title: Text('More in $_system'),
+          leading: const SettingsCategoryIcon(category, Icons.tune_rounded),
+          title: 'More in $_system',
           trailing: const Icon(Icons.open_in_new),
           onTap: () => ref.read(systemNotificationsProvider).openSettings(),
         ),

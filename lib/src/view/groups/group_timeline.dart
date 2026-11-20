@@ -15,6 +15,9 @@ import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/view/groups/group_message_row.dart';
 import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 
+/// The timeline's side padding; the jump highlight reaches back over it.
+const _sideInset = MessageMenuMetrics.edge;
+
 /// A group's messages, newest at the bottom. While messages are selected a
 /// tap picks one, as in a 1:1 chat; a jump to a pinned message lights it up.
 class GroupTimeline extends ConsumerStatefulWidget {
@@ -78,6 +81,7 @@ class _GroupTimelineState extends ConsumerState<GroupTimeline> {
     return NotificationListener<ScrollNotification>(
       onNotification: _onScroll,
       child: ThinScrollbar(
+        controller: widget.timeline.controller,
         child: ListView.builder(
           key: const Key('groupMessages'),
           controller: widget.timeline.controller,
@@ -85,7 +89,7 @@ class _GroupTimelineState extends ConsumerState<GroupTimeline> {
           // The same insets as a 1:1 timeline, so a held message is lifted
           // without moving.
           padding: const EdgeInsets.symmetric(
-            horizontal: MessageMenuMetrics.edge,
+            horizontal: _sideInset,
             vertical: 12,
           ),
           itemCount: rows.length + (widget.joinedLater ? 1 : 0),
@@ -147,6 +151,7 @@ class _GroupTimelineState extends ConsumerState<GroupTimeline> {
                   messageId: m.id,
                   flashed: widget.timeline.flashed,
                   color: highlight,
+                  sideInset: _sideInset,
                   child: row,
                 ),
                 if (m.outgoing && m.status == MessageStatus.unconfirmed)

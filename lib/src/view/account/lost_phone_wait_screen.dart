@@ -4,6 +4,7 @@ import 'package:fireplace/src/model/account/takeover.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 import 'package:fireplace/src/widgets/settings_section.dart';
 
 /// Picks how long a new phone waits before it can start fresh (decision
@@ -54,20 +55,21 @@ class LostPhoneWaitTile extends StatelessWidget {
     required this.onChanged,
     this.enabled = true,
     this.contentPadding,
+    this.leading = const Icon(Icons.hourglass_empty_rounded),
   });
   final LostPhoneWait wait;
   final ValueChanged<LostPhoneWait> onChanged;
   final bool enabled;
   final EdgeInsetsGeometry? contentPadding;
+  final Widget leading;
 
   @override
-  Widget build(BuildContext context) => ListTile(
+  Widget build(BuildContext context) => SettingsTile(
     key: const Key('lostPhoneWait'),
     contentPadding: contentPadding,
-    leading: const Icon(Icons.hourglass_empty_rounded),
-    title: const Text('Lost-phone wait'),
-    subtitle: Text(wait.label),
-    trailing: const Icon(Icons.chevron_right),
+    leading: leading,
+    title: 'Lost-phone wait',
+    value: wait.label,
     onTap: !enabled
         ? null
         : () async {

@@ -23,7 +23,10 @@ import 'package:fireplace/src/model/groups/group_selection.dart';
 import 'package:fireplace/src/view/chat/pinned_bar.dart';
 import 'package:fireplace/src/view/chat/timeline_scroll.dart';
 import 'package:fireplace/src/view/groups/group_message_menu.dart';
+import 'package:fireplace/src/model/search/message_search.dart';
+import 'package:fireplace/src/view/chat/conversation_search.dart';
 import 'package:fireplace/src/view/groups/group_timeline.dart';
+import 'package:fireplace/src/model/chat/emoji_only.dart';
 
 /// A group conversation (decision 0050). It looks like a 1:1 chat: the same
 /// bubbles, day separators, held-message menu, reactions and composer, with
@@ -39,6 +42,28 @@ class GroupChatScreen extends ConsumerStatefulWidget {
 
 class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   late final _timeline = TimelineScroll(isMounted: () => mounted);
+
+  /// Search inside this group (issue 246): matches from the history on this
+  /// phone.
+  late final _search = ConversationSearch(
+    find: (query, limit) async {
+      final service = ref.read(groupServiceProvider);
+      if (service == null) return const [];
+      final found = await service.findMessages(
+        widget.gid,
+        messageMatcher(query),
+        limit: limit + 1,
+      );
+      found.sort((a, b) => b.sentAt.compareTo(a.sentAt));
+      return [for (final m in found) m.id];
+    },
+    jump: _openPinned,
+  )..addListener(_searchChanged);
+
+  void _searchChanged() {
+    if (mounted) setState(() {});
+  }
+
   final _text = TextEditingController();
   final _edit = TextEditingController();
   final _focus = FocusNode();
@@ -95,6 +120,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     _edit.dispose();
     _focus.dispose();
     _timeline.dispose();
+    _search.dispose();
     super.dispose();
   }
 
@@ -113,7 +139,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
 
   Future<void> _send() async {
     final service = ref.read(groupServiceProvider);
-    final text = _text.text.trim();
+    final text = messageBodyToSend(_text.text);
     if (service == null || text.isEmpty) return;
     final replyTo = _replyTo;
     _text.clear();
@@ -151,7 +177,7 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
   Future<void> _saveEdit() async {
     final service = ref.read(groupServiceProvider);
     final target = _editing;
-    final body = _edit.text.trim();
+    final body = messageBodyToSend(_edit.text);
     if (service == null || target == null || body.isEmpty || _busy) return;
     setState(() => _busy = true);
     await _run(() => service.edit(widget.gid, target.id, body));
@@ -190,8 +216,8 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
     );
   }
 
-  /// Opens a pinned message: loads the history back to it, then scrolls to
-  /// it and lights it up, as a 1:1 chat does.
+  /// Opens a pinned message or a search match: loads the history back to it,
+  /// then scrolls to it and lights it up, as a 1:1 chat does.
   Future<void> _openPinned(String id) async {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     try {
@@ -315,7 +341,10 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                 ? null
                 : () => Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => GroupInfoScreen(gid: widget.gid),
+                      builder: (_) => GroupInfoScreen(
+                        gid: widget.gid,
+                        onSearch: _search.open,
+                      ),
                     ),
                   ),
             child: Padding(
@@ -326,10 +355,12 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
         ),
       ],
     );
+    final searching = _search.active;
     return PopScope(
-      canPop: !selecting,
+      canPop: !selecting && !searching,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) select.clear();
+        if (didPop) return;
+        searching ? _search.close() : select.clear();
       },
       child: Scaffold(
         appBar: selecting
@@ -359,6 +390,14 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                   ),
                 ],
               )
+            : searching
+            ? UiAppBar(
+                context: context,
+                toolbarHeight: 64,
+                leading: ConversationSearchClose(search: _search),
+                title: ConversationSearchField(search: _search),
+                actions: [ConversationSearchControls(search: _search)],
+              )
             : UiAppBar(context: context, toolbarHeight: 64, title: title),
         bottomNavigationBar: selecting
             ? GroupSelectionBar(gid: widget.gid, onDeleting: _letGo)
@@ -380,13 +419,16 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                             'Messages are end-to-end encrypted. Say hello when '
                             'you’re ready.',
                       )
-                    : GroupTimeline(
-                        gid: widget.gid,
-                        rows: rows,
-                        joinedLater: joinedLater,
-                        timeline: _timeline,
-                        actionsFor: (m) => _actionsFor(m, me),
-                        onReactions: (m) => _showReactions(m, me),
+                    : SearchHighlight(
+                        query: searching ? _search.query : '',
+                        child: GroupTimeline(
+                          gid: widget.gid,
+                          rows: rows,
+                          joinedLater: joinedLater,
+                          timeline: _timeline,
+                          actionsFor: (m) => _actionsFor(m, me),
+                          onReactions: (m) => _showReactions(m, me),
+                        ),
                       ),
               ),
               if (_error != null)
@@ -413,7 +455,9 @@ class _GroupChatScreenState extends ConsumerState<GroupChatScreen> {
                   submit: editing ? _saveEdit : _send,
                   editing: editing,
                   editingBusy: editing && _busy,
-                  canSubmit: !editing || _edit.text.trim() != _editing!.body,
+                  canSubmit:
+                      !editing ||
+                      messageBodyToSend(_edit.text) != _editing!.body,
                   contextBar: editing
                       ? Row(
                           key: const Key('editComposerPreview'),

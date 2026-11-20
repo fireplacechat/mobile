@@ -6,6 +6,7 @@ import 'package:fireplace/src/model/account/auth_service.dart';
 import 'package:fireplace/src/model/chat/chat_service.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/widgets/avatar.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 
 /// What the person chose in [NewChatSheet].
 sealed class NewChatChoice {
@@ -317,7 +318,7 @@ class _NewChatSheetState extends ConsumerState<NewChatSheet> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(Icons.chat_bubble_outline_rounded),
+                          : const Icon(roundBubble),
                     ),
                     title: Text('Message @$typed'),
                     subtitle: Text(

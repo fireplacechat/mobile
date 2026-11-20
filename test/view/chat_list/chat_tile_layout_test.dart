@@ -58,14 +58,17 @@ void main() {
         matching: find.byType(PersonAvatar),
       ),
     );
-    expect(avatar.size, const Size.square(60));
+    // Rows below the requests row sit at fractional offsets (hairline
+    // dividers), so allow for rounding.
+    expect(avatar.width, closeTo(60, 1e-6));
+    expect(avatar.height, closeTo(60, 1e-6));
     expect(avatar.left, 16);
-    expect(avatar.center.dy, tile.center.dy);
+    expect(avatar.center.dy, closeTo(tile.center.dy, 1e-6));
     final name = t.getRect(
       find.descendant(of: row('alice_fred'), matching: find.text('fred')),
     );
     expect(name.left, 86);
-    expect(name.top - tile.top, 8);
+    expect(name.top - tile.top, closeTo(8, 1e-6));
     // The date ends sixteen points from the edge.
     final date = t.getRect(
       find.descendant(of: row('alice_fred'), matching: find.text('12:00 pm')),

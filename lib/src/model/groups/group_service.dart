@@ -18,6 +18,7 @@ import 'package:fireplace/src/model/chat/send_allowance.dart';
 import 'package:fireplace/src/model/groups/group_models.dart';
 import 'package:fireplace/src/model/groups/group_requests.dart';
 import 'package:fireplace/src/model/keys/key_service.dart';
+import 'package:fireplace/src/model/chat/emoji_only.dart';
 import 'package:flutter/foundation.dart';
 
 /// Group chats for one account on this device (mobile decision 0050,
@@ -222,6 +223,15 @@ class GroupService {
   /// finds its row.
   Future<void> revealMessage(String gid, String messageId) =>
       _messages.reveal(groupChatId(gid), messageId);
+
+  /// The newest messages in the group whose text [matches] accepts, for the
+  /// search inside it (issue 246). The store finds them without reading the
+  /// whole history.
+  Future<List<LocalMessage>> findMessages(
+    String gid,
+    bool Function(String body) matches, {
+    int limit = 100,
+  }) => _messages.search({groupChatId(gid)}, matches, limit: limit);
 
   MemberColors colorsOf(String gid) =>
       Map.unmodifiable(_colors[gid] ?? const {});
@@ -1016,7 +1026,7 @@ class GroupService {
         'You can edit your messages up to 10 times within 24 hours.',
       );
     }
-    if (body.trim() == target.body) {
+    if (messageBodyToSend(body) == target.body) {
       throw GroupActionError('Make a change before saving.');
     }
     if (messageTooLong(body)) throw GroupActionError(messageLimitError);
@@ -1025,7 +1035,7 @@ class GroupService {
       MessageMutation(
         kind: MessageMutationKind.edit,
         targetId: targetId,
-        body: body.trim(),
+        body: messageBodyToSend(body),
         revision: target.editClock + 1,
       ),
     );

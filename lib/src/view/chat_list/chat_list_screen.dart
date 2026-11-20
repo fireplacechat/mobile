@@ -13,6 +13,7 @@ import 'package:fireplace/src/model/chat/chat_summary.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
 import 'package:fireplace/src/styles/brand/logo.dart';
 import 'package:fireplace/src/styles/brand/lockup.dart';
+import 'package:fireplace/src/view/safety/message_requests_row.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/view/invites/invite_screen.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
@@ -71,17 +72,32 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     super.dispose();
   }
 
+  Future<void> _openRequests() => _open(
+    const RequestsScreen(),
+    settings: const RouteSettings(name: RequestsScreen.routeName),
+  );
+
   /// [swipeBack]: on Android the page can be dragged back to this list from
   /// anywhere on it, as iOS already allows (issue 236).
-  Future<void> _open(Widget screen, {bool swipeBack = false}) async {
+  Future<void> _open(
+    Widget screen, {
+    bool swipeBack = false,
+    RouteSettings? settings,
+  }) async {
     if (_opening) return;
     _opening = true;
     try {
       final android = Theme.of(context).platform == TargetPlatform.android;
       await Navigator.of(context).push(
         swipeBack && android
-            ? SwipeBackPageRoute<void>(builder: (_) => screen)
-            : MaterialPageRoute<void>(builder: (_) => screen),
+            ? SwipeBackPageRoute<void>(
+                builder: (_) => screen,
+                settings: settings,
+              )
+            : MaterialPageRoute<void>(
+                builder: (_) => screen,
+                settings: settings,
+              ),
       );
     } finally {
       _opening = false;
@@ -272,16 +288,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                         padding: const EdgeInsets.only(bottom: 96),
                         children: [
                           if (requestCount > 0)
-                            ListTile(
-                              key: const Key('requestsTile'),
-                              leading: const Icon(
-                                Icons.mark_email_unread_outlined,
-                              ),
-                              title: Text('Message requests ($requestCount)'),
-                              subtitle: const Text(
-                                'People who want to chat with you',
-                              ),
-                              onTap: () => _open(const RequestsScreen()),
+                            MessageRequestsRow(
+                              requests: requests,
+                              invitations: invitations,
+                              onTap: _openRequests,
                             ),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -369,23 +379,10 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       ),
                       itemBuilder: (_, i) {
                         if (requestCount > 0 && i == 0) {
-                          return ListTile(
-                            key: Key('requestsTile'),
-                            leading: CircleAvatar(
-                              backgroundColor: FireplaceUiTokens.of(context)
-                                  .accent,
-                              foregroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .onPrimary,
-                              child: Icon(Icons.mark_email_unread_outlined),
-                            ),
-                            title: Text(
-                              'Message requests ($requestCount)',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                            subtitle: Text('People who want to chat with you'),
-                            trailing: Icon(Icons.chevron_right),
-                            onTap: () => _open(const RequestsScreen()),
+                          return MessageRequestsRow(
+                            requests: requests,
+                            invitations: invitations,
+                            onTap: _openRequests,
                           );
                         }
                         if (entries.isEmpty) {

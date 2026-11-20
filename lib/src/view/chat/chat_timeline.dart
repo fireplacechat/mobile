@@ -21,6 +21,9 @@ import 'package:fireplace/src/view/chat/widgets/message_flash.dart';
 import 'package:fireplace/src/view/chat/widgets/rising_send.dart';
 import 'package:fireplace/src/view/chat/widgets/unconfirmed_note.dart';
 
+/// The timeline's side padding; the jump highlight reaches back over it.
+const _sideInset = MessageMenuMetrics.edge;
+
 class ChatTimeline extends ConsumerWidget {
   // Rebuild with the screen; keep this extraction non-const.
   // ignore: prefer_const_constructors_in_immutables
@@ -124,7 +127,7 @@ class ChatTimeline extends ConsumerWidget {
                   // The side inset equals the held-message menu's, so a
                   // message with room for its menu is lifted without moving.
                   padding: const EdgeInsets.symmetric(
-                    horizontal: MessageMenuMetrics.edge,
+                    horizontal: _sideInset,
                     vertical: 12,
                   ),
                   itemCount: msgs.length,
@@ -253,6 +256,7 @@ class ChatTimeline extends ConsumerWidget {
                             messageId: message.id,
                             flashed: flashed!,
                             color: highlight,
+                            sideInset: _sideInset,
                             child: row,
                           ),
                         if (!selection.active &&

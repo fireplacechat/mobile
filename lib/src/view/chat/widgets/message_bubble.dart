@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
 import 'package:fireplace/src/db/local_messages.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
+import 'package:fireplace/src/model/chat/emoji_only.dart';
 import 'package:fireplace/src/model/chat/message_format.dart';
 import 'package:fireplace/src/view/chat/message_actions.dart';
 import 'package:fireplace/src/view/chat/message_press.dart';
@@ -211,6 +212,8 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
         // colour (decision 0052).
         : theirs.incoming(Theme.of(context).brightness);
     final quoted = message.quote != null && !message.remotelyDeleted;
+    final emojiCount = bad ? null : emojiOnlyCount(body);
+    final bare = emojiCount != null && !quoted;
     // With a quote the bubble's own padding shrinks to frame the panel, so
     // the text keeps its usual distance from the edge with this.
     final textInset = quoted
@@ -299,30 +302,41 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                   margin: widget.preview
                       ? EdgeInsets.zero
                       : const EdgeInsets.symmetric(vertical: 4),
-                  padding: quoted
+                  padding: bare
+                      ? EdgeInsets.zero
+                      : quoted
                       ? const EdgeInsets.fromLTRB(8, 8, 8, 8)
                       : const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: _held
-                        ? Color.alphaBlend(const Color(0x22000000), base)
-                        : base,
-                    borderRadius: bubbleRadius,
-                    // The held copy is the only one drawn, so it carries the lift.
-                    boxShadow: widget.preview
-                        ? const [
-                            BoxShadow(
-                              color: Color(0x4D000000),
-                              blurRadius: 12,
-                              offset: Offset(0, 4),
-                            ),
-                          ]
-                        : null,
-                  ),
+                  decoration: bare
+                      ? null
+                      : BoxDecoration(
+                          color: _held
+                              ? Color.alphaBlend(const Color(0x22000000), base)
+                              : base,
+                          borderRadius: bubbleRadius,
+                          // The held copy is the only one drawn, so it carries the lift.
+                          boxShadow: widget.preview
+                              ? const [
+                                  BoxShadow(
+                                    color: Color(0x4D000000),
+                                    blurRadius: 12,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ]
+                              : null,
+                        ),
                   // Painted over the bubble, so focus never changes its size.
+                  // Bare emoji sit on the page, so their outline takes the
+                  // page's text colour rather than the bubble's.
                   foregroundDecoration: _focused
                       ? BoxDecoration(
-                          border: Border.all(color: fg, width: 2),
-                          borderRadius: bubbleRadius,
+                          border: Border.all(
+                            color: bare ? t.text : fg,
+                            width: 2,
+                          ),
+                          borderRadius: bare
+                              ? BorderRadius.circular(12)
+                              : bubbleRadius,
                         )
                       : null,
                   // The sender is announced first. The menu actions are also offered to screen readers, as
@@ -347,6 +361,7 @@ class _MessageBubbleState extends ConsumerState<MessageBubble> {
                         preview: widget.preview,
                         selecting: widget.selecting,
                         quoted: quoted,
+                        emojiCount: emojiCount,
                         mine: mine,
                         bad: bad,
                         oversize: oversize,

@@ -8,7 +8,7 @@ import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/model/chat/chat_visibility.dart';
 import 'package:fireplace/src/view/chat/chat_route_observer.dart';
 import 'package:fireplace/src/view/chat/chat_screen.dart';
-import 'package:fireplace/src/view/chat/chat_details_screen.dart';
+import 'package:fireplace/src/view/profile/person_profile_screen.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -249,21 +249,21 @@ void main() {
         final c = ProviderScope.containerOf(t.element(find.byType(ChatScreen)));
         await t.tap(find.byKey(const Key('chatDetails')));
         await t.pumpAndSettle();
-        expect(find.byType(ChatDetailsScreen), findsOneWidget);
+        expect(find.byType(PersonProfileScreen), findsOneWidget);
         expect(c.read(visibleChatProvider), isNull);
         await t.tap(find.byKey(const Key('detailsBlock')));
         await settleUi(t);
         await t.pump(const Duration(milliseconds: 300));
         if (blocked) {
           expect(safety.unblocks, ['fred']);
-          Navigator.of(t.element(find.byType(ChatDetailsScreen))).pop();
+          Navigator.of(t.element(find.byType(PersonProfileScreen))).pop();
           await t.pumpAndSettle();
           expect(c.read(visibleChatProvider), 'alice_fred');
         } else {
           await t.tap(find.byKey(const Key('confirmBlock')));
           await t.pumpAndSettle();
           expect(safety.blocks, ['fred']);
-          expect(find.byType(ChatDetailsScreen), findsNothing);
+          expect(find.byType(PersonProfileScreen), findsNothing);
         }
       },
     );

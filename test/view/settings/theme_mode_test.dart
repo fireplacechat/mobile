@@ -5,6 +5,8 @@ import 'package:fireplace/src/app.dart';
 import 'package:fireplace/src/app/theme_preference.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 import 'package:fireplace/src/view/auth/auth_screen.dart';
+import 'package:fireplace/src/view/settings/appearance_settings_screen.dart';
+import 'package:fireplace/src/view/settings/settings_category.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,7 +47,15 @@ Future<void> openSettings(
   await tester.pumpAndSettle();
 }
 
+/// Settings → Appearance → Theme; from Appearance when it is already open.
 Future<void> openPicker(WidgetTester tester) async {
+  if (find.byType(AppearanceSettingsScreen).evaluate().isEmpty) {
+    final row = find.byKey(SettingsCategory.appearance.rowKey);
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+  }
   await tester.ensureVisible(find.byKey(const Key('themeMode')));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(const Key('themeMode')));
@@ -120,7 +130,7 @@ void main() {
       expect(store.data[ThemePreference.storageKey], 'light');
       await tester.pageBack();
       await tester.pumpAndSettle();
-      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.byType(AppearanceSettingsScreen), findsOneWidget);
       await openPicker(tester);
       expectSelected(tester, 'light');
     },

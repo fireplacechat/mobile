@@ -43,10 +43,14 @@ class ChatRowAction {
     required this.id,
     required this.label,
     required this.icon,
+    this.iconMark,
     this.destructive = false,
   });
   final String id, label;
   final IconData icon;
+
+  /// A mark drawn inside a round bubble, in place of [icon].
+  final IconData? iconMark;
   final bool destructive;
 }
 
@@ -152,6 +156,7 @@ class _ChatRowMenu extends StatelessWidget {
                                       id: action.id,
                                       label: action.label,
                                       icon: action.icon,
+                                      iconMark: action.iconMark,
                                       destructive: action.destructive,
                                       onSelected: () {},
                                     ),

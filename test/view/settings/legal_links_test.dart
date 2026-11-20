@@ -1,6 +1,8 @@
 // Settings opens each URL directly from a row; sign-up keeps its legal links.
 import 'package:fireplace/src/view/auth/auth_screen.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
+import 'package:fireplace/src/view/settings/settings_category.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,7 +35,7 @@ void main() {
         overrides: f.overrides,
         child: MaterialApp(
           theme: fireplaceTheme(Brightness.light),
-          home: const SettingsScreen(),
+          home: const HelpSettingsScreen(),
         ),
       ),
     );
@@ -42,10 +44,10 @@ void main() {
     expect(find.byKey(const Key('legalLinks')), findsNothing);
     expect(find.text('Privacy and terms'), findsNothing);
     for (final key in ['openPrivacyPolicy', 'openTermsOfUse']) {
-      final row = t.widget<ListTile>(find.byKey(Key(key)));
-      expect(row.leading, isA<Icon>());
-      expect((row.trailing! as Icon).icon, Icons.chevron_right);
-      expect(row.subtitle, isNull);
+      final row = t.widget<SettingsTile>(find.byKey(Key(key)));
+      expect(row.leading, isA<SettingsCategoryIcon>());
+      expect(row.chevron, isTrue);
+      expect(row.value, isNull);
       expect(row.onTap, isNotNull);
     }
   });
@@ -79,7 +81,7 @@ void main() {
           overrides: f.overrides,
           child: MaterialApp(
             theme: fireplaceTheme(Brightness.light),
-            home: const SettingsScreen(),
+            home: const HelpSettingsScreen(),
           ),
         ),
       );
@@ -92,9 +94,9 @@ void main() {
       await t.tap(find.byKey(const Key('openTermsOfUse')));
       await t.pump(const Duration(milliseconds: 100));
       expect(opened, termsUrl);
-      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.byType(HelpSettingsScreen), findsOneWidget);
       expect(
-        Navigator.of(t.element(find.byType(SettingsScreen))).canPop(),
+        Navigator.of(t.element(find.byType(HelpSettingsScreen))).canPop(),
         isFalse,
       );
     },

@@ -3,6 +3,7 @@ import 'package:fireplace/src/db/message_mutation.dart';
 import 'package:fireplace/src/db/message_quote.dart';
 import 'package:fireplace/src/model/chat/chat_exceptions.dart';
 import 'package:fireplace/src/model/chat/message_limits.dart';
+import 'package:fireplace/src/model/chat/emoji_only.dart';
 
 Future<({MessageQuote? quote, MessageMutation? mutation})>
 prepareMessageContent({
@@ -59,14 +60,14 @@ prepareMessageContent({
           'You can edit your messages up to 10 times within 24 hours.',
         );
       }
-      if (mutation.body.trim() == target.body) {
+      if (messageBodyToSend(mutation.body) == target.body) {
         throw ChatException('Make a change before saving.');
       }
       if (messageTooLong(mutation.body)) throw ChatException(messageLimitError);
       mutation = MessageMutation(
         kind: MessageMutationKind.edit,
         targetId: target.id,
-        body: mutation.body.trim(),
+        body: messageBodyToSend(mutation.body),
         revision: target.editClock + 1,
       );
     } else {

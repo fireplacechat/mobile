@@ -9,7 +9,8 @@ import 'package:fireplace/src/view/devices/recovery_entry_screen.dart';
 import 'package:fireplace/src/view/devices/link_wait_screen.dart';
 import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
 import 'package:fireplace/src/view/devices/link_new_device_screen.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/account_settings_screen.dart';
+import 'package:fireplace/src/view/settings/devices_settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -129,7 +130,7 @@ void main() {
       await host(
         t,
         f,
-        const SettingsScreen(),
+        const AccountSettingsScreen(),
         extra: [authServiceProvider.overrideWithValue(a)],
       );
       await t.ensureVisible(find.byKey(const Key('changePassword')));
@@ -176,7 +177,7 @@ void main() {
       await host(
         t,
         f,
-        const SettingsScreen(),
+        const DevicesSettingsScreen(),
         extra: [recoveryServiceProvider.overrideWithValue(r)],
       );
       await t.scrollUntilVisible(find.byKey(const Key('recoveryKey')), 250);

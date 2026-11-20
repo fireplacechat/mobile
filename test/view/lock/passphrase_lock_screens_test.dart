@@ -13,6 +13,7 @@ import 'package:fireplace/src/view/lock/set_passphrase_screen.dart';
 import 'package:fireplace/src/view/lock/unlock_screen.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/privacy_settings_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -265,7 +266,7 @@ void main() {
 
   testWidgets('Settings shows the lock; previews are off and fixed while it '
       'is on', (t) async {
-    final f = await open(t, const SettingsScreen(), push: true);
+    final f = await open(t, const PrivacySettingsScreen(), push: true);
     // The fixture's store is a plain one: the row is for the real store.
     expect(find.byKey(const Key('passphraseLock')), findsNothing);
     await t.pumpWidget(const SizedBox());

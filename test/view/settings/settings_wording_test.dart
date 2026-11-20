@@ -1,5 +1,9 @@
 import 'package:fireplace/src/app/chat_color_preference.dart';
-import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/account_settings_screen.dart';
+import 'package:fireplace/src/view/settings/appearance_settings_screen.dart';
+import 'package:fireplace/src/view/settings/devices_settings_screen.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +17,7 @@ Future<void> _openSettings(
   Size size = const Size(800, 3000),
   double textScale = 1,
   String? savedColors,
+  Widget page = const AppearanceSettingsScreen(),
 }) async {
   t.view.physicalSize = size;
   t.view.devicePixelRatio = 1;
@@ -32,7 +37,7 @@ Future<void> _openSettings(
               .copyWith(textScaler: TextScaler.linear(textScale)),
           child: child!,
         ),
-        home: const SettingsScreen(),
+        home: page,
       ),
     ),
   );
@@ -86,17 +91,17 @@ void main() {
   }
 
   testWidgets('the account and about rows are plain buttons', (t) async {
-    await _openSettings(t);
-    for (final (key, title) in [
-      ('recoveryKey', 'Recovery key'),
-      ('deleteAccountTile', 'Delete account'),
-      ('signOut', 'Sign out'),
-      ('openPrivacyPolicy', 'Privacy policy'),
-      ('openTermsOfUse', 'Terms of use'),
+    for (final (page, key, title) in [
+      (const DevicesSettingsScreen(), 'recoveryKey', 'Recovery key'),
+      (const AccountSettingsScreen(), 'deleteAccountTile', 'Delete account'),
+      (const AccountSettingsScreen(), 'signOut', 'Sign out'),
+      (const HelpSettingsScreen(), 'openPrivacyPolicy', 'Privacy policy'),
+      (const HelpSettingsScreen(), 'openTermsOfUse', 'Terms of use'),
     ]) {
-      final tile = t.widget<ListTile>(find.byKey(Key(key)));
-      expect((tile.title! as Text).data, title);
-      expect(tile.subtitle, isNull, reason: '$title has no second line');
+      await _openSettings(t, page: page);
+      final tile = t.widget<SettingsTile>(find.byKey(Key(key)));
+      expect(tile.title, title);
+      expect(tile.value, isNull, reason: '$title shows no value');
     }
   });
 }

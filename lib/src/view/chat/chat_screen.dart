@@ -40,15 +40,23 @@ import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/view/chat/confirm_another_copy.dart';
 import 'package:fireplace/src/widgets/page.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
-import 'package:fireplace/src/view/chat/chat_details_screen.dart';
+import 'package:fireplace/src/view/profile/person_profile_screen.dart';
 import 'package:fireplace/src/model/chat/chat_visibility.dart';
 import 'package:fireplace/src/model/notifications/chat_activity.dart';
 import 'package:fireplace/src/model/chat/pending_sends.dart';
 import 'package:fireplace/src/model/chat/chat_drafts.dart';
 import 'package:fireplace/src/view/chat/composer/chat_draft_controller.dart';
+import 'package:fireplace/src/view/chat/conversation_search.dart';
+import 'package:fireplace/src/model/search/message_search.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
-  const ChatScreen({super.key, required this.chatId, this.initialMessageId});
+  const ChatScreen({
+    super.key,
+    required this.chatId,
+    this.initialMessageId,
+    this.onRequestAccepted,
+  });
+  final VoidCallback? onRequestAccepted;
   final String chatId;
   final String? initialMessageId;
   @override
@@ -182,6 +190,42 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ..addListener(() {
         if (mounted) setState(() {});
       });
+    _search.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  /// Search inside this chat (issue 246): matches from the history on this
+  /// phone, newest first.
+  late final _search = ConversationSearch(
+    find: (query, limit) async {
+      final chat = ref.read(appSessionProvider).value?.chat;
+      if (chat == null) return const [];
+      final found = await chat.findMessages(
+        {widget.chatId},
+        messageMatcher(query),
+        limit: limit + 1,
+      );
+      found.sort((a, b) => b.sentAt.compareTo(a.sentAt));
+      return [for (final m in found) m.id];
+    },
+    jump: _jumpTo,
+  );
+
+  /// Loads the history back to a message, then scrolls to it and lights it
+  /// up: for a pin and for a search match.
+  Future<void> _jumpTo(String id) async {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    await _showMessage(id);
+    if (!mounted) return;
+    final ids = [
+      for (final m
+          in ref.read(messagesProvider(widget.chatId)).value ??
+              const <LocalMessage>[])
+        m.id,
+    ];
+    final found = await _timeline.locate(id, ids, reduceMotion: reduceMotion);
+    if (found && mounted) _timeline.flash(id);
   }
 
   @override
@@ -245,6 +289,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _text.removeListener(_onDraftChanged);
     _text.dispose();
     _timeline.dispose();
+    _search.dispose();
     _sendController.dispose();
     _contactController.dispose();
     super.dispose();
@@ -401,191 +446,202 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       hasSession: session != null,
       onOpenDetails: (partContext) => Navigator.of(partContext).push(
         MaterialPageRoute(
-          builder: (_) => ChatDetailsScreen(
+          builder: (_) => PersonProfileScreen(
             peerUid: peerUid!,
-            chatId: widget.chatId,
             name: name,
-            onMute: _mute,
-            onBlock: () => blockConfirmed(context, session!, peerUid),
-            onUnblock: () => session!.safety.unblock(peerUid),
-            onReportSpam: (choice) =>
-                reportSpam(context, session!, peerUid, choice, notice: _snack),
+            inChat: ProfileChatHandlers(
+              chatId: widget.chatId,
+              onMute: _mute,
+              onBlock: () => blockConfirmed(context, session!, peerUid),
+              onUnblock: () => session!.safety.unblock(peerUid),
+              onSearch: _search.open,
+              onReportSpam: (choice) => reportSpam(
+                context,
+                session!,
+                peerUid,
+                choice,
+                notice: _snack,
+              ),
+            ),
           ),
         ),
       ),
     );
-    return MessageSelectionSurface(
-      chatId: widget.chatId,
-      selectionTitle: chatTitle(),
-      onDeleted: (ids) {
-        for (final id in ids) {
-          _sendController.forgetPending(id);
-        }
-        if (mounted) setState(() {});
+    final searching = _search.active;
+    return PopScope(
+      canPop: !searching,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _search.close();
       },
-      appBar: UiAppBar(
-        context: context,
-        toolbarHeight: 64,
-        leading: ChatBackButton(otherUnread: otherUnread),
-        title: chatTitle(),
-        actions: [
-          if (peerUid != null)
-            ChatVerifyButton(
-              verified: verified,
-              onPressed: (partContext) => Navigator.of(partContext).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      VerifyScreen(peerUid: peerUid, peerName: name),
+      child: MessageSelectionSurface(
+        chatId: widget.chatId,
+        selectionTitle: chatTitle(),
+        onDeleted: (ids) {
+          for (final id in ids) {
+            _sendController.forgetPending(id);
+          }
+          if (mounted) setState(() {});
+        },
+        appBar: searching
+            ? UiAppBar(
+                context: context,
+                toolbarHeight: 64,
+                leading: ConversationSearchClose(search: _search),
+                title: ConversationSearchField(search: _search),
+                actions: [ConversationSearchControls(search: _search)],
+              )
+            : UiAppBar(
+                context: context,
+                toolbarHeight: 64,
+                leading: ChatBackButton(otherUnread: otherUnread),
+                title: chatTitle(),
+                actions: [
+                  if (peerUid != null)
+                    ChatVerifyButton(
+                      verified: verified,
+                      onPressed: (partContext) => Navigator.of(partContext)
+                          .push(
+                            MaterialPageRoute(
+                              builder: (_) => VerifyScreen(
+                                peerUid: peerUid,
+                                peerName: name,
+                              ),
+                            ),
+                          ),
+                    ),
+                ],
+              ),
+        body: UiBodyViewport(
+          anchorBottom: true,
+          child: Column(
+            children: [
+              ChatSafetyNotices(
+                peerUid: peerUid,
+                name: name,
+                hasSession: session != null,
+                incomingRequest: incomingRequest,
+                outgoingPending: outgoingPending,
+                waiting: waiting,
+                requestsLeft:
+                    ChatService.requestLimit - (summary?.requestCount ?? 0),
+                contact: _contactController,
+                send: _sendController,
+                keyboardInset: keyboardInset,
+                onReviewIdentity: (pub) =>
+                    _contactController.reviewIdentity(peerUid!, pub),
+                onAccept: () => _contactController.contactAction(() async {
+                  await session!.chat.acceptRequest(widget.chatId);
+                  if (mounted) widget.onRequestAccepted?.call();
+                }),
+                onBlock: () => _contactController.contactAction(
+                  () => blockAfterConfirming(context, session!, peerUid!, name),
                 ),
               ),
-            ),
-        ],
-      ),
-      body: UiBodyViewport(
-        anchorBottom: true,
-        child: Column(
-          children: [
-            ChatSafetyNotices(
-              peerUid: peerUid,
-              name: name,
-              hasSession: session != null,
-              incomingRequest: incomingRequest,
-              outgoingPending: outgoingPending,
-              waiting: waiting,
-              requestsLeft:
-                  ChatService.requestLimit - (summary?.requestCount ?? 0),
-              contact: _contactController,
-              send: _sendController,
-              keyboardInset: keyboardInset,
-              onReviewIdentity: (pub) =>
-                  _contactController.reviewIdentity(peerUid!, pub),
-              onAccept: () => _contactController.contactAction(
-                () => session!.chat.acceptRequest(widget.chatId),
-              ),
-              onBlock: () => _contactController.contactAction(
-                () => blockAfterConfirming(context, session!, peerUid!, name),
-              ),
-            ),
-            for (final invitation in groupInvitations)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                child: GroupInvitationCard(
-                  key: ValueKey('chatGroupInvite_${invitation.gid}'),
-                  invitation: invitation,
-                ),
-              ),
-            if (pinned.isNotEmpty)
-              PinnedBar(
-                messages: pinned,
-                onOpen: (id) async {
-                  final reduceMotion = MediaQuery.disableAnimationsOf(context);
-                  await _showMessage(id);
-                  if (!mounted) return;
-                  final ids = [
-                    for (final m
-                        in ref.read(messagesProvider(widget.chatId)).value ??
-                            const <LocalMessage>[])
-                      m.id,
-                  ];
-                  final found = await _timeline.locate(
-                    id,
-                    ids,
-                    reduceMotion: reduceMotion,
-                  );
-                  if (found && mounted) _timeline.flash(id);
-                },
-              ),
-            Expanded(
-              child: NotificationListener<ScrollNotification>(
-                onNotification: _onScroll,
-                child: ChatTimeline(
-                  chatId: widget.chatId,
-                  blocked: blocked,
-                  historyFailed: messageState.hasError,
-                  loading: messageState.isLoading,
-                  msgs: msgs,
-                  incomingRequest: incomingRequest,
-                  name: name,
-                  awayFromLatest: _timeline.awayFromLatest,
-                  viewportKey: _timeline.viewportKey,
-                  scrollController: _timeline.controller,
-                  anchorFor: _timeline.anchorFor,
-                  flashed: _timeline.flashed,
-                  send: _sendController,
-                  outgoing: outgoing,
-                  onUnsentTap: (message) =>
-                      chooseForUnsent(context, ref, message),
-                  onFailedSend: (send) => chooseForFailedSend(
-                    context,
-                    ref,
-                    send,
-                    onSendAgain: () =>
-                        _timeline.showNewestAfterOwnSend(_latest),
+              for (final invitation in groupInvitations)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  child: GroupInvitationCard(
+                    key: ValueKey('chatGroupInvite_${invitation.gid}'),
+                    invitation: invitation,
                   ),
-                  actionsFor: (message) => messageMenuActions(
-                    message,
-                    ref: ref,
-                    context: context,
-                    isMounted: () => mounted,
-                    notice: _snack,
-                    chatId: () => widget.chatId,
-                    contactAction: _contactController.contactAction,
+                ),
+              if (pinned.isNotEmpty)
+                PinnedBar(messages: pinned, onOpen: _jumpTo),
+              Expanded(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onScroll,
+                  child: SearchHighlight(
+                    query: searching ? _search.query : '',
+                    child: ChatTimeline(
+                      chatId: widget.chatId,
+                      blocked: blocked,
+                      historyFailed: messageState.hasError,
+                      loading: messageState.isLoading,
+                      msgs: msgs,
+                      incomingRequest: incomingRequest,
+                      name: name,
+                      awayFromLatest: _timeline.awayFromLatest,
+                      viewportKey: _timeline.viewportKey,
+                      scrollController: _timeline.controller,
+                      anchorFor: _timeline.anchorFor,
+                      flashed: _timeline.flashed,
+                      send: _sendController,
+                      outgoing: outgoing,
+                      onUnsentTap: (message) =>
+                          chooseForUnsent(context, ref, message),
+                      onFailedSend: (send) => chooseForFailedSend(
+                        context,
+                        ref,
+                        send,
+                        onSendAgain: () =>
+                            _timeline.showNewestAfterOwnSend(_latest),
+                      ),
+                      actionsFor: (message) => messageMenuActions(
+                        message,
+                        ref: ref,
+                        context: context,
+                        isMounted: () => mounted,
+                        notice: _snack,
+                        chatId: () => widget.chatId,
+                        contactAction: _contactController.contactAction,
+                        name: name,
+                        peerUid: peerUid,
+                        blocked: blocked,
+                        incomingRequest: incomingRequest,
+                        identityHeld: identityHeld,
+                      ),
+                      onRetryHistory: () =>
+                          ref.invalidate(messagesProvider(widget.chatId)),
+                      onQuote: (id) async {
+                        // The quoted message may be older than what is loaded.
+                        await _showMessage(id);
+                        if (!context.mounted) return;
+                        await locateQuotedMessage(
+                          context,
+                          _timeline,
+                          ref.read(messagesProvider(widget.chatId)).value ??
+                              history,
+                          id,
+                          notice: _snack,
+                          onFound: _timeline.flash,
+                        );
+                      },
+                      onLatest: _latest,
+                    ),
+                  ),
+                ),
+              ),
+              if (!selecting)
+                MessageComposerContext(
+                  chatId: widget.chatId,
+                  name: name,
+                  builder: (context, composer) => ChatComposer(
+                    focusNode: composer.focus,
+                    contextBar: composer.bar,
+                    submit: composer.submit,
+                    editing: composer.editText != null,
+                    editingBusy: composer.busy,
+                    canSubmit: composer.canSubmit,
+                    onInteraction: () => ref
+                        .read(messageSelectionProvider(widget.chatId).notifier)
+                        .clear(),
+                    keyboardInset: keyboardInset,
+                    text: composer.editText ?? _text,
                     name: name,
-                    peerUid: peerUid,
                     blocked: blocked,
                     incomingRequest: incomingRequest,
+                    waiting: waiting,
                     identityHeld: identityHeld,
-                  ),
-                  onRetryHistory: () =>
-                      ref.invalidate(messagesProvider(widget.chatId)),
-                  onQuote: (id) async {
-                    // The quoted message may be older than what is loaded.
-                    await _showMessage(id);
-                    if (!context.mounted) return;
-                    await locateQuotedMessage(
-                      context,
-                      _timeline,
-                      ref.read(messagesProvider(widget.chatId)).value ??
-                          history,
-                      id,
-                      notice: _snack,
-                      onFound: _timeline.flash,
-                    );
-                  },
-                  onLatest: _latest,
-                ),
-              ),
-            ),
-            if (!selecting)
-              MessageComposerContext(
-                chatId: widget.chatId,
-                name: name,
-                builder: (context, composer) => ChatComposer(
-                  focusNode: composer.focus,
-                  contextBar: composer.bar,
-                  submit: composer.submit,
-                  editing: composer.editText != null,
-                  editingBusy: composer.busy,
-                  canSubmit: composer.canSubmit,
-                  onInteraction: () => ref
-                      .read(messageSelectionProvider(widget.chatId).notifier)
-                      .clear(),
-                  keyboardInset: keyboardInset,
-                  text: composer.editText ?? _text,
-                  name: name,
-                  blocked: blocked,
-                  incomingRequest: incomingRequest,
-                  waiting: waiting,
-                  identityHeld: identityHeld,
-                  hasSession: session != null,
-                  contactBusy: _contactController.busy,
-                  send: _sendController,
-                  onUnblock: () => _contactController.contactAction(
-                    () => session!.safety.unblock(peerUid!),
+                    hasSession: session != null,
+                    contactBusy: _contactController.busy,
+                    send: _sendController,
+                    onUnblock: () => _contactController.contactAction(
+                      () => session!.safety.unblock(peerUid!),
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

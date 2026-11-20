@@ -12,6 +12,7 @@ class MessageAction {
     required this.label,
     required this.icon,
     required this.onSelected,
+    this.iconMark,
     this.destructive = false,
     this.reaction = false,
     this.emoji,
@@ -21,6 +22,9 @@ class MessageAction {
   });
   final String id, label;
   final IconData icon;
+
+  /// A mark drawn inside a round bubble, in place of [icon].
+  final IconData? iconMark;
   final VoidCallback onSelected;
   final bool destructive;
   final bool reaction, selected;

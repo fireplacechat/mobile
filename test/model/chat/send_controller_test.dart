@@ -230,6 +230,17 @@ void main() {
       expect(text, '');
     },
   );
+  test('a space after emoji is sent, so they keep a bubble (247)', () async {
+    for (final (typed, sent) in [
+      ('  hello  ', 'hello'),
+      ('🔥', '🔥'),
+      ('🔥 ', '🔥 '),
+    ]) {
+      final h = Harness()..text = typed;
+      await h.controller.send();
+      expect(h.enqueued.single.$1, sent, reason: typed);
+    }
+  });
   test('dismissError clears the error and notifies exactly once', () async {
     final h = Harness()..text = 'a' * (maxMessageCharacters + 1);
     await h.controller.send();
