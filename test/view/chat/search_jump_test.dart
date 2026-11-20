@@ -60,16 +60,10 @@ ScrollController _timeline(WidgetTester t) =>
     t.widget<ListView>(find.byKey(const Key('messageTimeline'))).controller!;
 
 bool _flashing(WidgetTester t, String id) {
-  final container = t.widget<AnimatedContainer>(
-    find
-        .ancestor(
-          of: find.byKey(ValueKey('messageBubble-$id')),
-          matching: find.byType(AnimatedContainer),
-        )
-        .first,
+  final band = t.widget<AnimatedContainer>(
+    find.byKey(ValueKey('messageFlash-$id')),
   );
-  final color = (container.decoration! as BoxDecoration).color!;
-  return color.a > 0;
+  return (band.decoration! as BoxDecoration).color!.a > 0;
 }
 
 void main() {

@@ -63,15 +63,10 @@ Rect _bubble(WidgetTester t, String id) =>
     t.getRect(find.byKey(ValueKey('messageBubble-$id')));
 
 bool _flashing(WidgetTester t, String id) {
-  final box = t.widget<AnimatedContainer>(
-    find
-        .ancestor(
-          of: find.byKey(ValueKey('messageBubble-$id')),
-          matching: find.byType(AnimatedContainer),
-        )
-        .first,
+  final band = t.widget<AnimatedContainer>(
+    find.byKey(ValueKey('messageFlash-$id')),
   );
-  return (box.decoration! as BoxDecoration).color!.a > 0;
+  return (band.decoration! as BoxDecoration).color!.a > 0;
 }
 
 ScrollController _scroll(WidgetTester t) =>
