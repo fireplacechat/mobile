@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:fireplace/src/widgets/thin_scrollbar.dart';
 import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/widgets/round_bubble_icon.dart';
 
 /// Keep chat/search controls scroll-reachable when a keyboard leaves little space.
 class UiBodyViewport extends StatelessWidget {
@@ -70,7 +71,7 @@ class UiEmptyState extends StatelessWidget {
     required this.title,
     required this.message,
     this.action,
-    this.icon = Icons.chat_bubble_outline_rounded,
+    this.icon = roundBubble,
     this.illustration,
   });
   final String title, message;
