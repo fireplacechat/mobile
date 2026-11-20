@@ -542,6 +542,47 @@ void main() {
     await tearDownPhones(t);
   });
 
+  testWidgets('Group info opens a search of the conversation (issue 246)', (
+    t,
+  ) async {
+    await setUpPhones(t);
+    final gid = await bookClub(t, alice, bob);
+    await t.runAsync(() async {
+      await bob.service.send(gid, 'Chapter four tonight');
+      await until(
+        () async => (await texts(alice, gid)).contains('Chapter four tonight'),
+        what: 'the message',
+      );
+    });
+    await pump(t, GroupChatScreen(gid: gid));
+    await settle(
+      t,
+      () => find.text('Chapter four tonight').evaluate().isNotEmpty,
+    );
+    await t.tap(find.byKey(const Key('groupHeader')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('groupSearch')));
+    await t.pumpAndSettle();
+    await t.enterText(
+      find.byKey(const Key('conversationSearchField')),
+      'chapter',
+    );
+    await settle(
+      t,
+      () =>
+          t
+              .widget<Text>(find.byKey(const Key('conversationSearchCount')))
+              .data ==
+          '1 of 1',
+    );
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('conversationSearchClose')));
+    await t.pumpAndSettle();
+    expect(find.byKey(const Key('conversationSearchField')), findsNothing);
+    expect(find.byType(GroupChatScreen), findsOneWidget);
+    await tearDownPhones(t);
+  });
+
   testWidgets('the history shows who was added, and where it starts for '
       'someone who joined later', (t) async {
     await setUpPhones(t);

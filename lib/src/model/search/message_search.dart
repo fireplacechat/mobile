@@ -15,6 +15,9 @@ String _fold(String s) => s.runes
     .join()
     .replaceAll('ς', 'σ');
 
+/// The folding search uses, for marking matches on screen the same way.
+String foldForSearch(String s) => _fold(s);
+
 /// Whether a message's text, as it reads on screen, contains [query], as
 /// [searchMessages] decides it. The history database calls the result on its
 /// own isolate for each message (decision 0057, step 4), so it captures only
