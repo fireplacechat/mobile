@@ -9,7 +9,8 @@ import 'package:fireplace/src/view/devices/link_new_device_screen.dart';
 import 'package:fireplace/src/view/recovery/recovery_key_screen.dart';
 import 'package:fireplace/src/view/settings/settings_actions.dart';
 import 'package:fireplace/src/view/settings/settings_category.dart';
-import 'package:fireplace/src/widgets/settings_section.dart';
+import 'package:fireplace/src/widgets/settings/settings_group.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 
 /// Settings → Devices and recovery: your devices, the recovery key, how
 /// long a new phone waits, and linking a new device.
@@ -29,44 +30,57 @@ class _DevicesSettingsScreenState extends ConsumerState<DevicesSettingsScreen>
   });
 
   @override
-  Widget build(BuildContext context) => SettingsSessionPage(
-    key: SettingsCategory.devices.pageKey,
-    title: SettingsCategory.devices.title,
-    builder: (s) => [
-      ...errorRows,
-      UiSettingsSection(
-        title: 'Devices and recovery',
-        children: [
-          ListTile(
-            key: const Key('devices'),
-            leading: const Icon(Icons.devices),
-            title: const Text('Your devices'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: busy ? null : () => open(const DevicesScreen()),
-          ),
-          ListTile(
-            key: const Key('recoveryKey'),
-            leading: const Icon(Icons.key),
-            title: const Text('Recovery key'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: busy ? null : () => open(const RecoveryKeyScreen()),
-          ),
-          // Offered only where the server keeps a new phone waiting.
-          if (ref.watch(lostPhoneWaitProvider(s.uid)).value case final wait?)
-            LostPhoneWaitTile(
-              wait: wait,
-              enabled: !busy,
-              onChanged: (wait) => _setWait(s, wait),
+  Widget build(BuildContext context) {
+    const category = SettingsCategory.devices;
+    return SettingsSessionPage(
+      key: category.pageKey,
+      title: category.title,
+      builder: (s) => [
+        ...errorRows,
+        SettingsGroup(
+          children: [
+            SettingsTile(
+              key: const Key('devices'),
+              leading: const SettingsCategoryIcon(
+                category,
+                Icons.devices_rounded,
+              ),
+              title: 'Your devices',
+              onTap: busy ? null : () => open(const DevicesScreen()),
             ),
-          ListTile(
-            key: const Key('linkDevice'),
-            leading: const Icon(Icons.add_to_home_screen),
-            title: const Text('Link a new device'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: busy ? null : () => open(const LinkNewDeviceScreen()),
-          ),
-        ],
-      ),
-    ],
-  );
+            SettingsTile(
+              key: const Key('linkDevice'),
+              leading: const SettingsCategoryIcon(
+                category,
+                Icons.add_to_home_screen_rounded,
+              ),
+              title: 'Link a new device',
+              onTap: busy ? null : () => open(const LinkNewDeviceScreen()),
+            ),
+          ],
+        ),
+        SettingsGroup(
+          children: [
+            SettingsTile(
+              key: const Key('recoveryKey'),
+              leading: const SettingsCategoryIcon(category, Icons.key_rounded),
+              title: 'Recovery key',
+              onTap: busy ? null : () => open(const RecoveryKeyScreen()),
+            ),
+            // Offered only where the server keeps a new phone waiting.
+            if (ref.watch(lostPhoneWaitProvider(s.uid)).value case final wait?)
+              LostPhoneWaitTile(
+                wait: wait,
+                enabled: !busy,
+                onChanged: (wait) => _setWait(s, wait),
+                leading: const SettingsCategoryIcon(
+                  category,
+                  Icons.hourglass_bottom_rounded,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }

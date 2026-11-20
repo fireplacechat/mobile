@@ -4,6 +4,7 @@ import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/settings/legal_links.dart';
 import 'package:fireplace/src/view/settings/help_settings_screen.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,7 +46,7 @@ Future<void> openPage(
 }
 
 VoidCallback? opener(WidgetTester tester, Key key, bool settings) => settings
-    ? tester.widget<ListTile>(find.byKey(key)).onTap
+    ? tester.widget<SettingsTile>(find.byKey(key)).onTap
     : tester.widget<OutlinedButton>(find.byKey(key)).onPressed;
 
 void mockBrowser(

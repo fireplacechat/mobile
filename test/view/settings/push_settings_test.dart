@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:fireplace/src/model/notifications/system_notifications.dart';
 import 'package:fireplace/src/model/push/push_notification_service.dart';
+import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/settings/push_settings.dart';
 
 class _Messaging implements PushMessagingClient {
@@ -79,6 +80,7 @@ void main() {
           notificationPreviewAvailableProvider.overrideWithValue(previews),
         ],
         child: MaterialApp(
+          theme: fireplaceTheme(Brightness.light),
           home: Scaffold(
             body: ListView(children: [PushSettingsSection(service: service)]),
           ),
@@ -101,6 +103,7 @@ void main() {
         ProviderScope(
           overrides: [systemNotificationsProvider.overrideWithValue(system)],
           child: MaterialApp(
+            theme: fireplaceTheme(Brightness.light),
             home: Scaffold(
               body: ListView(children: [PushSettingsSection(service: service)]),
             ),

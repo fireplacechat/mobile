@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:fireplace/src/widgets/app_bar.dart';
 import 'package:fireplace/src/widgets/page.dart';
+import 'package:fireplace/src/widgets/settings/settings_icon.dart';
 
 /// A Settings page with a large title that scrolls away under the bar, where
 /// a small copy of it then fades in.
@@ -71,7 +72,9 @@ class _SettingsPageState extends State<SettingsPage> {
           widget.body ??
           UiPageScroll(
             controller: _scroll,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+            padding: SettingsIcon.hiddenAt(context)
+                ? const EdgeInsets.fromLTRB(12, 0, 12, 32)
+                : const EdgeInsets.fromLTRB(16, 0, 16, 32),
             children: [
               Padding(
                 key: _largeTitle,
@@ -80,6 +83,11 @@ class _SettingsPageState extends State<SettingsPage> {
                   header: true,
                   child: Text(
                     widget.title,
+                    // Grows with the text size, but only so far that a long
+                    // word still fits on a narrow phone; the bar's copy of
+                    // the title scales as usual.
+                    textScaler: MediaQuery.textScalerOf(context)
+                        .clamp(maxScaleFactor: 1.35),
                     style: Theme.of(context).textTheme.headlineLarge
                         ?.copyWith(fontSize: 32, letterSpacing: -.5),
                   ),

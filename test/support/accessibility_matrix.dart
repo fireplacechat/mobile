@@ -13,6 +13,12 @@ import 'package:fireplace/src/view/devices/link_new_device_screen.dart';
 import 'package:fireplace/src/view/safety/confirm_block.dart';
 import 'package:fireplace/src/view/safety/requests_screen.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/view/settings/account_settings_screen.dart';
+import 'package:fireplace/src/view/settings/appearance_settings_screen.dart';
+import 'package:fireplace/src/view/settings/devices_settings_screen.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
+import 'package:fireplace/src/view/settings/notification_settings_screen.dart';
+import 'package:fireplace/src/view/settings/privacy_settings_screen.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:fireplace/src/view/safety/verify_screen.dart';
 import 'package:flutter/material.dart';
@@ -71,6 +77,16 @@ void defineAccessibilityMatrix(List<Size> sizes) {
           addTearDown(t.view.reset);
           final screens = <(String, Widget, bool)>[
             ('settings', const SettingsScreen(), false),
+            ('settings-account', const AccountSettingsScreen(), false),
+            ('settings-privacy', const PrivacySettingsScreen(), false),
+            (
+              'settings-notifications',
+              const NotificationSettingsScreen(),
+              false,
+            ),
+            ('settings-appearance', const AppearanceSettingsScreen(), false),
+            ('settings-devices', const DevicesSettingsScreen(), false),
+            ('settings-help', const HelpSettingsScreen(), false),
             ('legal', const LegalLinksScreen(), false),
             ('devices', const DevicesScreen(), false),
             ('recovery', const RecoveryKeyScreen(), false),

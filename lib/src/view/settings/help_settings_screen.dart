@@ -6,10 +6,15 @@ import 'package:fireplace/src/view/settings/legal_links.dart';
 import 'package:fireplace/src/view/settings/preview_diagnostics_screen.dart';
 import 'package:fireplace/src/view/settings/settings_actions.dart';
 import 'package:fireplace/src/view/settings/settings_category.dart';
+import 'package:fireplace/src/widgets/settings/settings_group.dart';
 import 'package:fireplace/src/widgets/settings/settings_page.dart';
-import 'package:fireplace/src/widgets/settings_section.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 
-/// Settings → Help and about: the privacy policy and terms of use.
+/// Settings → Help and about: the privacy policy, terms of use and the
+/// open-source licences.
+///
+/// The app version is not shown: reading it needs a plugin the app does not
+/// have, and a copy in the code could fall out of step with the release.
 class HelpSettingsScreen extends ConsumerStatefulWidget {
   const HelpSettingsScreen({super.key});
 
@@ -20,33 +25,51 @@ class HelpSettingsScreen extends ConsumerStatefulWidget {
 class _HelpSettingsScreenState extends ConsumerState<HelpSettingsScreen>
     with SettingsActions {
   @override
-  Widget build(BuildContext context) => SettingsPage(
-    key: SettingsCategory.help.pageKey,
-    title: SettingsCategory.help.title,
-    children: [
-      ...errorRows,
-      UiSettingsSection(
-        title: 'About',
-        children: [
-          ListTile(
-            key: const Key('openPrivacyPolicy'),
-            leading: const Icon(Icons.policy_outlined),
-            title: const Text('Privacy policy'),
-            onLongPress: previewDiagnosticsEnabled
-                ? () => open(const PreviewDiagnosticsScreen())
-                : null,
-            trailing: const Icon(Icons.chevron_right),
-            onTap: busy ? null : () => openLegal(privacyPolicyUrl),
-          ),
-          ListTile(
-            key: const Key('openTermsOfUse'),
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('Terms of use'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: busy ? null : () => openLegal(termsOfUseUrl),
-          ),
-        ],
-      ),
-    ],
-  );
+  Widget build(BuildContext context) {
+    const category = SettingsCategory.help;
+    return SettingsPage(
+      key: category.pageKey,
+      title: category.title,
+      children: [
+        ...errorRows,
+        SettingsGroup(
+          children: [
+            SettingsTile(
+              key: const Key('openPrivacyPolicy'),
+              leading: const SettingsCategoryIcon(
+                category,
+                Icons.policy_rounded,
+              ),
+              title: 'Privacy policy',
+              onLongPress: previewDiagnosticsEnabled
+                  ? () => open(const PreviewDiagnosticsScreen())
+                  : null,
+              onTap: busy ? null : () => openLegal(privacyPolicyUrl),
+            ),
+            SettingsTile(
+              key: const Key('openTermsOfUse'),
+              leading: const SettingsCategoryIcon(
+                category,
+                Icons.description_rounded,
+              ),
+              title: 'Terms of use',
+              onTap: busy ? null : () => openLegal(termsOfUseUrl),
+            ),
+            // Flutter's own licence page, until ours is designed.
+            SettingsTile(
+              key: const Key('openLicences'),
+              leading: const SettingsCategoryIcon(category, Icons.code_rounded),
+              title: 'Open-source licences',
+              onTap: busy
+                  ? null
+                  : () => showLicensePage(
+                      context: context,
+                      applicationName: 'Fireplace',
+                    ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }

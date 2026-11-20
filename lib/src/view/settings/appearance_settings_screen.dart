@@ -6,8 +6,9 @@ import 'package:fireplace/src/view/settings/chat_appearance.dart';
 import 'package:fireplace/src/view/settings/settings_actions.dart';
 import 'package:fireplace/src/view/settings/settings_category.dart';
 import 'package:fireplace/src/view/settings/theme_mode_tile.dart';
+import 'package:fireplace/src/widgets/settings/settings_group.dart';
 import 'package:fireplace/src/widgets/settings/settings_page.dart';
-import 'package:fireplace/src/widgets/settings_section.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 
 /// Settings → Appearance: the theme on this device and your colour.
 class AppearanceSettingsScreen extends ConsumerStatefulWidget {
@@ -23,22 +24,27 @@ class _AppearanceSettingsScreenState
     with SettingsActions {
   @override
   Widget build(BuildContext context) {
+    const category = SettingsCategory.appearance;
     final colors = ref.watch(chatBubbleColorsProvider);
     return SettingsPage(
-      key: SettingsCategory.appearance.pageKey,
-      title: SettingsCategory.appearance.title,
+      key: category.pageKey,
+      title: category.title,
       children: [
         ...errorRows,
-        UiSettingsSection(
-          title: 'Appearance',
+        SettingsGroup(
+          footer:
+              'The theme is for this device. Your color is part of your '
+              'profile, so the people you chat with see it.',
           children: [
             const ThemeModeTile(),
-            ListTile(
+            SettingsTile(
               key: const Key('chatColors'),
-              leading: const Icon(Icons.palette_outlined),
-              title: const Text('Your color'),
-              subtitle: Text(colors.outgoing.label),
-              trailing: const Icon(Icons.chevron_right),
+              leading: const SettingsCategoryIcon(
+                category,
+                Icons.palette_rounded,
+              ),
+              title: 'Your color',
+              value: colors.outgoing.label,
               onTap: busy ? null : () => open(const ChatAppearanceScreen()),
             ),
           ],

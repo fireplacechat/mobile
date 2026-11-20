@@ -8,7 +8,9 @@ import 'package:fireplace/src/view/settings/push_settings.dart';
 import 'package:fireplace/src/view/settings/settings_actions.dart';
 import 'package:fireplace/src/view/settings/settings_category.dart';
 import 'package:fireplace/src/widgets/dialog.dart';
-import 'package:fireplace/src/widgets/settings_section.dart';
+import 'package:fireplace/src/styles/design_tokens.dart';
+import 'package:fireplace/src/widgets/settings/settings_group.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 
 /// Settings → Notifications and sounds: alerts while Fireplace is closed,
 /// banners and sounds while it is open, and the reset for unread counts
@@ -53,14 +55,15 @@ class _NotificationSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
+    const category = SettingsCategory.notifications;
     final activity = ref.watch(chatActivityProvider);
     return SettingsSessionPage(
-      key: SettingsCategory.notifications.pageKey,
-      title: SettingsCategory.notifications.title,
+      key: category.pageKey,
+      title: category.title,
       builder: (s) => [
         ...errorRows,
         if (!activity.preferencesAvailable)
-          UiSettingsSection(
+          SettingsGroup(
             title: 'On this device',
             children: [
               const Padding(
@@ -71,21 +74,33 @@ class _NotificationSettingsScreenState
                   'kept.',
                 ),
               ),
-              TextButton(
+              SettingsTile(
                 key: const Key('resetChatPreferences'),
-                onPressed: busy ? null : _reset,
-                child: const Text('Reset unread and notification preferences'),
+                leading: const SettingsCategoryIcon(
+                  category,
+                  Icons.restart_alt_rounded,
+                ),
+                title: 'Reset unread and notification preferences',
+                titleColor: FireplaceUiTokens.of(context).accentText,
+                chevron: false,
+                onTap: busy ? null : _reset,
               ),
             ],
           ),
         if (pushEnabled && s.pushNotifications != null)
           PushSettingsSection(service: s.pushNotifications!),
-        UiSettingsSection(
+        SettingsGroup(
           title: 'In the app',
+          footer:
+              'While Fireplace is open, a banner shows who wrote and what '
+              'they said. Turned off, it says only “New message”.',
           children: [
             SwitchListTile(
               key: const Key('notificationPreviews'),
-              secondary: const Icon(Icons.chat_bubble_outline),
+              secondary: const SettingsCategoryIcon(
+                category,
+                Icons.chat_bubble_rounded,
+              ),
               title: const Text('In-App Notifications'),
               value: activity.previewText,
               onChanged: busy || !activity.preferencesAvailable
@@ -98,7 +113,10 @@ class _NotificationSettingsScreenState
             ),
             SwitchListTile(
               key: const Key('sendSound'),
-              secondary: const Icon(Icons.send_outlined),
+              secondary: const SettingsCategoryIcon(
+                category,
+                Icons.send_rounded,
+              ),
               title: const Text('Send sound'),
               value: ref.watch(sendSoundProvider).value ?? true,
               onChanged: busy

@@ -107,7 +107,7 @@ release. The final ordinary build needs another reviewed build number and
 `preview_diagnostics=false` (the default). An uploaded binary cannot have
 diagnostics stripped later.
 
-On the iPhone X (iOS 16.7), long-press **Settings > Privacy and terms** for
+On the iPhone X (iOS 16.7), long-press **Settings → Help and about → Privacy policy** for
 **Preview test results**. After each case, refresh and record outcome,
 duration and peak. Aim for about 12 MB peak and under 5 seconds. An incomplete
 run is not proof of memory safety; a missing run can also mean iOS did not

@@ -5,6 +5,7 @@ import 'package:fireplace/src/app/passphrase_lock_providers.dart';
 import 'package:fireplace/src/app/providers.dart';
 import 'package:fireplace/src/db/secret_store.dart';
 import 'package:fireplace/src/db/wrapping_secret_store.dart';
+import 'package:fireplace/src/model/account/takeover.dart';
 import 'package:fireplace/src/model/lock/passphrase_lock.dart';
 import 'package:fireplace/src/model/settings/local_chat_preferences.dart';
 import 'package:fireplace/src/styles/theme.dart';
@@ -16,6 +17,8 @@ import 'package:fireplace/src/view/settings/notification_settings_screen.dart';
 import 'package:fireplace/src/view/settings/privacy_settings_screen.dart';
 import 'package:fireplace/src/view/settings/settings_category.dart';
 import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/widgets/settings/settings_icon.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 import 'package:fireplace/src/widgets/swipe_back_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,7 +65,11 @@ const _settings = {
     'lostPhoneWait',
     'linkDevice',
   ],
-  SettingsCategory.help: ['openPrivacyPolicy', 'openTermsOfUse'],
+  SettingsCategory.help: [
+    'openPrivacyPolicy',
+    'openTermsOfUse',
+    'openLicences',
+  ],
 };
 
 const _pages = {
@@ -151,6 +158,59 @@ void main() {
       await t.pumpAndSettle();
       expect(find.byType(SettingsScreen), findsOneWidget);
       expect(find.byType(_pages[category]!), findsNothing);
+    });
+  }
+
+  testWidgets('rows show their current values', (t) async {
+    final f = UiFixture(pushNotifications: fixturePush())
+      ..takeover.chosen = LostPhoneWait.oneWeek;
+    await _open(t, fixture: f);
+    String? value(String key) =>
+        t.widget<SettingsTile>(find.byKey(Key(key))).value;
+    for (final (category, key, expected) in [
+      (SettingsCategory.privacy, 'passphraseLock', 'Off'),
+      (SettingsCategory.appearance, 'themeMode', 'Light'),
+      (SettingsCategory.appearance, 'chatColors', 'Ember'),
+      (SettingsCategory.devices, 'lostPhoneWait', '1 week'),
+    ]) {
+      await _tapCategory(t, category);
+      expect(value(key), expected, reason: key);
+      expect(
+        find.descendant(
+          of: find.byKey(Key(key)),
+          matching: find.text(expected),
+        ),
+        findsOneWidget,
+      );
+      await t.pageBack();
+      await t.pumpAndSettle();
+    }
+    await _tapCategory(t, SettingsCategory.account);
+    expect(find.text('Your username'), findsOneWidget);
+    expect(find.text('@alice'), findsOneWidget);
+  });
+
+  for (final (scale, iconSize) in [
+    (1.35, const Size.square(SettingsIcon.size)),
+    (2.0, Size.zero),
+  ]) {
+    testWidgets('at text scale $scale on a narrow phone the icons are '
+        '$iconSize and nothing overflows', (t) async {
+      t.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(t.platformDispatcher.clearTextScaleFactorTestValue);
+      await _open(t, size: const Size(320, 640));
+      expect(t.takeException(), isNull);
+      expect(t.getSize(find.byType(SettingsIcon).first), iconSize);
+      for (final category in SettingsCategory.values) {
+        final row = find.byKey(category.rowKey);
+        await t.ensureVisible(row);
+        await t.pumpAndSettle();
+        await t.tap(row);
+        await t.pumpAndSettle();
+        expect(t.takeException(), isNull, reason: category.title);
+        await t.pageBack();
+        await t.pumpAndSettle();
+      }
     });
   }
 

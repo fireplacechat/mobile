@@ -3,6 +3,7 @@ import 'package:fireplace/src/view/settings/account_settings_screen.dart';
 import 'package:fireplace/src/view/settings/appearance_settings_screen.dart';
 import 'package:fireplace/src/view/settings/devices_settings_screen.dart';
 import 'package:fireplace/src/view/settings/help_settings_screen.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 import 'package:fireplace/src/styles/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -98,9 +99,9 @@ void main() {
       (const HelpSettingsScreen(), 'openTermsOfUse', 'Terms of use'),
     ]) {
       await _openSettings(t, page: page);
-      final tile = t.widget<ListTile>(find.byKey(Key(key)));
-      expect((tile.title! as Text).data, title);
-      expect(tile.subtitle, isNull, reason: '$title has no second line');
+      final tile = t.widget<SettingsTile>(find.byKey(Key(key)));
+      expect(tile.title, title);
+      expect(tile.value, isNull, reason: '$title shows no value');
     }
   });
 }

@@ -8,7 +8,9 @@ import 'package:fireplace/src/view/account/account_deletion_screens.dart';
 import 'package:fireplace/src/view/account/change_password_dialog.dart';
 import 'package:fireplace/src/view/settings/settings_actions.dart';
 import 'package:fireplace/src/view/settings/settings_category.dart';
-import 'package:fireplace/src/widgets/settings_section.dart';
+import 'package:fireplace/src/widgets/settings/settings_group.dart';
+import 'package:fireplace/src/widgets/settings/settings_icon.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 
 /// Settings → Account: your username and password; signing out and deleting
 /// the account sit apart at the bottom.
@@ -24,37 +26,45 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen>
     with SettingsActions {
   @override
   Widget build(BuildContext context) {
+    const category = SettingsCategory.account;
     final danger = FireplaceUiTokens.of(context).danger;
     return SettingsSessionPage(
-      key: SettingsCategory.account.pageKey,
-      title: SettingsCategory.account.title,
+      key: category.pageKey,
+      title: category.title,
       builder: (s) => [
         ...errorRows,
-        UiSettingsSection(
-          title: 'Account',
+        SettingsGroup(
+          footer: 'People start a chat with you by your username.',
           children: [
-            ListTile(
-              leading: const Icon(Icons.person_outline),
-              title: Text('@${s.username}'),
-              subtitle: const Text('Your username'),
+            SettingsTile(
+              leading: const SettingsCategoryIcon(
+                category,
+                Icons.alternate_email_rounded,
+              ),
+              title: 'Your username',
+              value: '@${s.username}',
+              chevron: false,
             ),
-            ListTile(
+            SettingsTile(
               key: const Key('changePassword'),
-              leading: const Icon(Icons.password),
-              title: const Text('Change password'),
+              leading: const SettingsCategoryIcon(
+                category,
+                Icons.password_rounded,
+              ),
+              title: 'Change password',
               onTap: busy
                   ? null
                   : () => run(() => showChangePasswordDialog(context, ref)),
             ),
           ],
         ),
-        UiSettingsSection(
-          title: 'Account actions',
+        SettingsGroup(
           children: [
-            ListTile(
+            SettingsTile(
               key: const Key('signOut'),
-              leading: Icon(Icons.logout, color: danger),
-              title: const Text('Sign out'),
+              leading: SettingsIcon.bare(Icons.logout_rounded, color: danger),
+              title: 'Sign out',
+              chevron: false,
               onTap: busy
                   ? null
                   : () => run(() async {
@@ -64,10 +74,12 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen>
                       }
                     }),
             ),
-            ListTile(
+            SettingsTile(
               key: const Key('deleteAccountTile'),
-              leading: Icon(ActionIcons.delete, color: danger),
-              title: Text('Delete account', style: TextStyle(color: danger)),
+              leading: SettingsIcon.bare(ActionIcons.delete, color: danger),
+              title: 'Delete account',
+              titleColor: danger,
+              chevron: false,
               onTap: busy ? null : () => open(const DeleteAccountScreen()),
             ),
           ],

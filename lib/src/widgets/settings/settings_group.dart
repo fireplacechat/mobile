@@ -30,6 +30,8 @@ class SettingsGroup extends StatelessWidget {
     final t = FireplaceUiTokens.of(context);
     final small = Theme.of(context).textTheme.bodySmall;
     final hairline = math.max(.5, 1 / MediaQuery.devicePixelRatioOf(context));
+    // Without icons (very large text) the text starts at the padding.
+    final iconless = SettingsIcon.hiddenAt(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
@@ -57,8 +59,8 @@ class SettingsGroup extends StatelessWidget {
                 start: _padding,
                 end: 12,
               ),
-              minLeadingWidth: SettingsIcon.size,
-              horizontalTitleGap: _gap,
+              minLeadingWidth: iconless ? 0 : SettingsIcon.size,
+              horizontalTitleGap: iconless ? 8 : _gap,
               minVerticalPadding: 10,
               // Square, so a press fills the row inside the rounded card.
               shape: const RoundedRectangleBorder(),
@@ -70,7 +72,7 @@ class SettingsGroup extends StatelessWidget {
                       Divider(
                         height: hairline,
                         thickness: hairline,
-                        indent: textStart,
+                        indent: iconless ? _padding + 8 : textStart,
                         color: t.separator,
                       ),
                     children[i],

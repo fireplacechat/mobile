@@ -1,45 +1,57 @@
-import 'package:fireplace/src/view/settings/help_settings_screen.dart';
+// The open-source licences are back under Help and about (issue 249). Until
+// their own page is designed, the row opens Flutter's licence page.
 import 'package:fireplace/src/styles/theme.dart';
-import 'package:fireplace/src/widgets/settings_section.dart';
+import 'package:fireplace/src/view/settings/help_settings_screen.dart';
+import 'package:fireplace/src/view/settings/settings_category.dart';
+import 'package:fireplace/src/view/settings/settings_screen.dart';
+import 'package:fireplace/src/widgets/settings/settings_tile.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/ui_fixture.dart';
 
+Future<void> _open(WidgetTester tester, Widget home) async {
+  tester.view.physicalSize = const Size(800, 1600);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  final fixture = UiFixture();
+  addTearDown(fixture.session.close);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: fixture.overrides,
+      child: MaterialApp(theme: fireplaceTheme(Brightness.light), home: home),
+    ),
+  );
+  await settleUi(tester);
+}
+
 void main() {
-  testWidgets('About only shows privacy policy and terms of use', (
+  testWidgets('Help and about has the privacy policy, terms of use and '
+      'open-source licences, in that order', (tester) async {
+    await _open(tester, const HelpSettingsScreen());
+    final rows = tester
+        .widgetList<SettingsTile>(find.byType(SettingsTile))
+        .map((row) => row.title)
+        .toList();
+    expect(rows, ['Privacy policy', 'Terms of use', 'Open-source licences']);
+    // No version: the app has no way to read it without a new plugin.
+    expect(find.textContaining('Version'), findsNothing);
+  });
+
+  testWidgets('the licences row opens the licence page, and Back returns', (
     tester,
   ) async {
-    final fixture = UiFixture();
-    addTearDown(fixture.session.close);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: fixture.overrides,
-        child: MaterialApp(
-          theme: fireplaceTheme(Brightness.light),
-          home: const HelpSettingsScreen(),
-        ),
-      ),
-    );
-    await settleUi(tester);
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('openTermsOfUse')),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
+    await _open(tester, const SettingsScreen());
+    await tester.tap(find.byKey(SettingsCategory.help.rowKey));
     await tester.pumpAndSettle();
-    final about = find.ancestor(
-      of: find.text('About'),
-      matching: find.byType(UiSettingsSection),
-    );
-    expect(
-      find.descendant(of: about, matching: find.byType(ListTile)),
-      findsNWidgets(2),
-    );
-    expect(find.byKey(const Key('openPrivacyPolicy')), findsOneWidget);
-    expect(find.byKey(const Key('openTermsOfUse')), findsOneWidget);
-    expect(find.byKey(const Key('openLicences')), findsNothing);
-    expect(find.text('Open-source licences'), findsNothing);
+    await tester.tap(find.byKey(const Key('openLicences')));
+    await tester.pumpAndSettle();
+    expect(find.byType(LicensePage), findsOneWidget);
+    expect(find.text('Fireplace'), findsWidgets);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(LicensePage), findsNothing);
+    expect(find.byType(HelpSettingsScreen), findsOneWidget);
   });
 }
